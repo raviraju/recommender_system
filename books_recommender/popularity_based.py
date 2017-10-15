@@ -8,10 +8,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from recommender.popularity_based import PopularityBasedRecommender
 
-def load_data():
+def load_data(data_dir):
     """Loads data and returns training and test set"""
     #Read learner_id-book_code-view_count triplets
-    bookclub_events = 'data/bookclub_events.csv'
+    bookclub_events =  os.path.join(data_dir, 'bookclub_events.csv')
 
     bookclub_events_df = pandas.read_csv(bookclub_events,
                                          parse_dates=['event_time', 'receipt_time'],
@@ -26,10 +26,16 @@ def load_data():
 
 def main():
     """Method for Popularity Based Recommender"""
-    train_data, test_data = load_data()
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(current_dir, 'data')
+    results_dir = os.path.join(current_dir, 'results')
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+
+    train_data, test_data = load_data(data_dir)
     #print(train_data.head(5))
     #print(test_data.head(5))
-    popularity_reco = PopularityBasedRecommender()
+    popularity_reco = PopularityBasedRecommender(results_dir)
     popularity_reco.train(train_data, 'learner_id', 'book_code')
 
     learners = test_data['learner_id'].unique()
