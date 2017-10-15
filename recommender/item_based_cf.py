@@ -1,26 +1,29 @@
 """Module for Item Based Colloborative Filtering Recommender"""
 import os
 import sys
+from timeit import default_timer
+
 import numpy as np
 import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from lib import utilities
 from recommender.reco_interface import RecommenderIntf
 
 class ItemBasedCFRecommender(RecommenderIntf):
     """Item based colloborative filtering recommender system model"""
-    def __init__(self):
+    def __init__(self, results_dir):
         """constructor"""
-        super().__init__()
+        super().__init__(results_dir)
         self.cooccurence_matrix = None
         self.items_dict = None
         self.rev_items_dict = None
         self.recommendations = None
 
-    def get_user_items(self, user):
+    def get_user_items(self, user_id):
         """Get unique items for a given user"""
-        user_data = self.train_data[self.train_data[self.user_id] == user]
+        user_data = self.train_data[self.train_data[self.user_id] == user_id]
         user_items = list(user_data[self.item_id].unique())
         return user_items
 
@@ -29,6 +32,11 @@ class ItemBasedCFRecommender(RecommenderIntf):
         item_data = self.train_data[self.train_data[self.item_id] == item]
         item_users = list(item_data[self.user_id].unique())
         return item_users
+
+    def get_all_users_train_data(self):
+        """Get unique users in the training data"""
+        all_users = list(self.train_data[self.user_id].unique())
+        return all_users
 
     def get_all_items_train_data(self):
         """Get unique items in the training data"""
@@ -75,12 +83,14 @@ class ItemBasedCFRecommender(RecommenderIntf):
                 else:
                     cooccurence_matrix[j, i] = 0
 
+        non_zeros = np.count_nonzero(cooccurence_matrix)
+        print("Non zero values in Co-Occurence_matrix : {}".format(non_zeros))
+        density = float(non_zeros / cooccurence_matrix.size)
+        print("Density : {}".format(density))
         return cooccurence_matrix
 
     def generate_top_recommendations(self, user, cooccurence_matrix, all_items, user_items):
         """Use the cooccurence matrix to make top recommendations"""
-        print("Non zero values in sparse cooccurence_matrix : {}".format(np.count_nonzero(cooccurence_matrix)))
-
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
         user_sim_scores = cooccurence_matrix.sum(axis=0) / float(cooccurence_matrix.shape[0])
@@ -109,37 +119,45 @@ class ItemBasedCFRecommender(RecommenderIntf):
         else:
             return df
 
-    
     def train(self, train_data, user_id, item_id):
         """Train the item similarity based recommender system model"""
         self.train_data = train_data
         self.user_id = user_id
         self.item_id = item_id
 
-    def recommend(self, user):
+    def recommend(self, user_id):
         """Use the item similarity based recommender system model to make recommendations"""
-        ########################################
-        # A. Get all unique items for this user
-        ########################################
-        user_items = self.get_user_items(user)
-        print("No. of unique items for the user: {}".format(len(user_items)))
+        all_users = self.get_all_users_train_data()
+        print("No. of users in the training set: {}".format(len(all_users)))
 
         ######################################################
-        # B. Get all unique items in the training data
+        # A. Get all unique items in the training data
         ######################################################
         all_items = self.get_all_items_train_data()
-        print("No. of unique items in the training set: {}".format(len(all_items)))
+        print("No. of items in the training set: {}".format(len(all_items)))
+
+        ########################################
+        # B. Get all unique items for this user
+        ########################################
+        user_items = self.get_user_items(user_id)
+        print("No. of items for the user_id {} : {}".format(user_id, len(user_items)))
 
         ###############################################
         # C. Construct item cooccurence matrix of size
         # len(user_items) X len(items)
         ###############################################
+        start_time = default_timer()
         cooccurence_matrix = self.construct_cooccurence_matrix(user_items, all_items)
+        end_time = default_timer()
+        print("{:50}    {}".format("Computing CoOccurence Matrix Completed in : ", utilities.convert_sec(end_time - start_time)))
 
         #######################################################
         # D. Use the cooccurence matrix to make recommendations
         #######################################################
-        user_recommendations = self.generate_top_recommendations(user, cooccurence_matrix, all_items, user_items)
+        start_time = default_timer()
+        user_recommendations = self.generate_top_recommendations(user_id, cooccurence_matrix, all_items, user_items)
+        end_time = default_timer()
+        print("{:50}    {}".format("Recommendations generated in : ", utilities.convert_sec(end_time - start_time)))
 
         recommendations_file = os.path.join(self.results_dir, 'item_based_cf_recommendation.csv')
         user_recommendations.to_csv(recommendations_file)

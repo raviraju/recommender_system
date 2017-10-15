@@ -8,12 +8,9 @@ from abc import ABCMeta, abstractmethod
 
 class RecommenderIntf(metaclass=ABCMeta):
     """Abstract Base Class Interface"""
-    def __init__(self):
+    def __init__(self, results_dir):
         """constructor"""
-        self.current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.results_dir = os.path.join(self.current_dir, 'results')
-        if not os.path.exists(self.results_dir):
-            os.makedirs(self.results_dir)
+        self.results_dir = results_dir
 
         self.train_data = None
         self.user_id = None

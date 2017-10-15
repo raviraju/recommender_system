@@ -8,11 +8,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from recommender.item_based_cf import ItemBasedCFRecommender
 
-def load_data():
+def load_data(data_dir):
     """Loads data and returns training and test set"""
     #Read userid-songid-listen_count triplets
-    triplets_file = 'data/10000.txt'
-    songs_metadata_file = 'data/song_data.csv'
+    triplets_file = os.path.join(data_dir, '10000.txt')
+    songs_metadata_file = os.path.join(data_dir, 'song_data.csv')
 
     song_df_1 = pandas.read_table(triplets_file, header=None)
     song_df_1.columns = ['user_id', 'song_id', 'listen_count']
@@ -34,17 +34,25 @@ def load_data():
 
 def main():
     """Method for Item Based Recommender"""
-    train_data, test_data = load_data()
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(current_dir, 'data')
+    results_dir = os.path.join(current_dir, 'results')
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+
+    train_data, test_data = load_data(data_dir)
     #print(train_data.head(5))
     #print(test_data.head(5))
-    item_based_cf_reco = ItemBasedCFRecommender()
+
+    item_based_cf_reco = ItemBasedCFRecommender(results_dir)
     item_based_cf_reco.train(train_data, 'user_id', 'song')
 
     #users = test_data['user_id'].unique()
     #user_id = users[0]
     user_id = '97e48f0f188e04dcdb0f8e20a29dacb881d80c9e'
     recommendations = item_based_cf_reco.recommend(user_id)
-    print(recommendations)
+    #print(recommendations)
+    print("Item Based Recommendations are found in results/")
 
 if __name__ == '__main__':
     main()
