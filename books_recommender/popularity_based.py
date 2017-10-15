@@ -42,7 +42,8 @@ def main():
     learner_id = learners[0]
     #learner_id = 5
     recommendations = popularity_reco.recommend(learner_id)
-    print(recommendations)
+    #print(recommendations)
+    print("Popularity Based Recommendations are found in results/")
 
 if __name__ == '__main__':
     main()

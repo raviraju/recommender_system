@@ -42,7 +42,8 @@ def main():
     learner_id = learners[0]
     #learner_id = 5
     recommendations = item_based_cf_reco.recommend(learner_id)
-    print(recommendations)
+    #print(recommendations)
+    print("Item Based Recommendations are found in results/")
 
 if __name__ == '__main__':
     main()
