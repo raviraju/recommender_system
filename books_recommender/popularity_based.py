@@ -8,31 +8,25 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from recommender.popularity_based import PopularityBasedRecommender
 
-def load_data(data_dir):
+def load_train_test(learner_books_file):
     """Loads data and returns training and test set"""
     #Read learner_id-book_code-view_count triplets
-    bookclub_events =  os.path.join(data_dir, 'bookclub_events.csv')
+    learner_books_df = pandas.read_csv(learner_books_file)
 
-    bookclub_events_df = pandas.read_csv(bookclub_events,
-                                         parse_dates=['event_time', 'receipt_time'],
-                                         dtype={'contents_code': str,
-                                                'library_source' : str,
-                                                'media_fm' : str})
-    books_df = bookclub_events_df.groupby(['learner_id','book_code']).size().reset_index().rename(columns={0:'view_count'})
-
-    train_data, test_data = train_test_split(books_df, test_size = 0.20, random_state=0)
+    train_data, test_data = train_test_split(learner_books_df, test_size = 0.20, random_state=0)
 
     return train_data, test_data
 
 def main():
     """Method for Popularity Based Recommender"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(current_dir, 'data')
+    preprocessed_data = os.path.join(current_dir, 'preprocessed_data')
     results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
-    train_data, test_data = load_data(data_dir)
+    learner_books_file = os.path.join(preprocessed_data, 'learner_books.csv')
+    train_data, test_data = load_train_test(learner_books_file)
     #print(train_data.head(5))
     #print(test_data.head(5))
     popularity_reco = PopularityBasedRecommender(results_dir)
