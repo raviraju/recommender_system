@@ -13,15 +13,15 @@ class RecommenderIntf(metaclass=ABCMeta):
         self.results_dir = results_dir
 
         self.train_data = None
-        self.user_id = None
-        self.item_id = None
+        self.user_id_col = None
+        self.item_id_col = None
 
     @abstractmethod
-    def train(self, train_data, user_id, item_id):
+    def train(self, train_data, user_id_col, item_id_col):
         """train recommender"""
         raise NotImplementedError()
 
     @abstractmethod
-    def recommend(self, user_id):
+    def recommend(self, user_id, no_of_recommendations=10):
         """recommend items for given user_id"""
         raise NotImplementedError()

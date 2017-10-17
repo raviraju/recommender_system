@@ -23,24 +23,24 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
     def get_user_items(self, user_id):
         """Get unique items for a given user"""
-        user_data = self.train_data[self.train_data[self.user_id] == user_id]
-        user_items = list(user_data[self.item_id].unique())
+        user_data = self.train_data[self.train_data[self.user_id_col] == user_id]
+        user_items = list(user_data[self.item_id_col].unique())
         return user_items
 
     def get_item_users(self, item):
         """Get unique users for a given item"""
-        item_data = self.train_data[self.train_data[self.item_id] == item]
-        item_users = list(item_data[self.user_id].unique())
+        item_data = self.train_data[self.train_data[self.item_id_col] == item]
+        item_users = list(item_data[self.user_id_col].unique())
         return item_users
 
     def get_all_users_train_data(self):
         """Get unique users in the training data"""
-        all_users = list(self.train_data[self.user_id].unique())
+        all_users = list(self.train_data[self.user_id_col].unique())
         return all_users
 
     def get_all_items_train_data(self):
         """Get unique items in the training data"""
-        all_items = list(self.train_data[self.item_id].unique())
+        all_items = list(self.train_data[self.item_id_col].unique())
         return all_items
 
     def construct_cooccurence_matrix(self, user_items, all_items):
@@ -65,8 +65,8 @@ class ItemBasedCFRecommender(RecommenderIntf):
         #############################################################
         for i in range(0, len(all_items)):
             # Calculate unique users of item i of all_items
-            items_i_data = self.train_data[self.train_data[self.item_id] == all_items[i]]
-            users_i = set(items_i_data[self.user_id].unique())
+            items_i_data = self.train_data[self.train_data[self.item_id_col] == all_items[i]]
+            users_i = set(items_i_data[self.user_id_col].unique())
 
             for j in range(0, len(user_items)):
                 # Get unique users of item j of user_items
@@ -89,7 +89,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         print("Density : {}".format(density))
         return cooccurence_matrix
 
-    def generate_top_recommendations(self, user, cooccurence_matrix, all_items, user_items):
+    def generate_top_recommendations(self, user, cooccurence_matrix, all_items, user_items, no_of_recommendations):
         """Use the cooccurence matrix to make top recommendations"""
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
@@ -101,14 +101,14 @@ class ItemBasedCFRecommender(RecommenderIntf):
         sort_index = sorted(((e, i) for i, e in enumerate(list(user_sim_scores))), reverse=True)
 
         # Create a dataframe from the following
-        columns = ['user_id', 'item', 'score', 'rank']
+        columns = ['user_id', 'item_id', 'score', 'rank']
         # index = np.arange(1) # array of numbers for the number of samples
         df = pd.DataFrame(columns=columns)
 
         # Fill the dataframe with top 10 item based recommendations
         rank = 1
         for i in range(0, len(sort_index)):
-            if ~np.isnan(sort_index[i][0]) and all_items[sort_index[i][1]] not in user_items and rank <= 10:
+            if ~np.isnan(sort_index[i][0]) and all_items[sort_index[i][1]] not in user_items and rank <= no_of_recommendations:
                 df.loc[len(df)] = [user, all_items[sort_index[i][1]], sort_index[i][0], rank]
                 rank = rank + 1
 
@@ -119,13 +119,13 @@ class ItemBasedCFRecommender(RecommenderIntf):
         else:
             return df
 
-    def train(self, train_data, user_id, item_id):
+    def train(self, train_data, user_id_col, item_id_col):
         """Train the item similarity based recommender system model"""
         self.train_data = train_data
-        self.user_id = user_id
-        self.item_id = item_id
+        self.user_id_col = user_id_col
+        self.item_id_col = item_id_col
 
-    def recommend(self, user_id):
+    def recommend(self, user_id, no_of_recommendations=10):
         """Use the item similarity based recommender system model to make recommendations"""
         all_users = self.get_all_users_train_data()
         print("No. of users in the training set: {}".format(len(all_users)))
@@ -155,14 +155,15 @@ class ItemBasedCFRecommender(RecommenderIntf):
         # D. Use the cooccurence matrix to make recommendations
         #######################################################
         start_time = default_timer()
-        user_recommendations = self.generate_top_recommendations(user_id, cooccurence_matrix, all_items, user_items)
+        user_recommendations = self.generate_top_recommendations(user_id, cooccurence_matrix, all_items, user_items, no_of_recommendations)
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated in : ", utilities.convert_sec(end_time - start_time)))
 
         recommendations_file = os.path.join(self.results_dir, 'item_based_cf_recommendation.csv')
         user_recommendations.to_csv(recommendations_file)
 
-        return user_recommendations
+        recommended_items = user_recommendations['item_id']
+        return recommended_items
 
     def get_similar_items(self, item_list):
         """Get items similar to given items"""

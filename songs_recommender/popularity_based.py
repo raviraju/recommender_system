@@ -7,6 +7,7 @@ from sklearn.cross_validation import train_test_split
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from recommender.popularity_based import PopularityBasedRecommender
+from recommender.evaluation import PrecisionRecall
 
 def load_data(data_dir):
     """Loads data and returns training and test set"""
@@ -41,18 +42,22 @@ def main():
         os.makedirs(results_dir)
 
     train_data, test_data = load_data(data_dir)
-    #print(train_data.head(5))
-    #print(test_data.head(5))
+    # print(train_data.head(5))
+    # print(test_data.head(5))
 
-    popularity_reco = PopularityBasedRecommender(results_dir)
-    popularity_reco.train(train_data, 'user_id', 'song')
+    model = PopularityBasedRecommender(results_dir)
+    model.train(train_data, user_id_col='user_id', item_id_col='song')
 
     #users = test_data['user_id'].unique()
     #user_id = users[0]
     user_id = '97e48f0f188e04dcdb0f8e20a29dacb881d80c9e'
-    recommendations = popularity_reco.recommend(user_id)
-    #print(recommendations)
-    print("Popularity Based Recommendations are found in results/")
+    recommended_items = model.recommend(user_id)
+    print(recommended_items)
+    #print("Popularity Based Recommendation Results are found in results/")
+
+    precision_recall_intf = PrecisionRecall(train_data, test_data, model, user_id_col='user_id', item_id_col='song')
+    results = precision_recall_intf.compute_measures(test_users_percentage=0.1)
+    print(results)
 
 if __name__ == '__main__':
     main()

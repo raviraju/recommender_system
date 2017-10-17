@@ -22,6 +22,7 @@ def extract_learner_books(bookclub_events):
         os.makedirs(preprocessed_data_dir)
     learner_books_file = os.path.join(preprocessed_data_dir, 'learner_books.csv')
     learner_book_dataframe.to_csv(learner_books_file)
+    print("Preprocessed data available in preprocessed_data/")
 
 if __name__ == '__main__':
     bookclub_events = os.path.join('data/', 'bookclub_events.csv')
