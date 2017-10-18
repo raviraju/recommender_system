@@ -21,12 +21,12 @@ def load_train_test(learner_books_file):
 def main():
     """Method for Popularity Based Recommender"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    preprocessed_data = os.path.join(current_dir, 'preprocessed_data')
+    preprocessed_dir = os.path.join(current_dir, 'preprocessed_data')
     results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
-    learner_books_file = os.path.join(preprocessed_data, 'learner_books.csv')
+    learner_books_file = os.path.join(preprocessed_dir, 'learner_books.csv')
     train_data, test_data = load_train_test(learner_books_file)
     #print(train_data.head(5))
     #print(test_data.head(5))

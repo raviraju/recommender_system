@@ -42,18 +42,18 @@ class PopularityBasedRecommender(RecommenderIntf):
 
     def recommend(self, user_id, no_of_recommendations=10):
         """Generate item recommendations for given user_id"""
-        start_time = default_timer()
+        # start_time = default_timer()
         #Get the top recommendations
         user_recommendations = self.all_recommendations.head(no_of_recommendations)
 
         #Add user_id column for which the recommendations are being generated
-        user_recommendations['user_id'] = user_id
+        # user_recommendations.loc[:, 'user_id'] = user_id
 
         #Bring user_id column to the front
-        cols = user_recommendations.columns.tolist()
-        cols = cols[-1:] + cols[:-1]
-        user_recommendations = user_recommendations[cols]
-        end_time = default_timer()
+        # cols = user_recommendations.columns.tolist()
+        # cols = cols[-1:] + cols[:-1]
+        # user_recommendations = user_recommendations[cols]
+        # end_time = default_timer()
         #print("{:50}    {}".format("Recommendations generated in : ", utilities.convert_sec(end_time - start_time)))
         #recommendations_file = os.path.join(self.results_dir, 'popular_recommendation.csv')
         #user_recommendations.to_csv(recommendations_file)
