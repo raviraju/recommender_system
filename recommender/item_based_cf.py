@@ -1,87 +1,121 @@
 """Module for Item Based Colloborative Filtering Recommender"""
 import os
 import sys
+import logging
 from timeit import default_timer
+import joblib
 
 import numpy as np
 import pandas as pd
+
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger(__name__)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib import utilities
 from recommender.reco_interface import RecommenderIntf
+from recommender.evaluation import PrecisionRecall
+
 
 class ItemBasedCFRecommender(RecommenderIntf):
     """Item based colloborative filtering recommender system model"""
-    def __init__(self, results_dir):
-        """constructor"""
-        super().__init__(results_dir)
-        self.cooccurence_matrix = None
-        self.items_dict = None
-        self.rev_items_dict = None
-        self.recommendations = None
+    def __derive_stats(self):
+        """private function, derive stats"""
+        LOGGER.debug("Getting All Users and Items")
+        self.all_users = list(self.train_data[self.user_id_col].unique())
+        LOGGER.debug("No. of users in the training set: " + str(len(self.all_users)))
+        self.all_items = list(self.train_data[self.item_id_col].unique())
+        LOGGER.debug("No. of items in the training set: " + str(len(self.all_items)))
 
-    def get_user_items(self, user_id):
-        """Get unique items for a given user"""
-        user_data = self.train_data[self.train_data[self.user_id_col] == user_id]
-        user_items = list(user_data[self.item_id_col].unique())
+        LOGGER.debug("Getting Distinct Users for each Item")
+        item_users_df = self.train_data.groupby([self.item_id_col]).agg(
+            {self.user_id_col: (lambda x: list(x.unique()))})
+        self.item_users_df = item_users_df.rename(
+            columns={self.user_id_col: 'users'}).reset_index()
+        #print(self.item_users_df.head())
+        item_users_file = os.path.join(self.model_dir, 'item_users.csv')
+        item_users_df.to_csv(item_users_file)
+
+        LOGGER.debug("Getting Distinct Items for each User")
+        user_items_df = self.train_data.groupby([self.user_id_col]).agg(
+            {self.item_id_col: (lambda x: list(x.unique()))})
+        self.user_items_df = user_items_df.rename(
+            columns={self.item_id_col: 'items'}).reset_index()
+        #print(self.user_items_df.head())
+        user_items_file = os.path.join(self.model_dir, 'user_items.csv')
+        user_items_df.to_csv(user_items_file)        
+
+    def __init__(self, results_dir, model_dir, train_data, test_data, user_id_col, item_id_col, no_of_recs=10):
+        """constructor"""
+        super().__init__(results_dir, model_dir, train_data, test_data, user_id_col, item_id_col, no_of_recs)
+
+        self.all_users = None
+        self.all_items = None
+        self.user_items_df = None
+        self.item_users_df = None
+        self.__derive_stats()
+
+        self.cooccurence_matrix = None
+        self.model_file = os.path.join(self.model_dir, 'item_based_model.pkl')
+
+    def __get_items(self, user_id):
+        """private function, Get unique items for a given user"""
+        user_data = self.user_items_df[
+            self.user_items_df[self.user_id_col] == user_id]
+        #print(user_data)
+        user_items = (user_data['items'].values)[0]
         return user_items
 
-    def get_item_users(self, item):
-        """Get unique users for a given item"""
-        item_data = self.train_data[self.train_data[self.item_id_col] == item]
-        item_users = list(item_data[self.user_id_col].unique())
+    def __get_users(self, item_id):
+        """private function, Get unique users for a given item"""
+        item_data = self.item_users_df[
+            self.item_users_df[self.item_id_col] == item_id]
+        item_users = (item_data['users'].values)[0]
         return item_users
 
-    def get_all_users_train_data(self):
-        """Get unique users in the training data"""
-        all_users = list(self.train_data[self.user_id_col].unique())
-        return all_users
+    def __get_all_users(self):
+        """private function, Get unique users in the training data"""
+        return self.all_users
 
-    def get_all_items_train_data(self):
-        """Get unique items in the training data"""
-        all_items = list(self.train_data[self.item_id_col].unique())
-        return all_items
+    def __get_all_items(self):
+        """private function, Get unique items in the training data"""
+        return self.all_items
 
-    def construct_cooccurence_matrix(self, user_items, all_items):
-        """Construct cooccurence matrix"""
-        ####################################
-        # Get users for all items in user_items.
-        ####################################
-        user_items_users = []
-        for i in range(0, len(user_items)):
-            user_items_users.append(self.get_item_users(user_items[i]))
-
-        ###############################################
-        # Initialize the item cooccurence matrix of size
-        # len(user_items) X len(items)
-        ###############################################
+    def __construct_cooccurence_matrix(self, items):
+        """private function, Construct cooccurence matrix"""
+        # Initialize the item cooccurence matrix
+        len_items = len(items)
         cooccurence_matrix = np.matrix(
-            np.zeros(shape=(len(user_items), len(all_items))), float)
+            np.zeros(shape=(len_items, len_items)), float)
 
-        #############################################################
-        # Calculate similarity between user items and all unique items
-        # in the training data
-        #############################################################
-        for i in range(0, len(all_items)):
-            # Calculate unique users of item i of all_items
-            items_i_data = self.train_data[self.train_data[self.item_id_col] == all_items[i]]
-            users_i = set(items_i_data[self.user_id_col].unique())
+        # Calculate similarity between item pairs for upper triangular elements
+        for i, item_i in enumerate(items):
+            # Get unique users of item_i
+            users_i = set(self.__get_users(item_i))
 
-            for j in range(0, len(user_items)):
-                # Get unique users of item j of user_items
-                users_j = user_items_users[j]
+            for j, item_j in enumerate(items):
+                if i == j:
+                    cooccurence_matrix[i, j] = 1.0
+                    continue
+                if i > j:
+                    continue #same result as corresponding j, i
+
+                # Get unique users of item_j
+                users_j = set(self.__get_users(item_j))
 
                 # Calculate intersection of users of items i and j
                 users_intersection = users_i.intersection(users_j)
-
+                no_of_common_users = len(users_intersection)
                 # Calculate cooccurence_matrix[i,j] as Jaccard Index
-                if len(users_intersection) != 0:
+                if no_of_common_users != 0:
                     # Calculate union of users of items i and j
                     users_union = users_i.union(users_j)
-                    cooccurence_matrix[j, i] = float(len(users_intersection)) / float(len(users_union))
-                else:
-                    cooccurence_matrix[j, i] = 0
+                    no_of_all_users = len(users_union)
+                    if no_of_all_users != 0:
+                        cooccurence_matrix[i, j] = float(
+                            no_of_common_users) / float(no_of_all_users)
+                        cooccurence_matrix[j, i] = cooccurence_matrix[i, j]
 
         non_zeros = np.count_nonzero(cooccurence_matrix)
         print("Non zero values in Co-Occurence_matrix : {}".format(non_zeros))
@@ -89,16 +123,30 @@ class ItemBasedCFRecommender(RecommenderIntf):
         print("Density : {}".format(density))
         return cooccurence_matrix
 
-    def generate_top_recommendations(self, user, cooccurence_matrix, all_items, user_items, no_of_recommendations):
+    def train(self):
+        """Train the item similarity based recommender system model"""
+        # Construct item cooccurence matrix of size, len(items) X len(items)
+        start_time = default_timer()
+        self.cooccurence_matrix = self.__construct_cooccurence_matrix(
+            self.all_items)
+        end_time = default_timer()
+        print("{:50}    {}".format("Training Completed in : ", utilities.convert_sec(end_time - start_time)))
+        #print(self.cooccurence_matrix.shape)
+        joblib.dump(self.cooccurence_matrix, self.model_file)
+        LOGGER.debug("Saved Model")
+
+    def __generate_top_recommendations(self, user, all_items, user_items):
         """Use the cooccurence matrix to make top recommendations"""
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
-        user_sim_scores = cooccurence_matrix.sum(axis=0) / float(cooccurence_matrix.shape[0])
+        user_sim_scores = self.cooccurence_matrix.sum(
+            axis=0) / float(self.cooccurence_matrix.shape[0])
         user_sim_scores = np.array(user_sim_scores)[0].tolist()
 
         # Sort the indices of user_sim_scores based upon their value
         # Also maintain the corresponding score
-        sort_index = sorted(((e, i) for i, e in enumerate(list(user_sim_scores))), reverse=True)
+        sort_index = sorted(((e, i) for i, e in enumerate(
+            list(user_sim_scores))), reverse=True)
 
         # Create a dataframe from the following
         columns = ['user_id', 'item_id', 'score', 'rank']
@@ -108,82 +156,103 @@ class ItemBasedCFRecommender(RecommenderIntf):
         # Fill the dataframe with top 10 item based recommendations
         rank = 1
         for i in range(0, len(sort_index)):
-            if ~np.isnan(sort_index[i][0]) and all_items[sort_index[i][1]] not in user_items and rank <= no_of_recommendations:
-                df.loc[len(df)] = [user, all_items[sort_index[i][1]], sort_index[i][0], rank]
+            if ~np.isnan(sort_index[i][0]) and all_items[sort_index[i][1]] not in user_items and rank <= self.no_of_recs:
+                df.loc[len(df)] = [user, all_items[
+                    sort_index[i][1]], sort_index[i][0], rank]
                 rank = rank + 1
 
         # Handle the case where there are no recommendations
         if df.shape[0] == 0:
-            print("The current user has no items for training the item similarity based recommendation model.")
+            print("""The current user has no items for training the item similarity 
+                     based recommendation model.""")
             return -1
         else:
             return df
 
-    def train(self, train_data, user_id_col, item_id_col):
-        """Train the item similarity based recommender system model"""
-        self.train_data = train_data
-        self.user_id_col = user_id_col
-        self.item_id_col = item_id_col
+    def recommend(self, user_id):
+        """Generate item recommendations for given user_id"""
+        if not os.path.exists(self.model_file):
+            print("Trained Model not found !!!. Failed to recommend")
+            return None
 
-    def recommend(self, user_id, no_of_recommendations=10):
-        """Use the item similarity based recommender system model to make recommendations"""
-        all_users = self.get_all_users_train_data()
-        print("No. of users in the training set: {}".format(len(all_users)))
+        self.cooccurence_matrix = joblib.load(self.model_file)
+        #print(self.cooccurence_matrix.shape)
+        LOGGER.debug("Loaded Trained Model")
+        all_items = self.__get_all_items()
+        # Get all unique items for this user
+        user_items = self.__get_items(user_id)
+        print("No. of items for the user_id {} : {}".format(
+            user_id, len(user_items)))
 
-        ######################################################
-        # A. Get all unique items in the training data
-        ######################################################
-        all_items = self.get_all_items_train_data()
-        print("No. of items in the training set: {}".format(len(all_items)))
-
-        ########################################
-        # B. Get all unique items for this user
-        ########################################
-        user_items = self.get_user_items(user_id)
-        print("No. of items for the user_id {} : {}".format(user_id, len(user_items)))
-
-        ###############################################
-        # C. Construct item cooccurence matrix of size
-        # len(user_items) X len(items)
-        ###############################################
+        # Use the cooccurence matrix to make recommendations
         start_time = default_timer()
-        cooccurence_matrix = self.construct_cooccurence_matrix(user_items, all_items)
-        end_time = default_timer()
-        print("{:50}    {}".format("Computing CoOccurence Matrix Completed in : ", utilities.convert_sec(end_time - start_time)))
-
-        #######################################################
-        # D. Use the cooccurence matrix to make recommendations
-        #######################################################
-        start_time = default_timer()
-        user_recommendations = self.generate_top_recommendations(user_id, cooccurence_matrix, all_items, user_items, no_of_recommendations)
-        end_time = default_timer()
-        print("{:50}    {}".format("Recommendations generated in : ", utilities.convert_sec(end_time - start_time)))
-
-        recommendations_file = os.path.join(self.results_dir, 'item_based_cf_recommendation.csv')
-        user_recommendations.to_csv(recommendations_file)
-
+        user_recommendations = self.__generate_top_recommendations(
+            user_id, all_items, user_items)
         recommended_items = user_recommendations['item_id']
+        end_time = default_timer()
+        print("{:50}    {}".format("Recommendations generated in : ",
+                                   utilities.convert_sec(end_time - start_time)))       
         return recommended_items
+
+    def __get_items_for_eval(self, users_test_sample):
+        """Generate recommended and interacted items for users in the user test sample"""
+        eval_items = dict()
+
+        all_items = self.__get_all_items()
+        for user_id in users_test_sample:
+            eval_items[user_id] = dict()
+            eval_items[user_id]['items_recommended'] = dict()
+            eval_items[user_id]['items_interacted'] = dict()
+            # Get all unique items for this user
+            user_items = self.__get_items(user_id)
+
+            user_recommendations = self.__generate_top_recommendations(
+                user_id, all_items, user_items)
+            recommended_items = user_recommendations['item_id']
+            eval_items[user_id]['items_recommended'] = recommended_items
+
+            #Get items for user_id from test_data
+            test_data_user = self.test_data[self.test_data[self.user_id_col] == user_id]
+            eval_items[user_id]['items_interacted'] = test_data_user[self.item_id_col].unique()
+        return eval_items
+
+    def eval(self, sample_test_users_percentage, no_of_recs_to_eval):
+        """Evaluate trained model"""
+        if os.path.exists(self.model_file):
+            self.cooccurence_matrix = joblib.load(self.model_file)
+            #print(self.cooccurence_matrix.shape)
+            LOGGER.debug("Loaded Trained Model")
+
+            #Get a sample of common users from test and training set
+            users_test_sample = self.fetch_sample_test_users(sample_test_users_percentage)
+            if len(users_test_sample) == 0:
+                print("""None of users are common in training and test data.
+                         Hence cannot evaluate model""")
+                return {'status' : "Common Users not found, Failed to Evaluate"}
+
+            #Generate recommendations for the test sample users
+            eval_items = self.__get_items_for_eval(users_test_sample)
+
+            precision_recall_intf = PrecisionRecall()
+            results = precision_recall_intf.compute_precision_recall(
+                no_of_recs_to_eval, eval_items)
+            return results
+        else:
+            print("Trained Model not found !!!. Failed to evaluate")
+            results = {'status' : "Trained Model not found !!!. Failed to evaluate"}
+            return results
 
     def get_similar_items(self, item_list):
         """Get items similar to given items"""
+        if not os.path.exists(self.model_file):
+            print("Trained Model not found !!!. Failed to get similar items")
+            return None
         user_items = item_list
-        ######################################################
-        # B. Get all unique items (items) in the training data
-        ######################################################
-        all_items = self.get_all_items_train_data()
-        print("No. of unique items in the training set: {}".format(all_items))
+        all_items = self.__get_all_items()
 
-        ###############################################
-        # C. Construct item cooccurence matrix of size
-        # len(user_items) X len(items)
-        ###############################################
-        cooccurence_matrix = self.construct_cooccurence_matrix(user_items, all_items)
-
-        #######################################################
-        # D. Use the cooccurence matrix to make recommendations
-        #######################################################
-        user = ""
-        user_recommendations = self.generate_top_recommendations(user, cooccurence_matrix, all_items, user_items)
-
-        return user_recommendations
+        # Use the cooccurence matrix to make recommendations
+        user_id = ""
+        recommendations = self.__generate_top_recommendations(
+            user_id, all_items, user_items)
+        similar_items = recommendations['item_id']
+        return similar_items

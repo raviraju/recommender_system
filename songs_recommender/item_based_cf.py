@@ -1,58 +1,74 @@
 """Module for Item Based CF Songs Recommender"""
 import os
 import sys
-import pandas
-from sklearn.cross_validation import train_test_split
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from pprint import pprint
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from recommender.item_based_cf import ItemBasedCFRecommender
 
-def load_data(data_dir):
+
+def load_train_test(user_songs_file):
     """Loads data and returns training and test set"""
-    #Read userid-songid-listen_count triplets
-    triplets_file = os.path.join(data_dir, '10000.txt')
-    songs_metadata_file = os.path.join(data_dir, 'song_data.csv')
-
-    song_df_1 = pandas.read_table(triplets_file, header=None)
-    song_df_1.columns = ['user_id', 'song_id', 'listen_count']
-
-    #Read song  metadata
-    song_df_2 = pandas.read_csv(songs_metadata_file)
-
-    #Merge the two dataframes above to create input dataframe for recommender systems
-    song_df = pandas.merge(song_df_1, song_df_2.drop_duplicates(['song_id']), on="song_id", how="left")
-
-    song_df = song_df.head(10000)
-
-    #Merge song title and artist_name columns to make a merged column
-    song_df['song'] = song_df['title'].map(str) + " - " + song_df['artist_name']
-
-    train_data, test_data = train_test_split(song_df, test_size = 0.20, random_state=0)
-
+    # Read user_id-song-listen_count triplets
+    user_songs_df = pd.read_csv(user_songs_file)
+    user_songs_df = user_songs_df[user_songs_df['listen_count'] > 50]
+    user_songs_df = user_songs_df.head(1000)
+    train_data, test_data = train_test_split(user_songs_df,
+                                             test_size=0.20,
+                                             random_state=0)
     return train_data, test_data
+
+
 
 def main():
     """Method for Item Based Recommender"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(current_dir, 'data')
+    preprocessed_dir = os.path.join(current_dir, 'preprocessed_data')
     results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
+    model_dir = os.path.join(current_dir, 'model')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
 
-    train_data, test_data = load_data(data_dir)
-    #print(train_data.head(5))
-    #print(test_data.head(5))
+    print("Loading Training and Test Data")
+    user_songs_file = os.path.join(preprocessed_dir, 'user_songs.csv')
+    train_data, test_data = load_train_test(user_songs_file)
+    # print(train_data.head(5))
+    # print(test_data.head(5))
+    train_data_file = os.path.join(model_dir, 'train_data.csv')
+    train_data.to_csv(train_data_file)
+    test_data_file = os.path.join(model_dir, 'test_data.csv')
+    test_data.to_csv(test_data_file)    
+    print('*' * 80)
 
-    item_based_cf_reco = ItemBasedCFRecommender(results_dir)
-    item_based_cf_reco.train(train_data, 'user_id', 'song')
+    print("Training Recommender...")
+    model = ItemBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col='user_id',
+                                   item_id_col='song')
+    model.train()
+    print('*' * 80)
 
-    #users = test_data['user_id'].unique()
-    #user_id = users[0]
-    user_id = '97e48f0f188e04dcdb0f8e20a29dacb881d80c9e'
-    recommendations = item_based_cf_reco.recommend(user_id)
-    #print(recommendations)
-    print("Item Based Recommendations are found in results/")
+    print("Evaluating Recommender System")
+    no_of_recs_to_eval = [10, 20]
+    sample_test_users_percentage = 1
+    results = model.eval(sample_test_users_percentage, no_of_recs_to_eval)
+    pprint(results)
+    print('*' * 80)
+
+    print("Testing Recommendation for an User")
+    users = test_data['user_id'].unique()
+    user_id = users[0]
+    items = list(test_data[test_data['user_id'] == user_id]['song'].unique())
+    print("Items recommended for a user with user_id : {}".format(user_id))
+    recommended_items = model.get_similar_items(items)
+    for item in recommended_items:
+        print(item)
+    print('*' * 80)
 
 if __name__ == '__main__':
     main()
