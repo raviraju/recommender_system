@@ -2,9 +2,11 @@
 import os
 import sys
 import logging
-import random
 from timeit import default_timer
+from pprint import pprint
 import joblib
+
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -96,6 +98,7 @@ class PopularityBasedRecommender(RecommenderIntf):
 
     def eval(self, sample_test_users_percentage, no_of_recs_to_eval):
         """Evaluate trained model"""
+        start_time = default_timer()        
         if os.path.exists(self.model_file):
             self.recommendations = joblib.load(self.model_file)
             LOGGER.debug("Loaded Trained Model")
@@ -113,8 +116,99 @@ class PopularityBasedRecommender(RecommenderIntf):
             precision_recall_intf = PrecisionRecall()
             results = precision_recall_intf.compute_precision_recall(
                 no_of_recs_to_eval, eval_items)
+            end_time = default_timer()
+            print("{:50}    {}".format("Evaluation Completed in : ", utilities.convert_sec(end_time - start_time)))                
             return results
         else:
             print("Trained Model not found !!!. Failed to evaluate")
             results = {'status' : "Trained Model not found !!!. Failed to evaluate"}
+            end_time = default_timer()
+            print("{:50}    {}".format("Evaluation Completed in : ", utilities.convert_sec(end_time - start_time)))
             return results
+
+def load_train_test(model_dir):
+    """Load Train and Test Data"""
+    train_file = os.path.join(model_dir, 'train_data.csv')
+    train_data = pd.read_csv(train_file)
+    test_file = os.path.join(model_dir, 'test_data.csv')
+    test_data = pd.read_csv(test_file)
+    print("{:30} : {}".format("No of records in train_data", len(train_data)))
+    print("{:30} : {}".format("No of records in test_data", len(test_data)))
+    return train_data, test_data
+
+def train(train_data, test_data, user_id_col, item_id_col, results_dir, model_dir):
+    """train recommender"""
+    print("Training Recommender...")
+    model = PopularityBasedRecommender(results_dir, model_dir,
+                                       train_data, test_data,
+                                       user_id_col,
+                                       item_id_col)
+    model.train()
+    print('*' * 80)
+
+def evaluate(user_id_col, item_id_col,
+             results_dir, model_dir,
+             no_of_recs_to_eval, sample_test_users_percentage):
+    """evaluate recommender"""
+    print("Loading Training and Test Data")
+    train_data, test_data = load_train_test(model_dir)
+    # print(train_data.head(5))
+    # print(test_data.head(5))
+    print('*' * 80)
+
+    print("Evaluating Recommender System")
+    model = PopularityBasedRecommender(results_dir, model_dir,
+                                       train_data, test_data,
+                                       user_id_col,
+                                       item_id_col)
+    results = model.eval(sample_test_users_percentage, no_of_recs_to_eval)
+    pprint(results)
+    print('*' * 80)
+
+def recommend(user_id, user_id_col, item_id_col, results_dir, model_dir):
+    """recommend items for user"""
+    print("Loading Training and Test Data")
+    train_data, test_data = load_train_test(model_dir)
+    # print(train_data.head(5))
+    # print(test_data.head(5))
+    print('*' * 80)
+
+    model = PopularityBasedRecommender(results_dir, model_dir,
+                                       train_data, test_data,
+                                       user_id_col,
+                                       item_id_col)
+
+    print("Items recommended for a user with user_id : {}".format(user_id))
+    recommended_items = model.recommend(user_id)
+    for item in recommended_items:
+        print(item)
+    print('*' * 80)
+
+def train_eval_recommend(train_data, test_data,
+                         user_id_col, item_id_col,
+                         results_dir, model_dir,
+                         no_of_recs_to_eval,
+                         sample_test_users_percentage):
+    """Train Evaluate and Recommend for Item Based Recommender"""
+
+    print("Training Recommender...")
+    model = PopularityBasedRecommender(results_dir, model_dir,
+                                       train_data, test_data,
+                                       user_id_col,
+                                       item_id_col)
+    model.train()
+    print('*' * 80)
+
+    print("Evaluating Recommender System")
+    results = model.eval(sample_test_users_percentage, no_of_recs_to_eval)
+    pprint(results)
+    print('*' * 80)
+
+    print("Testing Recommendation for an User")
+    users = test_data[user_id_col].unique()
+    user_id = users[0]
+    print("Items recommended for a user with user_id : {}".format(user_id))
+    recommended_items = model.recommend(user_id)
+    for item in recommended_items:
+        print(item)
+    print('*' * 80)

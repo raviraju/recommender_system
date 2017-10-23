@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 from timeit import default_timer
+from pprint import pprint
 import joblib
 
 import numpy as np
@@ -218,6 +219,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
     def eval(self, sample_test_users_percentage, no_of_recs_to_eval):
         """Evaluate trained model"""
+        start_time = default_timer()        
         if os.path.exists(self.model_file):
             self.cooccurence_matrix = joblib.load(self.model_file)
             #print(self.cooccurence_matrix.shape)
@@ -236,10 +238,14 @@ class ItemBasedCFRecommender(RecommenderIntf):
             precision_recall_intf = PrecisionRecall()
             results = precision_recall_intf.compute_precision_recall(
                 no_of_recs_to_eval, eval_items)
+            end_time = default_timer()
+            print("{:50}    {}".format("Evaluation Completed in : ", utilities.convert_sec(end_time - start_time)))                
             return results
         else:
             print("Trained Model not found !!!. Failed to evaluate")
             results = {'status' : "Trained Model not found !!!. Failed to evaluate"}
+            end_time = default_timer()
+            print("{:50}    {}".format("Evaluation Completed in : ", utilities.convert_sec(end_time - start_time)))
             return results
 
     def get_similar_items(self, item_list):
@@ -247,6 +253,9 @@ class ItemBasedCFRecommender(RecommenderIntf):
         if not os.path.exists(self.model_file):
             print("Trained Model not found !!!. Failed to get similar items")
             return None
+        self.cooccurence_matrix = joblib.load(self.model_file)
+        #print(self.cooccurence_matrix.shape)
+        LOGGER.debug("Loaded Trained Model")
         user_items = item_list
         all_items = self.__get_all_items()
 
@@ -256,3 +265,91 @@ class ItemBasedCFRecommender(RecommenderIntf):
             user_id, all_items, user_items)
         similar_items = recommendations['item_id']
         return similar_items
+
+def load_train_test(model_dir):
+    """Load Train and Test Data"""
+    train_file = os.path.join(model_dir, 'train_data.csv')
+    train_data = pd.read_csv(train_file)
+    test_file = os.path.join(model_dir, 'test_data.csv')
+    test_data = pd.read_csv(test_file)
+    print("{:30} : {}".format("No of records in train_data", len(train_data)))
+    print("{:30} : {}".format("No of records in test_data", len(test_data)))
+    return train_data, test_data
+
+def train(train_data, test_data, user_id_col, item_id_col, results_dir, model_dir):
+    """train recommender"""
+    print("Training Recommender...")
+    model = ItemBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col,
+                                   item_id_col)
+    model.train()
+    print('*' * 80)
+
+def evaluate(user_id_col, item_id_col,
+             results_dir, model_dir,
+             no_of_recs_to_eval, sample_test_users_percentage):
+    """evaluate recommender"""
+    print("Loading Training and Test Data")
+    train_data, test_data = load_train_test(model_dir)
+    # print(train_data.head(5))
+    # print(test_data.head(5))
+    print('*' * 80)
+
+    print("Evaluating Recommender System")
+    model = ItemBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col,
+                                   item_id_col)
+    results = model.eval(sample_test_users_percentage, no_of_recs_to_eval)
+    pprint(results)
+    print('*' * 80)
+
+def recommend(user_id, user_id_col, item_id_col, results_dir, model_dir):
+    """recommend items for user"""
+    print("Loading Training and Test Data")
+    train_data, test_data = load_train_test(model_dir)
+    # print(train_data.head(5))
+    # print(test_data.head(5))
+    print('*' * 80)
+
+    model = ItemBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col,
+                                   item_id_col)
+    items = list(test_data[test_data[user_id_col] == user_id][item_id_col].unique())
+    print("Items recommended for a user with user_id : {}".format(user_id))
+    recommended_items = model.get_similar_items(items)
+    for item in recommended_items:
+        print(item)
+    print('*' * 80)
+
+def train_eval_recommend(train_data, test_data,
+                         user_id_col, item_id_col,
+                         results_dir, model_dir,
+                         no_of_recs_to_eval,
+                         sample_test_users_percentage):
+    """Train Evaluate and Recommend for Item Based Recommender"""
+
+    print("Training Recommender...")
+    model = ItemBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col,
+                                   item_id_col)
+    model.train()
+    print('*' * 80)
+
+    print("Evaluating Recommender System")
+    results = model.eval(sample_test_users_percentage, no_of_recs_to_eval)
+    pprint(results)
+    print('*' * 80)
+
+    print("Testing Recommendation for an User")
+    users = test_data[user_id_col].unique()
+    user_id = users[0]
+    items = list(test_data[test_data[user_id_col] == user_id][item_id_col].unique())
+    print("Items recommended for a user with user_id : {}".format(user_id))
+    recommended_items = model.get_similar_items(items)
+    for item in recommended_items:
+        print(item)
+    print('*' * 80)
