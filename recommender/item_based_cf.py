@@ -9,7 +9,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -126,6 +126,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
     def train(self):
         """Train the item similarity based recommender system model"""
+        print("Training...")
         # Construct item cooccurence matrix of size, len(items) X len(items)
         start_time = default_timer()
         self.cooccurence_matrix = self.__construct_cooccurence_matrix(
@@ -219,6 +220,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
     def eval(self, sample_test_users_percentage, no_of_recs_to_eval):
         """Evaluate trained model"""
+        print("Evaluating...")
         start_time = default_timer()        
         if os.path.exists(self.model_file):
             self.cooccurence_matrix = joblib.load(self.model_file)
