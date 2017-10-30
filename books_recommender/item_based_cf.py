@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from recommender.item_based_cf import *
+from recommender.item_based_cf_opt import *
 
 def generate_train_test(model_dir, learner_books_file):
     """Loads data and returns training and test set"""
@@ -31,7 +31,7 @@ def generate_train_test(model_dir, learner_books_file):
     return train_data, test_data
 
 def main():
-    """Popularity based recommender interface"""
+    """Item based recommender interface"""
     parser = argparse.ArgumentParser(description="Popularity Based Recommender")
     parser.add_argument("--train",
                         help="Train Model",
@@ -62,23 +62,22 @@ def main():
               'learner_id', 'book_code',
               results_dir, model_dir)
     elif args.eval:
-        no_of_recs_to_eval = [10, 20]
-        sample_test_users_percentage = 1
+        no_of_recs_to_eval = [1, 2, 5, 10]
         evaluate('learner_id', 'book_code',
                  results_dir, model_dir,
-                 no_of_recs_to_eval, sample_test_users_percentage)
+                 no_of_recs_to_eval, dataset='test', hold_out_ratio=0.5)
     elif args.recommend and args.user_id:
         recommend(args.user_id, 'learner_id', 'book_code',
-                  results_dir, model_dir)
+                  results_dir, model_dir, dataset='test')
     else:
         train_data, test_data = generate_train_test(model_dir, data)
-        no_of_recs_to_eval = [10, 20]
-        sample_test_users_percentage = 1
+        no_of_recs_to_eval = [1, 2, 5, 10]
         train_eval_recommend(train_data, test_data,
                              'learner_id', 'book_code',
                              results_dir, model_dir,
                              no_of_recs_to_eval,
-                             sample_test_users_percentage)
+                             dataset='test',
+                             hold_out_ratio=0.5)
 
 if __name__ == '__main__':
     main()
