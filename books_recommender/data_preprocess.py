@@ -44,6 +44,11 @@ def extract_learner_books(bookclub_events):
         os.makedirs(preprocessed_data_dir)
     learner_books_file = os.path.join(preprocessed_data_dir, 'learner_books_close_events.csv')
     learner_book_df.to_csv(learner_books_file, index=False)
+    
+    #eliminate records with less than 10 close events
+    learner_book_min_events_df = learner_book_df[learner_book_df['events_count']>10]
+    learner_books_min_file = os.path.join(preprocessed_data_dir, 'learner_books_close_min_events.csv')
+    learner_book_min_events_df.to_csv(learner_books_min_file, index=False)
     print("Preprocessed data available in preprocessed_data/")
 
 if __name__ == '__main__':
