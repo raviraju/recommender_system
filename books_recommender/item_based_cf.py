@@ -12,7 +12,7 @@ from recommender.item_based_cf_opt import *
 def generate_train_test(model_dir, learner_books_file):
     """Loads data and returns training and test set"""
     #Read learner_id-book_code-view_count triplets
-    learner_books_df = pd.read_csv(learner_books_file)
+    learner_books_df = pd.read_csv(learner_books_file, dtype={'learner_id':str})
     #filtering data to be imported
     #split train and test data
     print("{:30} : {}".format("No of records in data", len(learner_books_df)))
@@ -55,14 +55,14 @@ def main():
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
-    data = os.path.join(data_dir, 'learner_books.csv')
+    data = os.path.join(data_dir, 'learner_books_close_min_events.csv')#'learner_books.csv')
     if args.train:
         train_data, test_data = generate_train_test(model_dir, data)
         train(train_data, test_data,
               'learner_id', 'book_code',
               results_dir, model_dir)
     elif args.eval:
-        no_of_recs_to_eval = [1, 2, 5, 10]
+        no_of_recs_to_eval = [1, 10, 20]
         evaluate('learner_id', 'book_code',
                  results_dir, model_dir,
                  no_of_recs_to_eval, dataset='test', hold_out_ratio=0.5)
@@ -71,7 +71,7 @@ def main():
                   results_dir, model_dir, dataset='test')
     else:
         train_data, test_data = generate_train_test(model_dir, data)
-        no_of_recs_to_eval = [1, 2, 5, 10]
+        no_of_recs_to_eval = [1, 10, 20]
         train_eval_recommend(train_data, test_data,
                              'learner_id', 'book_code',
                              results_dir, model_dir,

@@ -33,6 +33,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
             'users_train' : self.users_train,
             'items_train' : self.items_train
         }
+        #pprint(users_items_train_dict)
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         utilities.dump_json_file(users_items_train_dict, users_items_train_file)
 
@@ -44,7 +45,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         item_users_train_df = item_users_train_df.rename(columns={self.user_id_col: 'users'})\
                                                       .reset_index()
         for _, item_users in item_users_train_df.iterrows():
-            item = item_users[self.item_id_col]
+            item = item_users[str(self.item_id_col)]
             users = item_users['users']
             self.item_users_train_dict[item] = users
         item_users_train_file = os.path.join(self.model_dir, 'item_users_train.json')
@@ -58,7 +59,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         user_items_train_df = user_items_train_df.rename(columns={self.item_id_col: 'items'})\
                                                  .reset_index()
         for _, user_items in user_items_train_df.iterrows():
-            user = user_items[self.user_id_col]
+            user = user_items[str(self.user_id_col)]
             items = user_items['items']
             self.user_items_train_dict[user] = items
         user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
@@ -85,7 +86,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         item_users_test_df = item_users_test_df.rename(columns={self.user_id_col: 'users'})\
                                                       .reset_index()
         for _, item_users in item_users_test_df.iterrows():
-            item = item_users[self.item_id_col]
+            item = item_users[str(self.item_id_col)]
             users = item_users['users']
             self.item_users_test_dict[item] = users
 
@@ -100,7 +101,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         user_items_test_df = user_items_test_df.rename(columns={self.item_id_col: 'items'})\
                                                       .reset_index()
         for _, user_items in user_items_test_df.iterrows():
-            user = user_items[self.user_id_col]
+            user = user_items[str(self.user_id_col)]
             items = user_items['items']
             self.user_items_test_dict[user] = items
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
