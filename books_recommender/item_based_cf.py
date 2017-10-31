@@ -62,7 +62,7 @@ def main():
               'learner_id', 'book_code',
               results_dir, model_dir)
     elif args.eval:
-        no_of_recs_to_eval = [1, 10, 20]
+        no_of_recs_to_eval = [1, 10, 20, 30, 40]
         evaluate('learner_id', 'book_code',
                  results_dir, model_dir,
                  no_of_recs_to_eval, dataset='test', hold_out_ratio=0.5)
@@ -71,7 +71,7 @@ def main():
                   results_dir, model_dir, dataset='test')
     else:
         train_data, test_data = generate_train_test(model_dir, data)
-        no_of_recs_to_eval = [1, 10, 20]
+        no_of_recs_to_eval = [1, 10, 20, 30, 40]
         train_eval_recommend(train_data, test_data,
                              'learner_id', 'book_code',
                              results_dir, model_dir,
