@@ -16,6 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib import utilities
 from recommender.reco_interface import RecommenderIntf
+from recommender.reco_interface import load_train_test
 from recommender.evaluation import PrecisionRecall
 
 class ItemBasedCFRecommender(RecommenderIntf):
@@ -65,11 +66,11 @@ class ItemBasedCFRecommender(RecommenderIntf):
         user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
         utilities.dump_json_file(self.user_items_train_dict, user_items_train_file)
         ########################################################################
-        LOGGER.debug("Test Data :: Deriving Stats...")
+        LOGGER.debug("Test Data  :: Deriving Stats...")
         self.users_test = list(self.test_data[self.user_id_col].unique())
-        LOGGER.debug("Test Data :: No. of users : " + str(len(self.users_test)))
+        LOGGER.debug("Test Data  :: No. of users : " + str(len(self.users_test)))
         self.items_test = list(self.test_data[self.item_id_col].unique())
-        LOGGER.debug("Test Data :: No. of items : " + str(len(self.items_test)))
+        LOGGER.debug("Test Data  :: No. of items : " + str(len(self.items_test)))
 
         users_items_test_dict = {
             'users_test' : self.users_test,
@@ -78,7 +79,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
         utilities.dump_json_file(users_items_test_dict, users_items_test_file)
 
-        LOGGER.debug("Test Data :: Getting Distinct Users for each Item")
+        LOGGER.debug("Test Data  :: Getting Distinct Users for each Item")
         item_users_test_df = self.test_data.groupby([self.item_id_col])\
                                              .agg({
                                                  self.user_id_col: (lambda x: list(x.unique()))
@@ -93,7 +94,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         item_users_test_file = os.path.join(self.model_dir, 'item_users_test.json')
         utilities.dump_json_file(self.item_users_test_dict, item_users_test_file)
 
-        LOGGER.debug("Test Data :: Getting Distinct Items for each User")
+        LOGGER.debug("Test Data  :: Getting Distinct Items for each User")
         user_items_test_df = self.test_data.groupby([self.user_id_col])\
                                              .agg({
                                                  self.item_id_col: (lambda x: list(x.unique()))
@@ -125,25 +126,25 @@ class ItemBasedCFRecommender(RecommenderIntf):
         user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
         self.user_items_train_dict = utilities.load_json_file(user_items_train_file)
         ############################################################################
-        LOGGER.debug("Test Data :: Loading Stats...")
+        LOGGER.debug("Test Data  :: Loading Stats...")
         users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
         users_items_test_dict = utilities.load_json_file(users_items_test_file)
         self.users_test = users_items_test_dict['users_test']
-        LOGGER.debug("Test Data :: No. of users : " + str(len(self.users_test)))
+        LOGGER.debug("Test Data  :: No. of users : " + str(len(self.users_test)))
         self.items_test = users_items_test_dict['items_test']
-        LOGGER.debug("Test Data :: No. of items : " + str(len(self.items_test)))
+        LOGGER.debug("Test Data  :: No. of items : " + str(len(self.items_test)))
 
-        LOGGER.debug("Test Data :: Loading Distinct Users for each Item")
+        LOGGER.debug("Test Data  :: Loading Distinct Users for each Item")
         item_users_test_file = os.path.join(self.model_dir, 'item_users_test.json')
         self.item_users_test_dict = utilities.load_json_file(item_users_test_file)
 
-        LOGGER.debug("Test Data :: Loading Distinct Items for each User")
+        LOGGER.debug("Test Data  :: Loading Distinct Items for each User")
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         self.user_items_test_dict = utilities.load_json_file(user_items_test_file)
 
     def __init__(self, results_dir, model_dir,
                  train_data, test_data,
-                 user_id_col, item_id_col, no_of_recs=50):
+                 user_id_col, item_id_col, no_of_recs=10):
         """constructor"""
         super().__init__(results_dir, model_dir,
                          train_data, test_data,
@@ -164,15 +165,9 @@ class ItemBasedCFRecommender(RecommenderIntf):
     def __get_items(self, user_id, dataset='train'):
         """private function, Get unique items for a given user"""
         if dataset == "train":
-            # condition = self.user_items_train_df[self.user_id_col] == user_id
-            # user_data = self.user_items_train_df[condition]
             user_items = self.user_items_train_dict[user_id]
         else:#test
-            # condition = self.user_items_test_df[self.user_id_col] == user_id
-            # user_data = self.user_items_test_df[condition]
             user_items = self.user_items_test_dict[user_id]
-        #print(user_data)
-        #user_items = (user_data['items'].values)[0]
         return user_items
 
     def __get_users(self, item_id, dataset='train'):
@@ -362,7 +357,6 @@ class ItemBasedCFRecommender(RecommenderIntf):
         no_of_users = len(users)
         no_of_users_considered = 0
         for user_id in users:
-
             # Get all items with which user has interacted
             items_interacted = self.__get_items(user_id, dataset)
             if dataset != 'train':
@@ -407,7 +401,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
             precision_recall_eval_file = os.path.join(self.results_dir, 'eval_items.json')
             utilities.dump_json_file(eval_items, precision_recall_eval_file)
             #pprint(eval_items)
-            #input()
+
             precision_recall_intf = PrecisionRecall()
             results = precision_recall_intf.compute_precision_recall(
                 no_of_recs_to_eval, eval_items)
@@ -419,7 +413,8 @@ class ItemBasedCFRecommender(RecommenderIntf):
             print("Trained Model not found !!!. Failed to evaluate")
             results = {'status' : "Trained Model not found !!!. Failed to evaluate"}
             end_time = default_timer()
-            print("{:50}    {}".format("Evaluation Completed in : ", utilities.convert_sec(end_time - start_time)))
+            print("{:50}    {}".format("Evaluation Completed in : ",
+                                       utilities.convert_sec(end_time - start_time)))
             return results
 
     def get_similar_items(self, item_list, dataset='train'):
@@ -447,62 +442,47 @@ class ItemBasedCFRecommender(RecommenderIntf):
             similar_items = list(user_recommendations['item_id'].values)
         return similar_items
 
-def load_train_test(model_dir):
-    """Load Train and Test Data"""
-    train_file = os.path.join(model_dir, 'train_data.csv')
-    train_data = pd.read_csv(train_file)
-    test_file = os.path.join(model_dir, 'test_data.csv')
-    test_data = pd.read_csv(test_file)
-    print("{:30} : {}".format("No of records in train_data", len(train_data)))
-    print("{:30} : {}".format("No of records in test_data", len(test_data)))
-    return train_data, test_data
-
-def train(train_data, test_data, user_id_col, item_id_col,
-          results_dir, model_dir):
+def train(results_dir, model_dir, train_test_dir,
+          user_id_col, item_id_col,
+          no_of_recs=10):
     """train recommender"""
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
+
     print("Training Recommender...")
     model = ItemBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col,
-                                   item_id_col)
+                                   user_id_col, item_id_col, no_of_recs)
     model.train()
     print('*' * 80)
 
-def evaluate(user_id_col, item_id_col,
-             results_dir, model_dir,
-             no_of_recs_to_eval, dataset='train', hold_out_ratio=0.5):
+def evaluate(results_dir, model_dir, train_test_dir,
+             user_id_col, item_id_col,
+             no_of_recs_to_eval, dataset='test',
+             no_of_recs=10, hold_out_ratio=0.5):
     """evaluate recommender"""
-    print("Loading Training and Test Data")
-    train_data, test_data = load_train_test(model_dir)
-    # print(train_data.head(5))
-    # print(test_data.head(5))
-    print('*' * 80)
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Evaluating Recommender System")
     model = ItemBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col,
-                                   item_id_col)
+                                   user_id_col, item_id_col, no_of_recs)
     results = model.evaluate(no_of_recs_to_eval, dataset, hold_out_ratio)
     pprint(results)
     print('*' * 80)
 
-def recommend(user_id, user_id_col, item_id_col,
-              results_dir, model_dir, dataset='train'):
+def recommend(results_dir, model_dir, train_test_dir,
+              user_id_col, item_id_col,
+              user_id, no_of_recs=10, dataset='test'):
     """recommend items for user"""
-    print("Loading Training and Test Data")
-    train_data, test_data = load_train_test(model_dir)
-    # print(train_data.head(5))
-    # print(test_data.head(5))
-    print('*' * 80)
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     model = ItemBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col,
-                                   item_id_col)
-    #items = list(test_data[test_data[user_id_col] == user_id][item_id_col].unique())
+                                   user_id_col, item_id_col, no_of_recs)
+
     print("Items recommended for a user with user_id : {}".format(user_id))
     recommended_items = model.recommend_items(user_id, dataset)
+    print()
     if recommended_items:
         for item in recommended_items:
             print(item)
@@ -510,17 +490,17 @@ def recommend(user_id, user_id_col, item_id_col,
         print("No items to recommend")
     print('*' * 80)
 
-def train_eval_recommend(train_data, test_data,
+def train_eval_recommend(results_dir, model_dir, train_test_dir,
                          user_id_col, item_id_col,
-                         results_dir, model_dir,
-                         no_of_recs_to_eval, dataset='train', hold_out_ratio=0.5):
+                         no_of_recs_to_eval, dataset='test',
+                         no_of_recs=10, hold_out_ratio=0.5):
     """Train Evaluate and Recommend for Item Based Recommender"""
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Training Recommender...")
     model = ItemBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col,
-                                   item_id_col)
+                                   user_id_col, item_id_col, no_of_recs)
     model.train()
     print('*' * 80)
 
@@ -535,6 +515,7 @@ def train_eval_recommend(train_data, test_data,
     items = list(test_data[test_data[user_id_col] == user_id][item_id_col].unique())
     print("Items recommended for a user with user_id : {}".format(user_id))
     recommended_items = model.get_similar_items(items, dataset)
+    print()
     for item in recommended_items:
         print(item)
     print('*' * 80)

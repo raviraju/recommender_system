@@ -31,7 +31,7 @@ def extract_user_songs(user_song_triplets_file, songs_metadata_file):
     if not os.path.exists(preprocessed_data_dir):
         os.makedirs(preprocessed_data_dir)
     user_songs_file = os.path.join(preprocessed_data_dir, 'user_songs.csv')
-    user_song_df.to_csv(user_songs_file)
+    user_song_df.to_csv(user_songs_file, index=False)
     print("Preprocessed data available in preprocessed_data/")
 
 if __name__ == '__main__':
