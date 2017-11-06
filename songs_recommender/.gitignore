@@ -1,3 +1,4 @@
-results/*
 preprocessed_data/*
+train_test_data/*
 model/*
+results/*

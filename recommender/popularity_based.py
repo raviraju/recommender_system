@@ -6,8 +6,6 @@ from timeit import default_timer
 from pprint import pprint
 import joblib
 
-import pandas as pd
-
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
@@ -15,192 +13,286 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib import utilities
 from recommender.reco_interface import RecommenderIntf
+from recommender.reco_interface import load_train_test
 from recommender.evaluation import PrecisionRecall
 
 class PopularityBasedRecommender(RecommenderIntf):
     """Popularity based recommender system model"""
-    def __derive_stats(self):
-        """private function, derive stats"""
-        LOGGER.debug("Getting All Users and Items")
-        self.all_users = list(self.train_data[self.user_id_col].unique())
-        LOGGER.debug("No. of users in the training set: " + str(len(self.all_users)))
-        self.all_items = list(self.train_data[self.item_id_col].unique())
-        LOGGER.debug("No. of items in the training set: " + str(len(self.all_items)))
 
-    def __init__(self, results_dir, model_dir, train_data, test_data, user_id_col, item_id_col, no_of_recs=10):
+    def __init__(self, results_dir, model_dir,
+                 train_data, test_data,
+                 user_id_col, item_id_col, no_of_recs=10):
         """constructor"""
-        super().__init__(results_dir, model_dir, train_data, test_data, user_id_col, item_id_col, no_of_recs)
-
-        self.all_users = None
-        self.all_items = None
-        self.__derive_stats()
-
+        super().__init__(results_dir, model_dir,
+                         train_data, test_data,
+                         user_id_col, item_id_col, no_of_recs)
+        self.users_train = None
+        self.items_train = None
+        self.user_items_train_dict = dict()
+        self.users_test = None
+        self.items_test = None
+        self.user_items_test_dict = dict()
         self.recommendations = None
         self.model_file = os.path.join(self.model_dir, 'popularity_based_model.pkl')
 
+    def __derive_stats(self):
+        """private function, derive stats"""
+        LOGGER.debug("Train Data :: Deriving Stats...")
+        self.users_train = list(self.train_data[self.user_id_col].unique())
+        LOGGER.debug("Train Data :: No. of users : " + str(len(self.users_train)))
+        self.items_train = list(self.train_data[self.item_id_col].unique())
+        LOGGER.debug("Train Data :: No. of items : " + str(len(self.items_train)))
+
+        users_items_train_dict = {
+            'users_train' : self.users_train,
+            'items_train' : self.items_train
+        }
+        #pprint(users_items_train_dict)
+        users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
+        utilities.dump_json_file(users_items_train_dict, users_items_train_file)
+
+        LOGGER.debug("Train Data :: Getting Distinct Items for each User")
+        user_items_train_df = self.train_data.groupby([self.user_id_col])\
+                                             .agg({
+                                                 self.item_id_col: (lambda x: list(x.unique()))
+                                                 })
+        user_items_train_df = user_items_train_df.rename(columns={self.item_id_col: 'items'})\
+                                                 .reset_index()
+        for _, user_items in user_items_train_df.iterrows():
+            user = user_items[str(self.user_id_col)]
+            items = user_items['items']
+            self.user_items_train_dict[user] = items
+        user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
+        utilities.dump_json_file(self.user_items_train_dict, user_items_train_file)
+        ########################################################################
+        LOGGER.debug("Test Data :: Deriving Stats...")
+        self.users_test = list(self.test_data[self.user_id_col].unique())
+        LOGGER.debug("Test Data :: No. of users : " + str(len(self.users_test)))
+        self.items_test = list(self.test_data[self.item_id_col].unique())
+        LOGGER.debug("Test Data :: No. of items : " + str(len(self.items_test)))
+
+        users_items_test_dict = {
+            'users_test' : self.users_test,
+            'items_test' : self.items_test
+        }
+        users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
+        utilities.dump_json_file(users_items_test_dict, users_items_test_file)
+
+        LOGGER.debug("Test Data :: Getting Distinct Items for each User")
+        user_items_test_df = self.test_data.groupby([self.user_id_col])\
+                                             .agg({
+                                                 self.item_id_col: (lambda x: list(x.unique()))
+                                                 })
+        user_items_test_df = user_items_test_df.rename(columns={self.item_id_col: 'items'})\
+                                                      .reset_index()
+        for _, user_items in user_items_test_df.iterrows():
+            user = user_items[str(self.user_id_col)]
+            items = user_items['items']
+            self.user_items_test_dict[user] = items
+        user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
+        utilities.dump_json_file(self.user_items_test_dict, user_items_test_file)
+
+    def __load_stats(self):
+        """private function, derive stats"""
+        LOGGER.debug("Train Data :: Loading Stats...")
+        users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
+        users_items_train_dict = utilities.load_json_file(users_items_train_file)
+        self.users_train = users_items_train_dict['users_train']
+        LOGGER.debug("Train Data :: No. of users : " + str(len(self.users_train)))
+        self.items_train = users_items_train_dict['items_train']
+        LOGGER.debug("Train Data :: No. of items : " + str(len(self.items_train)))
+
+        LOGGER.debug("Train Data :: Loading Distinct Items for each User")
+        user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
+        self.user_items_train_dict = utilities.load_json_file(user_items_train_file)
+        ############################################################################
+        LOGGER.debug("Test Data :: Loading Stats...")
+        users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
+        users_items_test_dict = utilities.load_json_file(users_items_test_file)
+        self.users_test = users_items_test_dict['users_test']
+        LOGGER.debug("Test Data :: No. of users : " + str(len(self.users_test)))
+        self.items_test = users_items_test_dict['items_test']
+        LOGGER.debug("Test Data :: No. of items : " + str(len(self.items_test)))
+
+        LOGGER.debug("Test Data :: Loading Distinct Items for each User")
+        user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
+        self.user_items_test_dict = utilities.load_json_file(user_items_test_file)        
+
     def train(self):
         """train the popularity based recommender system model"""
+        self.__derive_stats()
+        print("Training...")
         start_time = default_timer()
         # Get a count of user_ids for each unique item as popularity score
-        train_data_grouped = self.train_data.groupby([self.item_id_col]).agg({self.user_id_col: 'count'}).reset_index()
-        train_data_grouped.rename(columns={self.user_id_col: 'score', self.item_id_col:'item_id'}, inplace=True)
+        train_data_grouped = self.train_data.groupby([self.item_id_col])\
+                                            .agg({self.user_id_col: 'count'})\
+                                            .reset_index()
+        train_data_grouped.rename(columns={self.user_id_col:'no_of_users',
+                                           self.item_id_col:'item_id'},
+                                  inplace=True)
 
-        #Sort the items based upon popularity score
-        train_data_sort = train_data_grouped.sort_values(['score', 'item_id'], ascending=[0, 1])
+        #Sort the items based upon popularity score : no_of_users
+        train_data_sort = train_data_grouped.sort_values(['no_of_users', 'item_id'],
+                                                         ascending=[0, 1])
 
-        #Generate a recommendation rank based upon score
-        train_data_sort['rank'] = train_data_sort['score'].rank(ascending=0, method='first')
+        #Generate a recommendation rank based upon score : no_of_users
+        train_data_sort['rank'] = train_data_sort['no_of_users']\
+                                  .rank(ascending=0, method='first')
+        train_data_sort.reset_index(drop=True, inplace=True)
 
         self.recommendations = train_data_sort.head(self.no_of_recs)
         end_time = default_timer()
-        print("{:50}    {}".format("Training Completed in : ", utilities.convert_sec(end_time - start_time)))
-        #print(self.cooccurence_matrix.shape)
+        print("{:50}    {}".format("Training Completed in : ",
+                                   utilities.convert_sec(end_time - start_time)))
         joblib.dump(self.recommendations, self.model_file)
         LOGGER.debug("Saved Model")
 
-    def recommend(self, user_id):
+    def recommend_items(self):
         """Generate item recommendations for given user_id"""
         if not os.path.exists(self.model_file):
             print("Trained Model not found !!!. Failed to recommend")
             return None
-
         self.recommendations = joblib.load(self.model_file)
         LOGGER.debug("Loaded Trained Model")
+
         start_time = default_timer()
         recommended_items = self.recommendations['item_id'].tolist()
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated in : ",
                                    utilities.convert_sec(end_time - start_time)))
-
         return recommended_items
 
+    def __get_all_users(self, dataset='train'):
+        """private function, Get unique users in the data"""
+        if dataset == "train":
+            return self.users_train
+        else:#test
+            return self.users_test
+
+    def __get_items(self, user_id, dataset='train'):
+        """private function, Get unique items for a given user"""
+        if dataset == "train":
+            user_items = self.user_items_train_dict[user_id]
+        else:#test
+            user_items = self.user_items_test_dict[user_id]
+        return user_items
+
     def __generate_top_recommendations(self):
-        """Use the recommendations dataframe to make top recommendations"""
-        return self.recommendations
+        """Generate top popularity recommendations"""
+        recommended_items = self.recommendations['item_id'].tolist()
+        return recommended_items
 
-    def __get_items_for_eval(self, users_test_sample):
-        """Generate recommended and interacted items for users in the user test sample"""
+    def __get_items_for_eval(self, dataset='train'):
+        """Generate recommended and interacted items for users"""
         eval_items = dict()
-
-        for user_id in users_test_sample:
+        users = self.__get_all_users(dataset)
+        no_of_users = len(users)
+        for user_id in users:
+            # Get all items with which user has interacted
+            items_interacted = self.__get_items(user_id, dataset)
             eval_items[user_id] = dict()
-            eval_items[user_id]['items_recommended'] = dict()
-            eval_items[user_id]['items_interacted'] = dict()
-
-            user_recommendations = self.__generate_top_recommendations()
-            recommended_items = user_recommendations['item_id']
+            eval_items[user_id]['items_recommended'] = []
+            eval_items[user_id]['items_interacted'] = []
+            recommended_items = self.__generate_top_recommendations()
             eval_items[user_id]['items_recommended'] = recommended_items
-
-            #Get items for user_id from test_data
-            test_data_user = self.test_data[self.test_data[self.user_id_col] == user_id]
-            eval_items[user_id]['items_interacted'] = test_data_user[self.item_id_col].unique()
+            eval_items[user_id]['items_interacted'] = items_interacted
+        print("Evaluation : No of users : ", no_of_users)
         return eval_items
 
-    def eval(self, sample_test_users_percentage, no_of_recs_to_eval):
+    def evaluate(self, no_of_recs_to_eval, dataset='train'):
         """Evaluate trained model"""
-        start_time = default_timer()        
+        print("Evaluating...")
+        self.__load_stats()
+        start_time = default_timer()
         if os.path.exists(self.model_file):
             self.recommendations = joblib.load(self.model_file)
             LOGGER.debug("Loaded Trained Model")
 
-            #Get a sample of common users from test and training set
-            users_test_sample = self.fetch_sample_test_users(sample_test_users_percentage)
-            if len(users_test_sample) == 0:
-                print("""None of users are common in training and test data.
-                         Hence cannot evaluate model""")
-                return {'status' : "Common Users not found, Failed to Evaluate"}
-
-            #Generate recommendations for the test sample users
-            eval_items = self.__get_items_for_eval(users_test_sample)
+            #Generate recommendations for the users
+            eval_items = self.__get_items_for_eval(dataset)
+            precision_recall_eval_file = os.path.join(self.results_dir, 'eval_items.json')
+            utilities.dump_json_file(eval_items, precision_recall_eval_file)
+            #pprint(eval_items)
 
             precision_recall_intf = PrecisionRecall()
             results = precision_recall_intf.compute_precision_recall(
                 no_of_recs_to_eval, eval_items)
             end_time = default_timer()
-            print("{:50}    {}".format("Evaluation Completed in : ", utilities.convert_sec(end_time - start_time)))                
+            print("{:50}    {}".format("Evaluation Completed in : ",
+                                       utilities.convert_sec(end_time - start_time)))
             return results
         else:
             print("Trained Model not found !!!. Failed to evaluate")
             results = {'status' : "Trained Model not found !!!. Failed to evaluate"}
             end_time = default_timer()
-            print("{:50}    {}".format("Evaluation Completed in : ", utilities.convert_sec(end_time - start_time)))
+            print("{:50}    {}".format("Evaluation Completed in : ",
+                                       utilities.convert_sec(end_time - start_time)))
             return results
 
-def load_train_test(model_dir):
-    """Load Train and Test Data"""
-    train_file = os.path.join(model_dir, 'train_data.csv')
-    train_data = pd.read_csv(train_file)
-    test_file = os.path.join(model_dir, 'test_data.csv')
-    test_data = pd.read_csv(test_file)
-    print("{:30} : {}".format("No of records in train_data", len(train_data)))
-    print("{:30} : {}".format("No of records in test_data", len(test_data)))
-    return train_data, test_data
-
-def train(train_data, test_data, user_id_col, item_id_col, results_dir, model_dir):
+def train(results_dir, model_dir, train_test_dir,
+          user_id_col, item_id_col,
+          no_of_recs=10):
     """train recommender"""
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
+
     print("Training Recommender...")
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
-                                       user_id_col,
-                                       item_id_col)
+                                       user_id_col, item_id_col, no_of_recs)
     model.train()
     print('*' * 80)
 
-def evaluate(user_id_col, item_id_col,
-             results_dir, model_dir,
-             no_of_recs_to_eval, sample_test_users_percentage):
+def evaluate(results_dir, model_dir, train_test_dir,
+             user_id_col, item_id_col,
+             no_of_recs_to_eval, dataset='test',
+             no_of_recs=10):
     """evaluate recommender"""
-    print("Loading Training and Test Data")
-    train_data, test_data = load_train_test(model_dir)
-    # print(train_data.head(5))
-    # print(test_data.head(5))
-    print('*' * 80)
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Evaluating Recommender System")
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
-                                       user_id_col,
-                                       item_id_col)
-    results = model.eval(sample_test_users_percentage, no_of_recs_to_eval)
+                                       user_id_col, item_id_col, no_of_recs)
+    results = model.evaluate(no_of_recs_to_eval, dataset)
     pprint(results)
     print('*' * 80)
 
-def recommend(user_id, user_id_col, item_id_col, results_dir, model_dir):
+def recommend(results_dir, model_dir, train_test_dir,
+              user_id_col, item_id_col,
+              user_id, no_of_recs=10):
     """recommend items for user"""
-    print("Loading Training and Test Data")
-    train_data, test_data = load_train_test(model_dir)
-    # print(train_data.head(5))
-    # print(test_data.head(5))
-    print('*' * 80)
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
-                                       user_id_col,
-                                       item_id_col)
+                                       user_id_col, item_id_col, no_of_recs)
 
     print("Items recommended for a user with user_id : {}".format(user_id))
-    recommended_items = model.recommend(user_id)
-    for item in recommended_items:
-        print(item)
+    recommended_items = model.recommend_items()
+    print()
+    if recommended_items:
+        for item in recommended_items:
+            print(item)
+    else:
+        print("No items to recommend")
     print('*' * 80)
 
-def train_eval_recommend(train_data, test_data,
+def train_eval_recommend(results_dir, model_dir, train_test_dir,
                          user_id_col, item_id_col,
-                         results_dir, model_dir,
-                         no_of_recs_to_eval,
-                         sample_test_users_percentage):
-    """Train Evaluate and Recommend for Item Based Recommender"""
+                         no_of_recs_to_eval, dataset='test',
+                         no_of_recs=10):
+    """Train Evaluate and Recommend for Popularity Based Recommender"""
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Training Recommender...")
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
-                                       user_id_col,
-                                       item_id_col)
+                                       user_id_col, item_id_col, no_of_recs)
     model.train()
     print('*' * 80)
 
     print("Evaluating Recommender System")
-    results = model.eval(sample_test_users_percentage, no_of_recs_to_eval)
+    results = model.evaluate(no_of_recs_to_eval, dataset)
     pprint(results)
     print('*' * 80)
 
@@ -208,7 +300,11 @@ def train_eval_recommend(train_data, test_data,
     users = test_data[user_id_col].unique()
     user_id = users[0]
     print("Items recommended for a user with user_id : {}".format(user_id))
-    recommended_items = model.recommend(user_id)
-    for item in recommended_items:
-        print(item)
+    recommended_items = model.recommend_items()
+    print()
+    if recommended_items:
+        for item in recommended_items:
+            print(item)
+    else:
+        print("No items to recommend")
     print('*' * 80)
