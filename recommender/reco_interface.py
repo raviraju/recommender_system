@@ -49,7 +49,7 @@ class RecommenderIntf(metaclass=ABCMeta):
     def get_random_sample(self, list_a, percentage):
         """return random percentage of values from a list"""
         k = int(len(list_a) * percentage)
-        #random.seed(0)
+        random.seed(0)
         indicies = random.sample(range(len(list_a)), k)
         new_list = [list_a[i] for i in indicies]
         return new_list

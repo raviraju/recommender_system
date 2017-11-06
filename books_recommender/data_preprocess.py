@@ -10,15 +10,18 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def extract_learner_books(bookclub_events, demographics):
     """Extract learner_id-book_code-events_count triplets with demographics"""
+    print('1')
     dataframe = pd.read_csv(bookclub_events,
                             parse_dates=['event_time', 'receipt_time'],
                             dtype={'learner_id': int,
                                    'contents_code': str,
                                    'library_source': str,
                                    'media_fm': str})
+    print('2')
     demograph = pd.read_csv(demographics, 
                             parse_dates=['learner_birthday'], 
                             dtype={'learner_id': int})
+    print('3')
     print("No of records : ", len(dataframe))
     
     now = pd.Timestamp(DT.datetime.now())
@@ -57,13 +60,18 @@ def extract_learner_books(bookclub_events, demographics):
     learner_books_file = os.path.join(preprocessed_data_dir, 'learner_books_close_events.csv')
     learner_books_df.to_csv(learner_books_file, index=False)
     
-    learner_books_info_file = os.path.join(preprocessed_data_dir, 'learner_books_close_events_info.csv')
+    learner_books_info_file = os.path.join(preprocessed_data_dir, 'learner_books_info_close_events.csv')
     learner_books_info_df.to_csv(learner_books_info_file, index=False)
     
     #eliminate records with less than 10 close events
     learner_book_min_events_df = learner_books_df[learner_books_df['events_count']>10]
     learner_books_min_file = os.path.join(preprocessed_data_dir, 'learner_books_close_min_events.csv')
     learner_book_min_events_df.to_csv(learner_books_min_file, index=False)
+    
+    learner_books_info_min_events_df = learner_books_info_df[learner_books_info_df['events_count']>10]
+    learner_books_info_min_file = os.path.join(preprocessed_data_dir, 'learner_books_info_close_min_events.csv')
+    learner_books_info_min_events_df.to_csv(learner_books_info_min_file, index=False)
+    
     print("Preprocessed data available in preprocessed_data/")
 
 if __name__ == '__main__':

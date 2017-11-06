@@ -118,8 +118,9 @@ def main():
         os.makedirs(train_test_dir)
 
     data_dir = os.path.join(current_dir, 'preprocessed_data')
-    data = os.path.join(data_dir, 'learner_books_close_events_info.csv')
-   
+    #data = os.path.join(data_dir, 'learner_books_info_close_events.csv')
+    data = os.path.join(data_dir, 'learner_books_info_close_min_events.csv')
+    
     parser = argparse.ArgumentParser(description="Split train and test data")
     parser.add_argument("--random_split",
                         help="Random split data into train and test",

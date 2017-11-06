@@ -9,7 +9,7 @@ from recommender import item_based_cf_opt
 
 def main():
     """Item based recommender interface"""
-    parser = argparse.ArgumentParser(description="Popularity Based Recommender")
+    parser = argparse.ArgumentParser(description="Item Based Recommender")
     parser.add_argument("--train",
                         help="Train Model",
                         action="store_true")
