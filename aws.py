@@ -30,6 +30,7 @@ def main():
             print("Make sure Kidaptive-VPN is connected")
             print("Connect to EC2 using :")
             print("ssh {}@{}".format('rraju', public_ip))
+            print("ssh -f {}@{} -L 8889:localhost:8889 -N".format('rraju', public_ip))
         #'stopped'
         #'running'
 

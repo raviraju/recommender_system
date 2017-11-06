@@ -53,7 +53,7 @@ def generate_users_split(train_test_dir, data, test_size=0.2):
               len(user_songs_df[user_songs_df['no_of_songs'] == no_of_songs]))
 
     min_no_of_songs = 10
-    min_user_songs_df = user_songs_df[user_songs_df['no_of_songs'] > min_no_of_songs]
+    min_user_songs_df = user_songs_df[user_songs_df['no_of_songs'] >= min_no_of_songs]
     print("Min no of Songs : ", min_no_of_songs,
           " No of listerners : ",
           len(min_user_songs_df))
