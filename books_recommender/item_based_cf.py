@@ -40,7 +40,7 @@ def main():
         item_based_cf_opt.train(results_dir, model_dir, train_test_dir,
                                 user_id_col, item_id_col, no_of_recs=no_of_recs)
     elif args.eval:
-        no_of_recs_to_eval = [1, 2, 5]
+        no_of_recs_to_eval = [1, 2, 5, 10]
         item_based_cf_opt.evaluate(results_dir, model_dir, train_test_dir,
                                    user_id_col, item_id_col,
                                    no_of_recs_to_eval, dataset='test',
@@ -50,7 +50,7 @@ def main():
                                     user_id_col, item_id_col,
                                     args.user_id, no_of_recs=no_of_recs)
     else:
-        no_of_recs_to_eval = [1, 2, 5]
+        no_of_recs_to_eval = [1, 2, 5, 10]
         item_based_cf_opt.train_eval_recommend(results_dir, model_dir, train_test_dir,
                                                user_id_col, item_id_col,
                                                no_of_recs_to_eval, dataset='test',

@@ -38,9 +38,9 @@ class PopularityBasedRecommender(RecommenderIntf):
     def __derive_stats(self):
         """private function, derive stats"""
         LOGGER.debug("Train Data :: Deriving Stats...")
-        self.users_train = list(self.train_data[self.user_id_col].unique())
+        self.users_train = [str(user_id) for user_id in self.train_data[self.user_id_col].unique()]
         LOGGER.debug("Train Data :: No. of users : " + str(len(self.users_train)))
-        self.items_train = list(self.train_data[self.item_id_col].unique())
+        self.items_train = [str(item_id) for item_id in self.train_data[self.item_id_col].unique()]
         LOGGER.debug("Train Data :: No. of items : " + str(len(self.items_train)))
 
         users_items_train_dict = {
@@ -60,15 +60,15 @@ class PopularityBasedRecommender(RecommenderIntf):
                                                  .reset_index()
         for _, user_items in user_items_train_df.iterrows():
             user = user_items[str(self.user_id_col)]
-            items = user_items['items']
+            items = [str(item) for item in user_items['items']]
             self.user_items_train_dict[user] = items
         user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
         utilities.dump_json_file(self.user_items_train_dict, user_items_train_file)
         ########################################################################
         LOGGER.debug("Test Data :: Deriving Stats...")
-        self.users_test = list(self.test_data[self.user_id_col].unique())
+        self.users_test = [str(user_id) for user_id in self.test_data[self.user_id_col].unique()]
         LOGGER.debug("Test Data :: No. of users : " + str(len(self.users_test)))
-        self.items_test = list(self.test_data[self.item_id_col].unique())
+        self.items_test = [str(item_id) for item_id in self.test_data[self.item_id_col].unique()]
         LOGGER.debug("Test Data :: No. of items : " + str(len(self.items_test)))
 
         users_items_test_dict = {
@@ -87,7 +87,7 @@ class PopularityBasedRecommender(RecommenderIntf):
                                                       .reset_index()
         for _, user_items in user_items_test_df.iterrows():
             user = user_items[str(self.user_id_col)]
-            items = user_items['items']
+            items = [str(item) for item in user_items['items']]
             self.user_items_test_dict[user] = items
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         utilities.dump_json_file(self.user_items_test_dict, user_items_test_file)
@@ -169,6 +169,13 @@ class PopularityBasedRecommender(RecommenderIntf):
         else:#test
             return self.users_test
 
+    def __get_all_items(self, dataset='train'):
+        """private function, Get unique items in the data"""
+        if dataset == "train":
+            return self.items_train
+        else:#test
+            return self.items_test
+
     def __get_items(self, user_id, dataset='train'):
         """private function, Get unique items for a given user"""
         if dataset == "train":
@@ -182,11 +189,39 @@ class PopularityBasedRecommender(RecommenderIntf):
         recommended_items = self.recommendations['item_id'].tolist()
         return recommended_items
 
+    def __split_items(self, items_interacted, hold_out_ratio):
+        """return assume_interacted_items, hold_out_items"""
+        items_interacted_set = set(items_interacted)
+        assume_interacted_items = set()
+        hold_out_items = set()
+        # print("Items Interacted : ")
+        # print(items_interacted)
+        hold_out_items = set(self.get_random_sample(items_interacted, hold_out_ratio))
+        # print("Items Held Out : ")
+        # print(hold_out_items)
+        # print("No of items to hold out:", len(hold_out_items))
+        assume_interacted_items = items_interacted_set - hold_out_items
+        # print("Items Assume to be interacted : ")
+        # print(assume_interacted_items)
+        # print("No of interacted_items assumed:", len(assume_interacted_items))
+        # input()
+        return list(assume_interacted_items), list(hold_out_items)
+
+    def __get_known_items(self, items_interacted):
+        """return filtered items which are present in training set"""
+        known_items_interacted = []
+        items_training_set = self.__get_all_items(dataset='train')
+        for item in items_interacted:
+            if item in items_training_set:
+                known_items_interacted.append(item)
+        return known_items_interacted
+
     def __get_items_for_eval(self, dataset='train'):
         """Generate recommended and interacted items for users"""
         eval_items = dict()
         users = self.__get_all_users(dataset)
         no_of_users = len(users)
+        """
         for user_id in users:
             # Get all items with which user has interacted
             items_interacted = self.__get_items(user_id, dataset)
@@ -197,6 +232,36 @@ class PopularityBasedRecommender(RecommenderIntf):
             eval_items[user_id]['items_recommended'] = recommended_items
             eval_items[user_id]['items_interacted'] = items_interacted
         print("Evaluation : No of users : ", no_of_users)
+        """
+        no_of_users_considered = 0
+        hold_out_ratio = 0.5
+        for user_id in users:
+            # Get all items with which user has interacted
+            items_interacted = self.__get_items(user_id, dataset)
+            if dataset != 'train':
+                items_interacted = self.__get_known_items(items_interacted)
+            assume_interacted_items, hold_out_items = self.__split_items(items_interacted,
+                                                                         hold_out_ratio)
+            if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
+                # print("WARNING !!!. User {} exempted from evaluation".format(user_id))
+                # print("Items Interacted Assumed : ")
+                # print(assume_interacted_items)
+                # print("Hold Out Items")
+                # print(hold_out_items)
+                # input()
+                continue
+
+            eval_items[user_id] = dict()
+            eval_items[user_id]['items_recommended'] = []
+            eval_items[user_id]['items_interacted'] = []
+            no_of_users_considered += 1
+            recommended_items = self.__generate_top_recommendations()
+            eval_items[user_id]['items_recommended'] = recommended_items
+
+            eval_items[user_id]['items_interacted'] = hold_out_items
+        print("Evaluation : No of users : ", no_of_users)
+        print("Evaluation : No of users considered : ", no_of_users_considered)
+        
         return eval_items
 
     def evaluate(self, no_of_recs_to_eval, dataset='train'):

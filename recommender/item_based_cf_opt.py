@@ -25,9 +25,9 @@ class ItemBasedCFRecommender(RecommenderIntf):
     def __derive_stats(self):
         """private function, derive stats"""
         LOGGER.debug("Train Data :: Deriving Stats...")
-        self.users_train = list(self.train_data[self.user_id_col].unique())
+        self.users_train = [str(user_id) for user_id in self.train_data[self.user_id_col].unique()]
         LOGGER.debug("Train Data :: No. of users : " + str(len(self.users_train)))
-        self.items_train = list(self.train_data[self.item_id_col].unique())
+        self.items_train = [str(item_id) for item_id in self.train_data[self.item_id_col].unique()]
         LOGGER.debug("Train Data :: No. of items : " + str(len(self.items_train)))
 
         users_items_train_dict = {
@@ -47,7 +47,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
                                                       .reset_index()
         for _, item_users in item_users_train_df.iterrows():
             item = item_users[str(self.item_id_col)]
-            users = item_users['users']
+            users = [str(user) for user in item_users['users']]
             self.item_users_train_dict[item] = users
         item_users_train_file = os.path.join(self.model_dir, 'item_users_train.json')
         utilities.dump_json_file(self.item_users_train_dict, item_users_train_file)
@@ -61,15 +61,15 @@ class ItemBasedCFRecommender(RecommenderIntf):
                                                  .reset_index()
         for _, user_items in user_items_train_df.iterrows():
             user = user_items[str(self.user_id_col)]
-            items = user_items['items']
+            items = [str(item) for item in user_items['items']]
             self.user_items_train_dict[user] = items
         user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
         utilities.dump_json_file(self.user_items_train_dict, user_items_train_file)
         ########################################################################
         LOGGER.debug("Test Data  :: Deriving Stats...")
-        self.users_test = list(self.test_data[self.user_id_col].unique())
+        self.users_test = [str(user_id) for user_id in self.test_data[self.user_id_col].unique()]
         LOGGER.debug("Test Data  :: No. of users : " + str(len(self.users_test)))
-        self.items_test = list(self.test_data[self.item_id_col].unique())
+        self.items_test = [str(item_id) for item_id in self.test_data[self.item_id_col].unique()]
         LOGGER.debug("Test Data  :: No. of items : " + str(len(self.items_test)))
 
         users_items_test_dict = {
@@ -88,7 +88,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
                                                       .reset_index()
         for _, item_users in item_users_test_df.iterrows():
             item = item_users[str(self.item_id_col)]
-            users = item_users['users']
+            users = [str(user) for user in item_users['users']]
             self.item_users_test_dict[item] = users
 
         item_users_test_file = os.path.join(self.model_dir, 'item_users_test.json')
@@ -103,7 +103,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
                                                       .reset_index()
         for _, user_items in user_items_test_df.iterrows():
             user = user_items[str(self.user_id_col)]
-            items = user_items['items']
+            items = [str(item) for item in user_items['items']]
             self.user_items_test_dict[user] = items
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         utilities.dump_json_file(self.user_items_test_dict, user_items_test_file)
