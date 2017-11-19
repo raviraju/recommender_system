@@ -62,15 +62,24 @@ def extract_learner_books(bookclub_events, demographics):
     
     learner_books_info_file = os.path.join(preprocessed_data_dir, 'learner_books_info_close_events.csv')
     learner_books_info_df.to_csv(learner_books_info_file, index=False)
+
+    #eliminate records with less than 3 close events
+    learner_book_min_3_events_df = learner_books_df[learner_books_df['events_count']>=3]
+    learner_books_min_3_file = os.path.join(preprocessed_data_dir, 'learner_books_close_min_3_events.csv')
+    learner_book_min_3_events_df.to_csv(learner_books_min_3_file, index=False)
+    
+    learner_books_info_min_3_events_df = learner_books_info_df[learner_books_info_df['events_count']>=3]
+    learner_books_info_min_3_file = os.path.join(preprocessed_data_dir, 'learner_books_info_close_min_3_events.csv')
+    learner_books_info_min_3_events_df.to_csv(learner_books_info_min_3_file, index=False)
     
     #eliminate records with less than 10 close events
-    learner_book_min_events_df = learner_books_df[learner_books_df['events_count']>10]
-    learner_books_min_file = os.path.join(preprocessed_data_dir, 'learner_books_close_min_events.csv')
-    learner_book_min_events_df.to_csv(learner_books_min_file, index=False)
+    learner_book_min_10_events_df = learner_books_df[learner_books_df['events_count']>=10]
+    learner_books_min_10_file = os.path.join(preprocessed_data_dir, 'learner_books_close_min_10_events.csv')
+    learner_book_min_10_events_df.to_csv(learner_books_min_10_file, index=False)
     
-    learner_books_info_min_events_df = learner_books_info_df[learner_books_info_df['events_count']>10]
-    learner_books_info_min_file = os.path.join(preprocessed_data_dir, 'learner_books_info_close_min_events.csv')
-    learner_books_info_min_events_df.to_csv(learner_books_info_min_file, index=False)
+    learner_books_info_min_10_events_df = learner_books_info_df[learner_books_info_df['events_count']>=10]
+    learner_books_info_min_10_file = os.path.join(preprocessed_data_dir, 'learner_books_info_close_min_10_events.csv')
+    learner_books_info_min_10_events_df.to_csv(learner_books_info_min_10_file, index=False)
     
     print("Preprocessed data available in preprocessed_data/")
 

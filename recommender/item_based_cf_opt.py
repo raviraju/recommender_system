@@ -398,7 +398,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
             #Generate recommendations for the users
             eval_items = self.__get_items_for_eval(dataset, hold_out_ratio)
-            precision_recall_eval_file = os.path.join(self.results_dir, 'eval_items.json')
+            precision_recall_eval_file = os.path.join(self.model_dir, 'eval_items.json')
             utilities.dump_json_file(eval_items, precision_recall_eval_file)
             #pprint(eval_items)
 
@@ -408,6 +408,10 @@ class ItemBasedCFRecommender(RecommenderIntf):
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed in : ",
                                        utilities.convert_sec(end_time - start_time)))
+            
+            results_file = os.path.join(self.model_dir, 'results.json')
+            utilities.dump_json_file(results, results_file)
+            
             return results
         else:
             print("Trained Model not found !!!. Failed to evaluate")
@@ -415,6 +419,10 @@ class ItemBasedCFRecommender(RecommenderIntf):
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed in : ",
                                        utilities.convert_sec(end_time - start_time)))
+            
+            results_file = os.path.join(self.model_dir, 'results.json')
+            utilities.dump_json_file(results, results_file)
+            
             return results
 
     def get_similar_items(self, item_list, dataset='train'):

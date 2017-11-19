@@ -202,7 +202,7 @@ class RandomBasedRecommender(RecommenderIntf):
                 known_items_interacted.append(item)
         return known_items_interacted
 
-    def __get_items_for_eval(self, dataset='train'):
+    def __get_items_for_eval(self, dataset='train', hold_out_ratio=0.5):
         """Generate recommended and interacted items for users"""
         eval_items = dict()
         users = self.__get_all_users(dataset)
@@ -220,7 +220,6 @@ class RandomBasedRecommender(RecommenderIntf):
         print("Evaluation : No of users : ", no_of_users)
         """
         no_of_users_considered = 0
-        hold_out_ratio = 0.5
         for user_id in users:
             # Get all items with which user has interacted
             items_interacted = self.__get_items(user_id, dataset)
@@ -250,7 +249,7 @@ class RandomBasedRecommender(RecommenderIntf):
         
         return eval_items
 
-    def evaluate(self, no_of_recs_to_eval, dataset='train'):
+    def evaluate(self, no_of_recs_to_eval, dataset='train', hold_out_ratio=0.5):
         """Evaluate trained model"""
         print("Evaluating...")
         self.__load_stats()
@@ -260,8 +259,8 @@ class RandomBasedRecommender(RecommenderIntf):
             LOGGER.debug("Loaded Trained Model")
 
             #Generate recommendations for the users
-            eval_items = self.__get_items_for_eval(dataset)
-            precision_recall_eval_file = os.path.join(self.results_dir, 'eval_items.json')
+            eval_items = self.__get_items_for_eval(dataset, hold_out_ratio)
+            precision_recall_eval_file = os.path.join(self.model_dir, 'eval_items.json')
             utilities.dump_json_file(eval_items, precision_recall_eval_file)
             #pprint(eval_items)
 
@@ -271,6 +270,10 @@ class RandomBasedRecommender(RecommenderIntf):
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed in : ",
                                        utilities.convert_sec(end_time - start_time)))
+            
+            results_file = os.path.join(self.model_dir, 'results.json')
+            utilities.dump_json_file(results, results_file)
+            
             return results
         else:
             print("Trained Model not found !!!. Failed to evaluate")
@@ -278,6 +281,10 @@ class RandomBasedRecommender(RecommenderIntf):
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed in : ",
                                        utilities.convert_sec(end_time - start_time)))
+            
+            results_file = os.path.join(self.model_dir, 'results.json')
+            utilities.dump_json_file(results, results_file)
+            
             return results
 
 def train(results_dir, model_dir, train_test_dir,
@@ -296,7 +303,7 @@ def train(results_dir, model_dir, train_test_dir,
 def evaluate(results_dir, model_dir, train_test_dir,
              user_id_col, item_id_col,
              no_of_recs_to_eval, dataset='test',
-             no_of_recs=10):
+             no_of_recs=10, hold_out_ratio=0.5):
     """evaluate recommender"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
@@ -304,7 +311,7 @@ def evaluate(results_dir, model_dir, train_test_dir,
     model = RandomBasedRecommender(results_dir, model_dir,
                                    train_data, test_data,
                                    user_id_col, item_id_col, no_of_recs)
-    results = model.evaluate(no_of_recs_to_eval, dataset)
+    results = model.evaluate(no_of_recs_to_eval, dataset, hold_out_ratio)
     pprint(results)
     print('*' * 80)
 
@@ -331,7 +338,7 @@ def recommend(results_dir, model_dir, train_test_dir,
 def train_eval_recommend(results_dir, model_dir, train_test_dir,
                          user_id_col, item_id_col,
                          no_of_recs_to_eval, dataset='test',
-                         no_of_recs=10):
+                         no_of_recs=10, hold_out_ratio=0.5):
     """Train Evaluate and Recommend for Random Based Recommender"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
@@ -343,7 +350,7 @@ def train_eval_recommend(results_dir, model_dir, train_test_dir,
     print('*' * 80)
 
     print("Evaluating Recommender System")
-    results = model.evaluate(no_of_recs_to_eval, dataset)
+    results = model.evaluate(no_of_recs_to_eval, dataset, hold_out_ratio)
     pprint(results)
     print('*' * 80)
 

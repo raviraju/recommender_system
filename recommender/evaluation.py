@@ -52,8 +52,8 @@ class PrecisionRecall():
             avg_recall = sum_recall/float(num_users_sample)
             avg_f1_score = sum_f1_score/float(num_users_sample)
 
-            results['no_of_items_to_recommend'][no_of_items_to_recommend]['avg_precision'] = round(avg_precision, 2)
-            results['no_of_items_to_recommend'][no_of_items_to_recommend]['avg_recall'] = round(avg_recall, 2)
-            results['no_of_items_to_recommend'][no_of_items_to_recommend]['avg_f1_score'] = round(avg_f1_score, 2)
+            results['no_of_items_to_recommend'][no_of_items_to_recommend]['avg_precision'] = round(avg_precision, 4)
+            results['no_of_items_to_recommend'][no_of_items_to_recommend]['avg_recall'] = round(avg_recall, 4)
+            results['no_of_items_to_recommend'][no_of_items_to_recommend]['avg_f1_score'] = round(avg_f1_score, 4)
 
         return results
