@@ -27,9 +27,6 @@ def main():
     results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
-    model_dir = os.path.join(current_dir, 'model/popularity_based_features')
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
 
     no_of_recs = 10
     user_id_col = 'learner_id'
@@ -37,6 +34,12 @@ def main():
     features = ['learner_gender']
     features = ['age']
     features = ['learner_gender', 'age']
+    
+    features_str = '_'.join(features)
+    model_dir = os.path.join(current_dir, 'model/popularity_based_' + features_str)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+        
     train_test_dir = os.path.join(current_dir, 'train_test_data')
 
     if args.train:
