@@ -31,8 +31,8 @@ def main():
     no_of_recs = 10
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
-    features = ['learner_gender']
-    features = ['age']
+    #features = ['learner_gender']
+    #features = ['age']
     features = ['learner_gender', 'age']
     
     features_str = '_'.join(features)
