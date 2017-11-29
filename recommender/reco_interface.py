@@ -73,14 +73,14 @@ def load_train_test(train_test_dir, user_id_col, item_id_col):
     print("Loading Training and Test Data")
     train_data_file = os.path.join(train_test_dir, 'train_data.csv')
     if os.path.exists(train_data_file):
-        train_data = pd.read_csv(train_data_file)
+        train_data = pd.read_csv(train_data_file, dtype=object)
     else:
         print("Unable to find train data in : ", train_data_file)
         exit(0)
 
     test_data_file = os.path.join(train_test_dir, 'test_data.csv')
     if os.path.exists(test_data_file):
-        test_data = pd.read_csv(test_data_file)
+        test_data = pd.read_csv(test_data_file, dtype=object)
     else:
         print("Unable to find test data in : ", train_data_file)
         exit(0)

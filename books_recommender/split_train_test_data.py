@@ -148,7 +148,7 @@ def main():
     if not os.path.exists(train_test_dir):
         os.makedirs(train_test_dir)
 
-    data_dir = os.path.join(current_dir, 'preprocessed_data')
+    data_dir = os.path.join(current_dir, 'preprocessed_metadata')
     #data = os.path.join(data_dir, 'learner_books_info_close_events.csv')
     data = os.path.join(data_dir, 'learner_books_info_close_min_3_events.csv')
     #data = os.path.join(data_dir, 'learner_books_info_close_min_10_events.csv')

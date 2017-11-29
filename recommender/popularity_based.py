@@ -157,14 +157,6 @@ class PopularityBasedRecommender(RecommenderIntf):
         LOGGER.debug("Loaded Trained Model")
 
         start_time = default_timer()
-        '''
-        print(self.recommendations)
-        print('*'*30)
-        print(self.train_data)
-        print('*'*30)
-        debug_df = pd.merge(self.recommendations, self.train_data, how='left', on=self.item_id_col)
-        print(debug_df)
-        '''
         recommended_items = self.recommendations[self.item_id_col].tolist()
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated in : ",
@@ -261,11 +253,12 @@ class PopularityBasedRecommender(RecommenderIntf):
 
             eval_items[user_id] = dict()
             eval_items[user_id]['items_recommended'] = []
+            eval_items[user_id]['assume_interacted_items'] = []
             eval_items[user_id]['items_interacted'] = []
             no_of_users_considered += 1
             recommended_items = self.__generate_top_recommendations()
             eval_items[user_id]['items_recommended'] = recommended_items
-
+            eval_items[user_id]['assume_interacted_items'] = assume_interacted_items
             eval_items[user_id]['items_interacted'] = hold_out_items
         print("Evaluation : No of users : ", no_of_users)
         print("Evaluation : No of users considered : ", no_of_users_considered)
@@ -347,10 +340,15 @@ def recommend(results_dir, model_dir, train_test_dir,
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
                                        user_id_col, item_id_col, no_of_recs)
-
-    print("Items recommended for a user with user_id : {}".format(user_id))
-    recommended_items = model.recommend_items()
+       
+    print("Items interactions for a user with user_id : {}".format(user_id))
+    interacted_items = list(test_data[test_data[user_id_col] == user_id][item_id_col])
+    for item in interacted_items:
+        print(item)
+            
     print()
+    print("Items recommended for a user with user_id : {}".format(user_id))
+    recommended_items = model.recommend_items()    
     if recommended_items:
         for item in recommended_items:
             print(item)

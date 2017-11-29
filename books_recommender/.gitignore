@@ -2,3 +2,5 @@ model
 train_test_data
 results
 preprocessed_data
+preprocessed_metadata
+.ipynb_checkpoints

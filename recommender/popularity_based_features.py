@@ -147,7 +147,7 @@ class PopularityBasedRecommenderFeatures(RecommenderIntf):
         
         for identifier, val in identifier_filters.items():
             #print(identifier, val, type(val))
-            data = data[data[identifier] == int(val)]
+            data = data[data[identifier] == val]
         return data[feature].values[0]
         
     def recommend_items(self, user_id, dataset='test'):
