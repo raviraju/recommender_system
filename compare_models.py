@@ -9,10 +9,13 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
-def plot_auc(recommender, results):
+def get_cmap(n, name='hsv'):
+    '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
+    RGB color; the keyword argument name must be a standard mpl colormap name.'''
+    return plt.cm.get_cmap(name, n)
+
+def plot_roc(recommender, results):
     #pprint(results)
-    
-    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']#http://matplotlib.org/1.3.1/api/pyplot_api.html#matplotlib.pyplot.plot
     no_of_items_to_recommend = []
     avg_precision_models_dict = OrderedDict()
     avg_recall_models_dict = OrderedDict()
@@ -38,14 +41,15 @@ def plot_auc(recommender, results):
     ax1 = fig.add_subplot(111)
 
     i = 0
+    no_of_models = len(avg_precision_models_dict)
+    cmap = get_cmap(no_of_models)
     for model in avg_precision_models_dict:
         precisions = avg_precision_models_dict[model]
         recalls = avg_recall_models_dict[model]
        
         x_precisions = np.array(precisions)
         y_recalls = np.array(recalls)
-        
-        ax1.plot(x_precisions, y_recalls, label=model, color=colors[i], marker='o')
+        ax1.plot(x_precisions, y_recalls, label=model, color=cmap(i), marker='o')
         i = i+1
     plt.ylabel('recall')
     plt.xlabel('1-precision')
@@ -53,7 +57,7 @@ def plot_auc(recommender, results):
     handles, labels = ax1.get_legend_handles_labels()
     lgd = ax1.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.8,1))
     ax1.grid('on')
-    img_name = 'results_auc.png'
+    img_name = 'results_roc.png'
     img_file = os.path.join(recommender, 'results', img_name)
     print("Generated Plot : {}".format(img_file))
     plt.savefig(img_file)
@@ -62,7 +66,7 @@ def plot_auc(recommender, results):
 def plot_graph(recommender, results, measure):
     #pprint(results)
     
-    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']#http://matplotlib.org/1.3.1/api/pyplot_api.html#matplotlib.pyplot.plot
+    #colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']#http://matplotlib.org/1.3.1/api/pyplot_api.html#matplotlib.pyplot.plot
     no_of_items_to_recommend = []
     models_dict = OrderedDict()
     for no_of_items in results:
@@ -85,8 +89,12 @@ def plot_graph(recommender, results, measure):
     fig = plt.figure(figsize=(8,6))
     ax1 = fig.add_subplot(111)
     
+    i=0
+    no_of_models = len(models_dict)
+    cmap = get_cmap(no_of_models)
     for model, values, col in zip(models_dict.keys(), y_param, colors):
-        ax1.plot(x_no_of_items_to_recommend, values, label=model, color=col, marker='o')
+        #ax1.plot(x_no_of_items_to_recommend, values, label=model, color=col, marker='o')
+        ax1.plot(x_no_of_items_to_recommend, values, label=model, color=cmap(i), marker='o')
     
     plt.xticks(x_no_of_items_to_recommend)
     plt.ylabel(measure)
@@ -99,7 +107,7 @@ def plot_graph(recommender, results, measure):
     img_file = os.path.join(recommender, 'results', img_name)
     print("Generated Plot : {}".format(img_file))
     plt.savefig(img_file)
-    plt.show()
+    #plt.show()
 
 def analyse(recommender):
     results = dict() 
@@ -108,17 +116,19 @@ def analyse(recommender):
         for name in files: 
             if name.endswith('results.json'): 
                 file_path = (os.path.join(root, name))
-                #print(file_path)
                 model_name = (Path(file_path).parent.name)
                 result_dict = utilities.load_json_file(file_path)
                 for no_of_items_to_recommend in result_dict['no_of_items_to_recommend']:
                     if no_of_items_to_recommend not in results:
                         results[no_of_items_to_recommend] = dict()
-                    results[no_of_items_to_recommend][model_name] = result_dict['no_of_items_to_recommend'][no_of_items_to_recommend]
+                    res = result_dict['no_of_items_to_recommend'][no_of_items_to_recommend]
+                    results[no_of_items_to_recommend][model_name] = res
+
+
     plot_graph(recommender, results, 'avg_f1_score')
     plot_graph(recommender, results, 'avg_precision')
     plot_graph(recommender, results, 'avg_recall')
-    plot_auc(recommender, results)
+    plot_roc(recommender, results)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Compare Recommender Models")

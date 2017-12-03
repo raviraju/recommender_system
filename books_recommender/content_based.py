@@ -407,28 +407,25 @@ class ContentBasedRecommender(RecommenderIntf):
                                                                           keywords_similarity,
                                                                          score))  
         '''
-        return score
+        return (name_tokens_similarity, authors_similarity, keywords_similarity, score)
 
-    def __generate_top_recommendations(self, user_id, dataset='test'):
-        # Get all unique items for this user
-        user_items = self.__get_items(user_id, dataset)
-        
-        #print("No. of items for the user_id {} : {}".format(user_id,
-        #                                                    len(user_items)))
-        user_profile = self.get_user_profile(user_items, dataset)        
-        #print(user_profile)
-        
+    def __generate_top_recommendations(self, items_interacted, user_profile):        
         #Get all items from train data and recommend them which are most similar to user_profile
         items_train = self.__get_all_items(dataset='train')
-        #items_train = user_items
-        
         item_scores = []
         for item_id in items_train:
+            if item_id in items_interacted:#this item was already interacted by the user, hence do not recommend
+                continue
+            
             item_profile = self.__load_item_profile(item_id, dataset='train')                        
             #print("\n\t" + item_id)
             #print(item_profile)
-            sim_score = self.__get_similarity_score(user_profile, item_profile)
-            item_scores.append({self.item_id_col : item_id, 'sim_score': sim_score})
+            (name_tokens_similarity, authors_similarity, keywords_similarity, sim_score) = self.__get_similarity_score(user_profile, item_profile)
+            item_scores.append({self.item_id_col : item_id,
+                                'name_tokens_similarity': name_tokens_similarity,
+                                'authors_similarity': authors_similarity,
+                                'keywords_similarity': keywords_similarity,
+                                'sim_score': sim_score})
         item_scores_df = pd.DataFrame(item_scores)
         #print(item_scores_df)
         #Sort the items based upon similarity scores
@@ -439,15 +436,28 @@ class ContentBasedRecommender(RecommenderIntf):
         item_scores_df['rank'] = item_scores_df['sim_score'].rank(ascending=0, method='first')
         item_scores_df.reset_index(drop=True, inplace=True)
         #print(item_scores_df)
+        #return item_scores_df.head(len(items_interacted))
         return item_scores_df.head(self.no_of_recs)
        
     def recommend_items(self, user_id, dataset='test'):
         """Generate item recommendations for given user_id from chosen dataset"""
         self.__load_stats()
         start_time = default_timer()
-        self.recommendations = self.__generate_top_recommendations(user_id, dataset)
+        # Get all items with which user has interacted
+        items_interacted = self.__get_items(user_id, dataset)
+        user_profile = self.get_user_profile(items_interacted, dataset)        
+        print("User Profile")
+        print(user_profile)
+        print()
+        
+        self.recommendations = self.__generate_top_recommendations(items_interacted, user_profile)
         print(self.recommendations)
         recommended_items = self.recommendations[self.item_id_col].tolist()
+        for item_id in recommended_items:
+            print('*'*30)
+            print("Recommended : ", item_id)
+            item_profile = self.__load_item_profile(item_id, dataset='train')
+            print(item_profile)
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated in : ",
                                    utilities.convert_sec(end_time - start_time)))
@@ -482,15 +492,23 @@ class ContentBasedRecommender(RecommenderIntf):
 
     def __get_items_for_eval(self, dataset='test', hold_out_ratio=0.5):
         """Generate recommended and interacted items for users"""
+        '''
+        eval_items_grps = dict()
+        '''
         eval_items = dict()
         users = self.__get_all_users(dataset)
         no_of_users = len(users)
         no_of_users_considered = 0
         for user_id in users:
+            #print(user_id)
             # Get all items with which user has interacted
             items_interacted = self.__get_items(user_id, dataset)
+            #print("items_interacted in test")
+            #print(items_interacted)
             if dataset != 'train':
                 items_interacted = self.__get_known_items(items_interacted)
+                #print("known items in train")
+                #print(items_interacted)
             assume_interacted_items, hold_out_items = self.__split_items(items_interacted,
                                                                          hold_out_ratio)
             if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
@@ -507,12 +525,54 @@ class ContentBasedRecommender(RecommenderIntf):
             eval_items[user_id]['assume_interacted_items'] = []
             eval_items[user_id]['items_interacted'] = []
             no_of_users_considered += 1
-            user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                       assume_interacted_items)
+
+            user_profile = self.get_user_profile(assume_interacted_items, dataset)                
+            user_recommendations = self.__generate_top_recommendations(assume_interacted_items, user_profile)
             recommended_items = list(user_recommendations[self.item_id_col].values)
             eval_items[user_id]['items_recommended'] = recommended_items
             eval_items[user_id]['assume_interacted_items'] = assume_interacted_items
             eval_items[user_id]['items_interacted'] = hold_out_items
+            
+            '''
+            no_of_items_recommended = len(recommended_items)
+            reco = {user_id : eval_items[user_id]}
+            if no_of_items_recommended not in eval_items_grps:
+                eval_items_grps[no_of_items_recommended] = [reco]
+            else:
+                eval_items_grps[no_of_items_recommended].append(reco)
+            '''
+            
+            '''
+            #for debug purpose
+            #Verify Evaluation
+            print(user_id)            
+            no_of_items_to_recommend_list = [1, 2, 5, 10]
+            for no_of_items_to_recommend in no_of_items_to_recommend_list:
+                print("no_of_items_to_recommend : ", no_of_items_to_recommend)
+                
+                items_interacted = eval_items[user_id]['items_interacted']
+                assume_interacted_items = eval_items[user_id]['assume_interacted_items']
+                items_recommended = eval_items[user_id]['items_recommended'][0:no_of_items_to_recommend]            
+                print("Items Interacted : ", set(items_interacted))
+                print("Assume Items Interacted : ", set(assume_interacted_items))
+                print("Items Recommended: ", set(items_recommended))
+                
+                hitset = set(items_interacted).intersection(set(items_recommended))
+                print("Hitset : ", hitset)
+                no_of_items_interacted = len(items_interacted)
+                #precision is the proportion of recommendations that are good recommendations
+                precision = float(len(hitset))/no_of_items_to_recommend
+                #recall is the proportion of good recommendations that appear in top recommendations
+                recall = float(len(hitset))/no_of_items_interacted
+                if (recall+precision) != 0:
+                    f1_score = float(2*precision*recall)/(recall+precision)
+                else:
+                    f1_score = 0.0
+                print("Precision : {}, Recall : {}, F1-Score : {}".format(precision, recall, f1_score))
+                input()
+            #for debug purpose
+            '''
+            
         print("Evaluation : No of users : ", no_of_users)
         print("Evaluation : No of users considered : ", no_of_users_considered)
         return eval_items
@@ -527,11 +587,13 @@ class ContentBasedRecommender(RecommenderIntf):
         eval_items = self.__get_items_for_eval(dataset, hold_out_ratio)
         precision_recall_eval_file = os.path.join(self.model_dir, 'eval_items.json')
         utilities.dump_json_file(eval_items, precision_recall_eval_file)
+        #precision_recall_eval_grp_file = os.path.join(self.model_dir, 'eval_items_grps.json')
+        #utilities.dump_json_file(eval_items_grps, precision_recall_eval_grp_file)        
         #pprint(eval_items)
 
         precision_recall_intf = PrecisionRecall()
-        results = precision_recall_intf.compute_precision_recall(
-            no_of_recs_to_eval, eval_items)
+        #results = precision_recall_intf.compute_precision_recall1(eval_items_grps)
+        results = precision_recall_intf.compute_precision_recall(no_of_recs_to_eval, eval_items)
         end_time = default_timer()
         print("{:50}    {}".format("Evaluation Completed in : ",
                                    utilities.convert_sec(end_time - start_time)))
