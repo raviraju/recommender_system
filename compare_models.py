@@ -9,7 +9,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
-def get_cmap(n, name='hsv'):
+def get_cmap(n, name='brg'):
     '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
     RGB color; the keyword argument name must be a standard mpl colormap name.'''
     return plt.cm.get_cmap(name, n)
@@ -49,7 +49,9 @@ def plot_roc(recommender, results):
        
         x_precisions = np.array(precisions)
         y_recalls = np.array(recalls)
-        ax1.plot(x_precisions, y_recalls, label=model, color=cmap(i), marker='o')
+        color = cmap(i)
+        #print(i, color, model)
+        ax1.plot(x_precisions, y_recalls, label=model, color=color, marker='o')
         i = i+1
     plt.ylabel('recall')
     plt.xlabel('1-precision')
@@ -88,13 +90,17 @@ def plot_graph(recommender, results, measure):
     
     fig = plt.figure(figsize=(8,6))
     ax1 = fig.add_subplot(111)
-    
+        
+    #for model, values, col in zip(models_dict.keys(), y_param, colors):
+        #ax1.plot(x_no_of_items_to_recommend, values, label=model, color=col, marker='o')
     i=0
     no_of_models = len(models_dict)
-    cmap = get_cmap(no_of_models)
-    for model, values, col in zip(models_dict.keys(), y_param, colors):
-        #ax1.plot(x_no_of_items_to_recommend, values, label=model, color=col, marker='o')
-        ax1.plot(x_no_of_items_to_recommend, values, label=model, color=cmap(i), marker='o')
+    cmap = get_cmap(no_of_models)        
+    for model, values in zip(models_dict.keys(), y_param):
+        color = cmap(i)
+        #print(i, color, model)
+        ax1.plot(x_no_of_items_to_recommend, values, label=model, color=color, marker='o')
+        i = i+1
     
     plt.xticks(x_no_of_items_to_recommend)
     plt.ylabel(measure)

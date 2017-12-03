@@ -50,6 +50,8 @@ class ContentBasedRecommender(RecommenderIntf):
         self.user_items_test_dict = dict()
         self.item_profile_train_dict = dict()
         self.item_profile_test_dict = dict()
+        self.train_user_age_dict = dict()
+        self.test_user_age_dict = dict()
         self.recommendations = None
         self.model_file = os.path.join(self.model_dir, 'content_based_model.pkl')
 
@@ -60,7 +62,15 @@ class ContentBasedRecommender(RecommenderIntf):
         else:#test
             user_items = self.user_items_test_dict[user_id]
         return user_items
-
+    
+    def __get_user_age(self, user_id, dataset='train'):
+        """private function, Get age for a given user"""
+        if dataset == "train":
+            age = self.train_user_age_dict[user_id]
+        else:#test
+            age = self.test_user_age_dict[user_id]
+        return age
+        
     def __get_users(self, item_id, dataset='train'):
         """private function, Get unique users for a given item"""
         if dataset == "train":
@@ -201,7 +211,19 @@ class ContentBasedRecommender(RecommenderIntf):
         #pprint(users_items_train_dict)
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         utilities.dump_json_file(users_items_train_dict, users_items_train_file)
-        
+                 
+        for user_id in self.users_train:
+            records = self.train_data[self.train_data[self.user_id_col] == user_id]
+            for _, record in records.iterrows():
+                first_record = record
+                break
+            age = first_record['age']
+            #print(user_id, age)
+            
+            self.train_user_age_dict[user_id] = age
+        train_user_age_file = os.path.join(self.model_dir, 'train_user_age.json')
+        utilities.dump_json_file(self.train_user_age_dict, train_user_age_file)
+    
         LOGGER.debug("Train Data :: Getting Item Profiles")
         json_item_profile_train_dict = dict()#json serializable dict
         for item_id in self.items_train:
@@ -245,8 +267,18 @@ class ContentBasedRecommender(RecommenderIntf):
         users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
         utilities.dump_json_file(users_items_test_dict, users_items_test_file)
 
+        for user_id in self.users_test:
+            records = self.test_data[self.test_data[self.user_id_col] == user_id]
+            for _, record in records.iterrows():
+                first_record = record
+                break
+            age = first_record['age']
+            #print(user_id, age)
+            self.test_user_age_dict[user_id] = age
+        test_user_age_file = os.path.join(self.model_dir, 'test_user_age.json')
+        utilities.dump_json_file(self.test_user_age_dict, test_user_age_file)
+        
         LOGGER.debug("Test Data :: Getting Item Profiles")
-
         json_item_profile_test_dict = dict()#json serializable dict
         for item_id in self.items_test:
             profile = self.get_item_profile(item_id, dataset='test')
@@ -302,6 +334,10 @@ class ContentBasedRecommender(RecommenderIntf):
         LOGGER.debug("Train Data :: Loading Distinct Items for each User")
         user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
         self.user_items_train_dict = utilities.load_json_file(user_items_train_file)
+        
+        LOGGER.debug("Train Data :: Loading Age for each User")
+        train_user_age_file = os.path.join(self.model_dir, 'train_user_age.json')
+        self.train_user_age_dict = utilities.load_json_file(train_user_age_file)
         ############################################################################
         LOGGER.debug("Test Data :: Loading Stats...")
         users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
@@ -327,6 +363,10 @@ class ContentBasedRecommender(RecommenderIntf):
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         self.user_items_test_dict = utilities.load_json_file(user_items_test_file)        
 
+        LOGGER.debug("Test Data :: Loading Age for each User")
+        test_user_age_file = os.path.join(self.model_dir, 'test_user_age.json')
+        self.test_user_age_dict = utilities.load_json_file(test_user_age_file)
+        
     def train(self):
         """train the content based recommender system model"""
         start_time = default_timer()
@@ -348,7 +388,7 @@ class ContentBasedRecommender(RecommenderIntf):
             else:
                 return {}
         
-    def get_user_profile(self, user_items, dataset='train'):        
+    def get_user_profile(self, user_items, user_age, dataset='train'):        
         user_profile_name_tokens = set()
         user_profile_authors = set()
         user_profile_keywords = set()
@@ -370,18 +410,26 @@ class ContentBasedRecommender(RecommenderIntf):
             keywords = item_profile['keywords']
             user_profile_keywords = user_profile_keywords.union(keywords)
 
+            '''
             begin_target_age = item_profile['begin_target_age']
             end_target_age = item_profile['end_target_age']
             if isinstance(begin_target_age, str):
                 user_profile_begin_target_ages.add(begin_target_age)
             if isinstance(end_target_age, str):
                 user_profile_end_target_ages.add(end_target_age)
-                
+            '''
+        '''
         profile = {'name_tokens' : user_profile_name_tokens, 'author' : user_profile_authors,
                    'keywords' : user_profile_keywords,
                    'begin_target_age' : user_profile_begin_target_ages,
                    'end_target_age' : user_profile_end_target_ages
                   }
+        '''
+        profile = {'name_tokens' : user_profile_name_tokens,
+                   'author' : user_profile_authors,
+                   'keywords' : user_profile_keywords,
+                   'user_age' : user_age
+                  }        
         return profile
     
     def get_jaccard_similarity(self, set_a, set_b):
@@ -445,7 +493,8 @@ class ContentBasedRecommender(RecommenderIntf):
         start_time = default_timer()
         # Get all items with which user has interacted
         items_interacted = self.__get_items(user_id, dataset)
-        user_profile = self.get_user_profile(items_interacted, dataset)        
+        user_age = self.__get_user_age(user_id, dataset)
+        user_profile = self.get_user_profile(items_interacted, user_age, dataset)        
         print("User Profile")
         print(user_profile)
         print()
@@ -464,19 +513,29 @@ class ContentBasedRecommender(RecommenderIntf):
         return recommended_items
 
     def __split_items(self, items_interacted, hold_out_ratio):
-        """return assume_interacted_items, hold_out_items"""
-        items_interacted_set = set(items_interacted)
+        """return assume_interacted_items, hold_out_items"""       
+        items_interacted_set = set()
+        for i in items_interacted:
+            items_interacted_set.add(i)
+            
         assume_interacted_items = set()
         hold_out_items = set()
-        # print("Items Interacted : ")
-        # print(items_interacted)
-        hold_out_items = set(self.get_random_sample(items_interacted, hold_out_ratio))
-        # print("Items Held Out : ")
-        # print(hold_out_items)
+        #print("Items Interacted : ")
+        #print(items_interacted_set)
+        
+        no_of_items_interacted = len(items_interacted_set)
+        no_of_items_to_be_held = int(no_of_items_interacted*hold_out_ratio)
+        hold_out_items = set(list(items_interacted_set)[-no_of_items_to_be_held:])
+        #hold_out_items = set(self.get_random_sample(items_interacted, hold_out_ratio))
+        
+        
+        #print("Items Held Out : ")
+        #print(hold_out_items)
         # print("No of items to hold out:", len(hold_out_items))
         assume_interacted_items = items_interacted_set - hold_out_items
-        # print("Items Assume to be interacted : ")
-        # print(assume_interacted_items)
+        #print("Items Assume to be interacted : ")
+        #print(assume_interacted_items)
+        #input()
         # print("No of interacted_items assumed:", len(assume_interacted_items))
         # input()
         return list(assume_interacted_items), list(hold_out_items)
@@ -500,15 +559,19 @@ class ContentBasedRecommender(RecommenderIntf):
         no_of_users = len(users)
         no_of_users_considered = 0
         for user_id in users:
-            #print(user_id)
+            #print(user_id)           
+            
             # Get all items with which user has interacted
             items_interacted = self.__get_items(user_id, dataset)
             #print("items_interacted in test")
+            #print("all_items_interacted in test set")
             #print(items_interacted)
             if dataset != 'train':
                 items_interacted = self.__get_known_items(items_interacted)
                 #print("known items in train")
                 #print(items_interacted)
+            #print("all_items_interacted which are present in train set")
+            #print(items_interacted)
             assume_interacted_items, hold_out_items = self.__split_items(items_interacted,
                                                                          hold_out_ratio)
             if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
@@ -526,7 +589,11 @@ class ContentBasedRecommender(RecommenderIntf):
             eval_items[user_id]['items_interacted'] = []
             no_of_users_considered += 1
 
-            user_profile = self.get_user_profile(assume_interacted_items, dataset)                
+            user_age = self.__get_user_age(user_id, dataset)
+            user_profile = self.get_user_profile(assume_interacted_items, user_age, dataset)
+            #print(user_id)
+            #print(user_profile)
+            
             user_recommendations = self.__generate_top_recommendations(assume_interacted_items, user_profile)
             recommended_items = list(user_recommendations[self.item_id_col].values)
             eval_items[user_id]['items_recommended'] = recommended_items
@@ -542,10 +609,10 @@ class ContentBasedRecommender(RecommenderIntf):
                 eval_items_grps[no_of_items_recommended].append(reco)
             '''
             
-            '''
+            
             #for debug purpose
             #Verify Evaluation
-            print(user_id)            
+            '''
             no_of_items_to_recommend_list = [1, 2, 5, 10]
             for no_of_items_to_recommend in no_of_items_to_recommend_list:
                 print("no_of_items_to_recommend : ", no_of_items_to_recommend)
@@ -553,9 +620,26 @@ class ContentBasedRecommender(RecommenderIntf):
                 items_interacted = eval_items[user_id]['items_interacted']
                 assume_interacted_items = eval_items[user_id]['assume_interacted_items']
                 items_recommended = eval_items[user_id]['items_recommended'][0:no_of_items_to_recommend]            
-                print("Items Interacted : ", set(items_interacted))
+                print("Items Expected to be Interacted : ", set(items_interacted))
                 print("Assume Items Interacted : ", set(assume_interacted_items))
                 print("Items Recommended: ", set(items_recommended))
+
+                
+                print("\n assume_interacted_items : ")
+                for item_id in assume_interacted_items:
+                    print(item_id)
+                    item_profile = self.__load_item_profile(item_id, dataset='train')
+                    print(item_profile)
+                print("\n hold_out_items : ")
+                for item_id in hold_out_items:
+                    print(item_id)
+                    item_profile = self.__load_item_profile(item_id, dataset='train')
+                    print(item_profile)
+                print("\n items_recommended : ")
+                for item_id in items_recommended:
+                    print(item_id)
+                    item_profile = self.__load_item_profile(item_id, dataset='train')
+                    print(item_profile)                    
                 
                 hitset = set(items_interacted).intersection(set(items_recommended))
                 print("Hitset : ", hitset)
