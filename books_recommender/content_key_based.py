@@ -5,6 +5,8 @@ import logging
 from timeit import default_timer
 from pprint import pprint
 import joblib
+from collections import defaultdict
+from math import log10
 
 import argparse
 import numpy as np
@@ -16,6 +18,7 @@ LOGGER = logging.getLogger(__name__)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib import utilities
+from lib.min_max_scaling import MinMaxScaling
 from recommender.reco_interface import load_train_test
 from recommender.reco_interface import RecommenderIntf
 from recommender.evaluation import PrecisionRecall
@@ -53,7 +56,8 @@ class ContentBasedRecommender(RecommenderIntf):
         self.train_user_age_dict = dict()
         self.test_user_age_dict = dict()
         self.recommendations = None
-        self.model_file = os.path.join(self.model_dir, 'content_based_model.pkl')
+        self.model_file = os.path.join(self.model_dir, 'content_based_key_model.pkl')
+        self.min_max = MinMaxScaling()
 
     def __get_items(self, user_id, dataset='train'):
         """private function, Get unique items for a given user"""
@@ -149,7 +153,7 @@ class ContentBasedRecommender(RecommenderIntf):
             break
         #print(first_record)
         
-        book_keywords = set()
+        book_keywords = []#set()
         keywords = first_record['T_KEYWORD']
         if isinstance(keywords, str):
             keywords = keywords.split('|')
@@ -160,7 +164,7 @@ class ContentBasedRecommender(RecommenderIntf):
                 for token in tokens:
                     preprocessed_token = self.__preprocess_token(token)
                     if preprocessed_token:
-                        book_keywords.add(preprocessed_token)
+                        book_keywords.append(preprocessed_token)
         #print(book_keywords)
         #print('*'*30)
         return book_keywords
@@ -194,6 +198,11 @@ class ContentBasedRecommender(RecommenderIntf):
         profile = {'name_tokens' : name_tokens, 'author' : author_info, 'keywords' : keywords,
                    'begin_target_age' : begin_target_age, 'end_target_age' : end_target_age
                   }
+        '''
+        print("item_profile")
+        print(profile)
+        input()
+        '''
         return profile
 
     def __derive_stats(self):
@@ -211,7 +220,8 @@ class ContentBasedRecommender(RecommenderIntf):
         #pprint(users_items_train_dict)
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         utilities.dump_json_file(users_items_train_dict, users_items_train_file)
-                 
+
+        LOGGER.debug("Train Data :: Getting Age for each User")
         for user_id in self.users_train:
             records = self.train_data[self.train_data[self.user_id_col] == user_id]
             for _, record in records.iterrows():
@@ -267,6 +277,7 @@ class ContentBasedRecommender(RecommenderIntf):
         users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
         utilities.dump_json_file(users_items_test_dict, users_items_test_file)
 
+        LOGGER.debug("Test Data :: Getting Age for each User")
         for user_id in self.users_test:
             records = self.test_data[self.test_data[self.user_id_col] == user_id]
             for _, record in records.iterrows():
@@ -321,6 +332,8 @@ class ContentBasedRecommender(RecommenderIntf):
 
         LOGGER.debug("Train Data :: Loading Item Profiles")
         item_profile_train_file = os.path.join(self.model_dir, 'item_profile_train.json')
+        self.item_profile_train_dict = utilities.load_json_file(item_profile_train_file)
+        '''
         json_item_profile_train_dict = utilities.load_json_file(item_profile_train_file)
         for item_id, json_profile in json_item_profile_train_dict.items():
             profile = dict()
@@ -329,7 +342,8 @@ class ContentBasedRecommender(RecommenderIntf):
                     profile[key] = set(val)
                 else:
                     profile[key] = val
-            self.item_profile_train_dict[item_id] = profile                    
+            self.item_profile_train_dict[item_id] = profile
+        '''
             
         LOGGER.debug("Train Data :: Loading Distinct Items for each User")
         user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
@@ -349,6 +363,8 @@ class ContentBasedRecommender(RecommenderIntf):
         
         LOGGER.debug("Test Data :: Loading Item Profiles")
         item_profile_test_file = os.path.join(self.model_dir, 'item_profile_test.json')
+        self.item_profile_test_dict = utilities.load_json_file(item_profile_test_file)
+        '''
         json_item_profile_test_dict = utilities.load_json_file(item_profile_test_file)
         for item_id, json_profile in json_item_profile_test_dict.items():
             profile = dict()
@@ -358,7 +374,8 @@ class ContentBasedRecommender(RecommenderIntf):
                 else:
                     profile[key] = val
             self.item_profile_test_dict[item_id] = profile
-            
+        '''
+        
         LOGGER.debug("Test Data :: Loading Distinct Items for each User")
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         self.user_items_test_dict = utilities.load_json_file(user_items_test_file)        
@@ -391,14 +408,15 @@ class ContentBasedRecommender(RecommenderIntf):
     def get_user_profile(self, user_items, user_age, dataset='train'):        
         user_profile_name_tokens = set()
         user_profile_authors = set()
-        user_profile_keywords = set()
-        user_profile_begin_target_ages = set()
-        user_profile_end_target_ages = set()
+        user_profile_keywords = []
+
         for item_id in user_items:
             item_profile = self.__load_item_profile(item_id, dataset)
-            #print(item_id)
-            #pprint(item_profile)
-            #print('%'*5)
+            '''
+            print(item_id)
+            print(item_profile)
+            print('%'*5)
+            '''
             
             name_tokens = item_profile['name_tokens']
             user_profile_name_tokens = user_profile_name_tokens.union(name_tokens)
@@ -408,28 +426,16 @@ class ContentBasedRecommender(RecommenderIntf):
                 user_profile_authors.add(author)
                   
             keywords = item_profile['keywords']
-            user_profile_keywords = user_profile_keywords.union(keywords)
+            user_profile_keywords.extend(keywords)
 
-            '''
-            begin_target_age = item_profile['begin_target_age']
-            end_target_age = item_profile['end_target_age']
-            if isinstance(begin_target_age, str):
-                user_profile_begin_target_ages.add(begin_target_age)
-            if isinstance(end_target_age, str):
-                user_profile_end_target_ages.add(end_target_age)
-            '''
-        '''
-        profile = {'name_tokens' : user_profile_name_tokens, 'author' : user_profile_authors,
-                   'keywords' : user_profile_keywords,
-                   'begin_target_age' : user_profile_begin_target_ages,
-                   'end_target_age' : user_profile_end_target_ages
-                  }
-        '''
         profile = {'name_tokens' : user_profile_name_tokens,
                    'author' : user_profile_authors,
                    'keywords' : user_profile_keywords,
                    'user_age' : user_age
-                  }        
+                  }
+        #print("user_profile")
+        #print(profile)
+        #input()        
         return profile
     
     def get_jaccard_similarity(self, set_a, set_b):
@@ -439,24 +445,88 @@ class ContentBasedRecommender(RecommenderIntf):
             return len(intersection) / len(union)
         else:
             return 0
-
+    
+    def __get_log_freq_weight(self, tf):
+        if tf > 0:
+            return 1+log10(tf)
+        else:
+            return 0
+        
+    def get_term_freq_similarity(self, list_a, list_b):
+        tf_a = defaultdict(int)
+        tf_b = defaultdict(int)
+        set_a = set(list_a)
+        set_b = set(list_b)
+        
+        for term in list_a:
+            tf_a[term] += 1
+        for term in list_b:
+            tf_b[term] += 1
+        #print(tf_a)
+        #print(tf_b)
+        intersection = set_a.intersection(set_b)
+        score = 0
+        for common_term in intersection:
+            log_freq_weight_a = self.__get_log_freq_weight(tf_a[common_term])
+            log_freq_weight_b = self.__get_log_freq_weight(tf_b[common_term])
+            
+            log_freq_weight_avg = (log_freq_weight_a+log_freq_weight_b)/2
+            
+            '''
+            print(common_term,
+                  tf_a[common_term], log_freq_weight_a,
+                  tf_b[common_term], log_freq_weight_b,
+                  log_freq_weight_avg)
+            '''
+            score = score + log_freq_weight_avg
+            
+        return score
+        
+    def __get_keyword_similarity(self, word_list1, word_list2):
+        #print("__get_keyword_similarity")
+        #print('*'*40)
+        #keywords_jaccard_similarity = self.get_jaccard_similarity(set(word_list1), set(word_list2))
+        term_freq_similarity = self.get_term_freq_similarity(word_list1, word_list2)
+        #print("keywords_jaccard_similarity : {}, term_freq_similarity : {}".format(keywords_jaccard_similarity, term_freq_similarity))
+        #input()
+        return term_freq_similarity
+        
     def __get_similarity_score(self, user_profile, item_profile):    
         name_tokens_similarity = self.get_jaccard_similarity(user_profile['name_tokens'],
                                                              item_profile['name_tokens'])        
         authors_similarity = self.get_jaccard_similarity(user_profile['author'],
                                                          item_profile['author'])
-        keywords_similarity = self.get_jaccard_similarity(user_profile['keywords'],
-                                                          item_profile['keywords'])
+        keywords_similarity = self.__get_keyword_similarity(user_profile['keywords'],
+                                                            item_profile['keywords'])
         
-        score = name_tokens_similarity*0.25 + authors_similarity*0.25 + keywords_similarity*0.5
+        #score = name_tokens_similarity*0.25 + authors_similarity*0.25 + keywords_similarity*0.5
         '''
         print("\tname : {}, author : {}, keywords : {}, score : {} ".format(name_tokens_similarity,
                                                                           authors_similarity,
                                                                           keywords_similarity,
                                                                          score))  
         '''
-        return (name_tokens_similarity, authors_similarity, keywords_similarity, score)
+        return (name_tokens_similarity, authors_similarity, keywords_similarity)
 
+    def __weighted_avg1(self, data_frame, columns_weights_dict):
+        data_frame['sim_score1'] = 0.0
+        for index, row in data_frame.iterrows():
+            total = 0.0
+            #print(index)
+            for col_name in columns_weights_dict:
+                total += row[col_name]*columns_weights_dict[col_name]
+                data_frame.loc[index, 'sim_score1'] = total
+        return data_frame
+    
+    def __weighted_avg(self, data_frame, columns_weights_dict):
+        data_frame['sim_score'] = 0.0
+        total = 0.0
+        for col_name in columns_weights_dict:
+            weighted_col = data_frame[col_name]*columns_weights_dict[col_name]
+            data_frame['sim_score'] = data_frame['sim_score'] + weighted_col
+            #print(data_frame['sim_score'])            
+        return data_frame    
+                
     def __generate_top_recommendations(self, items_interacted, user_profile):        
         #Get all items from train data and recommend them which are most similar to user_profile
         items_train = self.__get_all_items(dataset='train')
@@ -468,23 +538,41 @@ class ContentBasedRecommender(RecommenderIntf):
             item_profile = self.__load_item_profile(item_id, dataset='train')                        
             #print("\n\t" + item_id)
             #print(item_profile)
-            (name_tokens_similarity, authors_similarity, keywords_similarity, sim_score) = self.__get_similarity_score(user_profile, item_profile)
+            (name_tokens_similarity, authors_similarity, keywords_similarity) = self.__get_similarity_score(user_profile, item_profile)
             item_scores.append({self.item_id_col : item_id,
                                 'name_tokens_similarity': name_tokens_similarity,
                                 'authors_similarity': authors_similarity,
-                                'keywords_similarity': keywords_similarity,
-                                'sim_score': sim_score})
+                                'keywords_similarity': keywords_similarity})
         item_scores_df = pd.DataFrame(item_scores)
-        #print(item_scores_df)
+        #print("scaling...")        
+        values = item_scores_df[['name_tokens_similarity']].as_matrix()
+        scaled_values = self.min_max.scale(values)
+        item_scores_df['name_tokens_similarity_scaled'] = scaled_values
+        
+        values = item_scores_df[['authors_similarity']].as_matrix()
+        scaled_values = self.min_max.scale(values)
+        item_scores_df['authors_similarity_scaled'] = scaled_values
+        
+        values = item_scores_df[['keywords_similarity']].as_matrix()
+        scaled_values = self.min_max.scale(values)
+        item_scores_df['keywords_similarity_scaled'] = scaled_values
+        
+        #print(item_scores_df.head(10))
+        columns_weights_dict = {'name_tokens_similarity_scaled' : 0.25,
+                                'authors_similarity_scaled' : 0.25,
+                                'keywords_similarity_scaled' : 0.5
+                               }        
+        #print("weighted_avg...")
+        item_scores_df = self.__weighted_avg(item_scores_df, columns_weights_dict)
+        #print("sorting...")
         #Sort the items based upon similarity scores
         item_scores_df = item_scores_df.sort_values(['sim_score', self.item_id_col],
-                                                         ascending=[0, 1])        
-        #print(item_scores_df)
+                                                         ascending=[0, 1])
         #Generate a recommendation rank based upon score
         item_scores_df['rank'] = item_scores_df['sim_score'].rank(ascending=0, method='first')
         item_scores_df.reset_index(drop=True, inplace=True)
-        #print(item_scores_df)
-        #return item_scores_df.head(len(items_interacted))
+        #print(item_scores_df[item_scores_df['sim_score'] > 0])
+        #input()
         return item_scores_df.head(self.no_of_recs)
        
     def recommend_items(self, user_id, dataset='test'):
@@ -558,8 +646,10 @@ class ContentBasedRecommender(RecommenderIntf):
         users = self.__get_all_users(dataset)
         no_of_users = len(users)
         no_of_users_considered = 0
+        #i = 0
         for user_id in users:
-            #print(user_id)           
+            #print(user_id, i, no_of_users)  
+            #i = i+1
             
             # Get all items with which user has interacted
             items_interacted = self.__get_items(user_id, dataset)
@@ -593,7 +683,7 @@ class ContentBasedRecommender(RecommenderIntf):
             user_profile = self.get_user_profile(assume_interacted_items, user_age, dataset)
             #print(user_id)
             #print(user_profile)
-            
+
             user_recommendations = self.__generate_top_recommendations(assume_interacted_items, user_profile)
             recommended_items = list(user_recommendations[self.item_id_col].values)
             eval_items[user_id]['items_recommended'] = recommended_items
@@ -793,7 +883,7 @@ def main():
     results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
-    model_dir = os.path.join(current_dir, 'model/content_based')
+    model_dir = os.path.join(current_dir, 'model/content_based_key')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
