@@ -273,23 +273,24 @@ class ItemBasedCFRecommender(RecommenderIntf):
         joblib.dump(self.cooccurence_matrix_df, self.model_file)
         LOGGER.debug("Saved Model")
 
-    def __generate_top_recommendations(self, user_id, user_items):
+    def __generate_top_recommendations(self, user_id, user_interacted_items):
         """Use the cooccurence matrix to make top recommendations"""
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
 
-        sub_cooccurence_matrix_df = self.cooccurence_matrix_df.loc[user_items]
+        sub_cooccurence_matrix_df = self.cooccurence_matrix_df.loc[user_interacted_items]
         no_of_user_items = sub_cooccurence_matrix_df.shape[0]
         if no_of_user_items != 0:
             item_scores = sub_cooccurence_matrix_df.sum(axis=0) / float(no_of_user_items)
             item_scores.sort_values(inplace=True, ascending=False)
-            item_scores = item_scores[item_scores > 0]
+            #print(item_scores)
+            #item_scores = item_scores[item_scores > 0]
 
             rank = 1
             for item_id, score in item_scores.items():
-                if item_id in user_items:#to avoid items which user has already aware
+                if item_id in user_interacted_items:#to avoid items which user has already aware
                     continue
                 if rank > self.no_of_recs:#limit no of recommendations
                     break
@@ -320,14 +321,14 @@ class ItemBasedCFRecommender(RecommenderIntf):
         #print(self.cooccurence_matrix_df.shape)
         LOGGER.debug("Loaded Trained Model")
         # Get all unique items for this user
-        user_items = self.__get_items(user_id, dataset)
-        print("No. of items for the user_id {} : {}".format(user_id,
-                                                            len(user_items)))
+        user_interacted_items = self.__get_items(user_id, dataset)
+        print("No. of items interacted by user_id {} : {}".format(user_id,
+                                                                  len(user_interacted_items)))
 
         # Use the cooccurence matrix to make recommendations
         start_time = default_timer()
         user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                   user_items)
+                                                                   user_interacted_items)
         recommended_items = list(user_recommendations[self.item_id_col].values)
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated in : ",

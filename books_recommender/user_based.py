@@ -113,10 +113,10 @@ def get_jaccard_similarity(set_a, set_b):
     else:
         return 0
 
-def get_similarity_score(test_data, item_a, item_b):
+def get_similarity_score(train_data, test_data, recommended_item, interacted_item):
     """content based similarity score"""
-    item_name_tokens_a, item_author_a, item_keywords_a = get_item_profile(test_data, item_a)
-    item_name_tokens_b, item_author_b, item_keywords_b = get_item_profile(test_data, item_b)
+    item_name_tokens_a, item_author_a, item_keywords_a = get_item_profile(train_data, recommended_item)
+    item_name_tokens_b, item_author_b, item_keywords_b = get_item_profile(test_data, interacted_item)
 
     authors_pair = (item_author_a, item_author_b)
     keywords_pair = (item_keywords_a, item_keywords_b)
@@ -153,7 +153,7 @@ def recommend(results_dir, model_dir, train_test_dir,
             record = test_data[test_data[item_id_col] == item]
             if not record.empty:
                 for field in metadata_fields:
-                    print("\t{} : {}".format(field, record[field].values[0]))
+                    print("\t {} : {}".format(field, record[field].values[0]))
         print('#'*30)
 
     print()
@@ -163,7 +163,7 @@ def recommend(results_dir, model_dir, train_test_dir,
     if recommended_items:
         for recommended_item in recommended_items:
             print(recommended_item)
-            item_name_tokens, item_author, item_keywords = get_item_profile(test_data,
+            item_name_tokens, item_author, item_keywords = get_item_profile(train_data,
                                                                             recommended_item)
             print("\t item_name_tokens : {}".format(item_name_tokens))
             print("\t item_author : {}".format(item_author))
@@ -173,11 +173,11 @@ def recommend(results_dir, model_dir, train_test_dir,
                 record = train_data[train_data[item_id_col] == recommended_item]
                 if not record.empty:
                     for field in metadata_fields:
-                        print("\t{} : {}".format(field, record[field].values[0]))
+                        print("\t {} : {}".format(field, record[field].values[0]))
             for interacted_item in interacted_items:
                 print(recommended_item,
                       interacted_item,
-                      get_similarity_score(test_data,
+                      get_similarity_score(train_data, test_data,
                                            recommended_item,
                                            interacted_item))
             print('#'*30)
@@ -213,7 +213,7 @@ def main():
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
     train_test_dir = os.path.join(current_dir, 'train_test_data')
-    metadata_fields = ['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
+    metadata_fields = None#['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
 
     if args.train:
         user_based_cf_opt.train(results_dir, model_dir, train_test_dir,
