@@ -51,7 +51,7 @@ def main():
             popularity_based_features.train(results_dir, model_dir, train_test_dir,
                                             user_id_col, item_id_col, features, no_of_recs=no_of_recs)
         elif args.eval:
-            no_of_recs_to_eval = [1, 2, 5, 10, 20, 50]
+            no_of_recs_to_eval = [1, 2, 5, 10]
             popularity_based_features.evaluate(results_dir, model_dir, train_test_dir,
                                                user_id_col, item_id_col,
                                                no_of_recs_to_eval, features, dataset='test', no_of_recs=no_of_recs)
@@ -60,7 +60,7 @@ def main():
                                                 user_id_col, item_id_col,
                                                 args.user_id, features, no_of_recs=no_of_recs)
         else:
-            no_of_recs_to_eval = [1, 2, 5, 10, 20, 50]
+            no_of_recs_to_eval = [1, 2, 5, 10]
             popularity_based_features.train_eval_recommend(results_dir, model_dir, train_test_dir,
                                                            user_id_col, item_id_col,
                                                            no_of_recs_to_eval, features,

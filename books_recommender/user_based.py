@@ -1,4 +1,4 @@
-"""Module for Item Based CF Books Recommender"""
+"""Module for User Based CF Books Recommender"""
 import os
 import sys
 import argparse
@@ -18,7 +18,7 @@ except LookupError as err:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from recommender.reco_interface import load_train_test
-from recommender import item_based_cf_opt
+from recommender import user_based_cf_opt
 
 def preprocess_token(token):
     """preprocessing of tokens"""
@@ -136,7 +136,7 @@ def recommend(results_dir, model_dir, train_test_dir,
     """recommend items for user"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
-    model = item_based_cf_opt.ItemBasedCFRecommender(results_dir, model_dir,
+    model = user_based_cf_opt.UserBasedCFRecommender(results_dir, model_dir,
                                                      train_data, test_data,
                                                      user_id_col, item_id_col, no_of_recs)
 
@@ -186,8 +186,8 @@ def recommend(results_dir, model_dir, train_test_dir,
     print('*' * 80)
 
 def main():
-    """Item based recommender interface"""
-    parser = argparse.ArgumentParser(description="Item Based Recommender")
+    """User based recommender interface"""
+    parser = argparse.ArgumentParser(description="User Based Recommender")
     parser.add_argument("--train",
                         help="Train Model",
                         action="store_true")
@@ -205,7 +205,7 @@ def main():
     results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
-    model_dir = os.path.join(current_dir, 'model/item_based')
+    model_dir = os.path.join(current_dir, 'model/user_based')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
@@ -216,11 +216,11 @@ def main():
     metadata_fields = ['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
 
     if args.train:
-        item_based_cf_opt.train(results_dir, model_dir, train_test_dir,
+        user_based_cf_opt.train(results_dir, model_dir, train_test_dir,
                                 user_id_col, item_id_col, no_of_recs=no_of_recs)
     elif args.eval:
         no_of_recs_to_eval = [1, 2, 5, 10]
-        item_based_cf_opt.evaluate(results_dir, model_dir, train_test_dir,
+        user_based_cf_opt.evaluate(results_dir, model_dir, train_test_dir,
                                    user_id_col, item_id_col,
                                    no_of_recs_to_eval, dataset='test',
                                    no_of_recs=no_of_recs, hold_out_ratio=0.5)
@@ -231,7 +231,7 @@ def main():
                   metadata_fields=metadata_fields)
     else:
         no_of_recs_to_eval = [1, 2, 5, 10]
-        item_based_cf_opt.train_eval_recommend(results_dir, model_dir, train_test_dir,
+        user_based_cf_opt.train_eval_recommend(results_dir, model_dir, train_test_dir,
                                                user_id_col, item_id_col,
                                                no_of_recs_to_eval, dataset='test',
                                                no_of_recs=no_of_recs, hold_out_ratio=0.5)
