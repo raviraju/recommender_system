@@ -1,4 +1,4 @@
-"""Module for Item Based Colloborative Filtering Recommender"""
+"""Module for User Based Colloborative Filtering Recommender"""
 import os
 import sys
 import logging
@@ -19,8 +19,8 @@ from recommender.reco_interface import RecommenderIntf
 from recommender.reco_interface import load_train_test
 from recommender.evaluation import PrecisionRecall
 
-class ItemBasedCFRecommender(RecommenderIntf):
-    """Item based colloborative filtering recommender system model"""
+class UserBasedCFRecommender(RecommenderIntf):
+    """User based colloborative filtering recommender system model"""
 
     def __derive_stats(self):
         """private function, derive stats"""
@@ -160,7 +160,9 @@ class ItemBasedCFRecommender(RecommenderIntf):
         self.item_users_test_dict = dict()
 
         self.cooccurence_matrix_df = None
-        self.model_file = os.path.join(self.model_dir, 'item_based_model.pkl')
+        self.similar_users = None
+        self.uim_df = None
+        self.model_file = os.path.join(self.model_dir, 'user_based_model.pkl')
 
     def __get_items(self, user_id, dataset='train'):
         """private function, Get unique items for a given user"""
@@ -192,13 +194,47 @@ class ItemBasedCFRecommender(RecommenderIntf):
         else:#test
             return self.items_test
 
+    def __derive_similar_users(self, jaccard_df):
+        """fetch ranked similar users for each user"""
+        similar_users_dict = dict()
+        for user_id, similar_users in jaccard_df.iterrows():
+            #print(user_id)
+            #print(similar_users)
+            sorted_similar_users = similar_users.sort_values(ascending=False)
+            most_similar_users = (sorted_similar_users.drop(user_id))
+
+            ranked_similar_users = dict()
+            rank = 1
+            for similar_user_id, score in most_similar_users.iteritems():
+                #print(user_id, rank, similar_user_id, score)
+                ranked_similar_users[rank] = {similar_user_id : score}
+                rank = rank + 1
+            similar_users_dict[user_id] = ranked_similar_users
+
+        self.similar_users = similar_users_dict
+        similar_users_file = os.path.join(self.model_dir, 'similar_users.json')
+        utilities.dump_json_file(self.similar_users, similar_users_file)
+
+    def __load_similar_users(self):
+        """load ranked similar users for each user"""
+        similar_users_file = os.path.join(self.model_dir, 'similar_users.json')
+        self.similar_users = utilities.load_json_file(similar_users_file)
+
+    def __load_uim(self):
+        """load user interaction matrix"""
+        uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
+        self.uim_df = pd.read_csv(uim_df_fname)
+
     def __construct_cooccurence_matrix(self):
         """private function, Construct cooccurence matrix"""
         #Construct User Item Matrix
-        uim_df = pd.get_dummies(self.train_data[self.item_id_col])\
-                   .groupby(self.train_data[self.user_id_col])\
-                   .apply(max)
-        uim = uim_df.as_matrix()
+        self.uim_df = pd.get_dummies(self.train_data[self.item_id_col])\
+                        .groupby(self.train_data[self.user_id_col])\
+                        .apply(max)
+        uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
+        self.uim_df.to_csv(uim_df_fname)
+
+        uim = self.uim_df.as_matrix()
         #for ex
         #         Item1   Item2   Item3   Item4
         # User1       1       1       0       0
@@ -211,59 +247,61 @@ class ItemBasedCFRecommender(RecommenderIntf):
         # ])
 
         #stats
-        items = list(uim_df.columns)
+        items = list(self.uim_df.columns)
         no_of_items = len(items)
-        users = list(uim_df.index)
+        users = list(self.uim_df.index)
         no_of_users = len(users)
         print("No of Items : ", no_of_items)
         print("No of Users : ", no_of_users)
         non_zero_count = np.count_nonzero(uim)
         count = uim.size
         density = non_zero_count/count
-        #print(non_zero_count, count, density)
         print("Density of User Item Matrix : ", density)
 
-        #Compute Item-Item Similarity Matrix with intersection of users interacted
+        #Compute User-User Similarity Matrix with intersection of items interacted
         #intersection is like the `&` operator,
         #i.e., item A has user X and item B has user X -> intersection
         #multiplication of 1s and 0s is equivalent to the `&` operator
-        intersection = np.dot(uim.T, uim)   #4*3 x 3*4 --> 4*4 Item-Item
+        intersection = np.dot(uim, uim.T)   #3*4 x 4*3 --> 3*3 User-User
         intersection_df = pd.DataFrame(intersection,
-                                       columns=uim_df.columns,
-                                       index=uim_df.columns)
+                                       columns=users,
+                                       index=users)
         intersection_df_fname = os.path.join(self.model_dir,
                                              'intersection.csv')
         intersection_df.to_csv(intersection_df_fname, index=False)
 
-        #Compute Item-Item Similarity Matrix with union of users interacted
+        #Compute User-User Similarity Matrix with union of items interacted
         #union is like the `|` operator, i.e., item A has user X or item B has user X -> union
         #`0*0=0`, `0*1=0`, and `1*1=1`, so `*` is equivalent to `|` if we consider `0=T` and `1=F`
         #Hence we obtain flip_uim
         flip_uim = 1-uim    #3*4
-        users_left_out_of_union = np.dot(flip_uim.T, flip_uim)   #4*3 x 3*4 --> 4*4 Item-Item
-        union = no_of_users - users_left_out_of_union
+        items_left_out_of_union = np.dot(flip_uim, flip_uim.T)  #3*4 x 4*3 --> 3*3 User-User
+        union = no_of_items - items_left_out_of_union
         union_df = pd.DataFrame(union,
-                                columns=uim_df.columns,
-                                index=uim_df.columns)
+                                columns=users,
+                                index=users)
         union_df_fname = os.path.join(self.model_dir,
                                       'union.csv')
         union_df.to_csv(union_df_fname, index=False)
 
-        #Compute Item-Item Similarity Matrix with Jaccard Similarity of users
+        #Compute User-User Similarity Matrix with Jaccard Similarity of items
         jaccard = intersection/union
         jaccard_df = pd.DataFrame(jaccard,
-                                  columns=uim_df.columns,
-                                  index=uim_df.columns)
+                                  columns=users,
+                                  index=users)
         jaccard_df_fname = os.path.join(self.model_dir,
                                         'jaccard.csv')
         jaccard_df.to_csv(jaccard_df_fname, index=False)
+
+        self.__derive_similar_users(jaccard_df)
+
         return jaccard_df
 
     def train(self):
-        """Train the item similarity based recommender system model"""
+        """Train the user similarity based recommender system model"""
         self.__derive_stats()
         print("Training...")
-        # Construct item cooccurence matrix of size, len(items) X len(items)
+        # Construct user cooccurence matrix of size, len(users) X len(users)
         start_time = default_timer()
         self.cooccurence_matrix_df = self.__construct_cooccurence_matrix()
         end_time = default_timer()
@@ -273,17 +311,39 @@ class ItemBasedCFRecommender(RecommenderIntf):
         joblib.dump(self.cooccurence_matrix_df, self.model_file)
         LOGGER.debug("Saved Model")
 
+    def __get_similar_users(self, user_id):
+        similar_user_scores = self.similar_users[user_id].values()
+        #print(similar_user_scores)
+        similar_users = dict()
+        for similar_user_score in similar_user_scores:
+            for user_id, score in similar_user_score.items():
+                similar_users[user_id] = score
+        #pprint(similar_users)
+        return similar_users
+
     def __generate_top_recommendations(self, user_id, user_items):
         """Use the cooccurence matrix to make top recommendations"""
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
+
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
 
-        sub_cooccurence_matrix_df = self.cooccurence_matrix_df.loc[user_items]
-        no_of_user_items = sub_cooccurence_matrix_df.shape[0]
-        if no_of_user_items != 0:
-            item_scores = sub_cooccurence_matrix_df.sum(axis=0) / float(no_of_user_items)
+        similar_users = self.__get_similar_users(user_id)
+        #pprint(similar_users)
+        similar_users_weights = pd.Series(similar_users)
+        #print(similar_users_weights)
+        similar_user_ids = similar_users_weights.index
+        #print(similar_user_ids)
+
+        sub_uim_df = self.uim_df.loc[similar_user_ids]
+        print(sub_uim_df.head())
+        weighted_sub_uim_df = sub_uim_df.mul(similar_users_weights, axis='index')
+        print(weighted_sub_uim_df.head())
+
+        no_of_similar_users = sub_uim_df.shape[0]
+        if no_of_similar_users != 0:
+            item_scores = sub_uim_df.sum(axis=0) / float(no_of_similar_users)
             item_scores.sort_values(inplace=True, ascending=False)
             item_scores = item_scores[item_scores > 0]
 
@@ -313,6 +373,9 @@ class ItemBasedCFRecommender(RecommenderIntf):
     def recommend_items(self, user_id, dataset='test'):
         """Generate item recommendations for given user_id from chosen dataset"""
         self.__load_stats()
+        self.__load_similar_users()
+        self.__load_uim()
+
         if not os.path.exists(self.model_file):
             print("Trained Model not found !!!. Failed to recommend")
             return None
@@ -412,6 +475,9 @@ class ItemBasedCFRecommender(RecommenderIntf):
         """Evaluate trained model"""
         print("Evaluating...")
         self.__load_stats()
+        self.__load_similar_users()
+        self.__load_uim()
+
         start_time = default_timer()
         if os.path.exists(self.model_file):
             self.cooccurence_matrix_df = joblib.load(self.model_file)
@@ -447,31 +513,6 @@ class ItemBasedCFRecommender(RecommenderIntf):
             
             return results
 
-    def get_similar_items(self, item_list, dataset='test'):
-        """Get items similar to given items"""
-        self.__load_stats()
-        if not os.path.exists(self.model_file):
-            print("Trained Model not found !!!. Failed to get similar items")
-            return None
-        self.cooccurence_matrix_df = joblib.load(self.model_file)
-        #print(self.cooccurence_matrix_df.shape)
-        LOGGER.debug("Loaded Trained Model")
-        items_interacted = item_list
-        if dataset != 'train':
-            items_interacted = self.__get_known_items(items_interacted)
-        if len(items_interacted) == 0:
-            print("""The following items are not found in training data.
-                  Hence no recommendations can be generated""")
-            pprint(item_list)
-            similar_items = []
-        else:
-            # Use the cooccurence matrix to make recommendations
-            user_id = ""
-            user_recommendations = self.__generate_top_recommendations(
-                user_id, items_interacted)
-            similar_items = list(user_recommendations[self.item_id_col].values)
-        return similar_items
-
 def train(results_dir, model_dir, train_test_dir,
           user_id_col, item_id_col,
           no_of_recs=10):
@@ -479,7 +520,7 @@ def train(results_dir, model_dir, train_test_dir,
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Training Recommender...")
-    model = ItemBasedCFRecommender(results_dir, model_dir,
+    model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
                                    user_id_col, item_id_col, no_of_recs)
     model.train()
@@ -493,7 +534,7 @@ def evaluate(results_dir, model_dir, train_test_dir,
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Evaluating Recommender System")
-    model = ItemBasedCFRecommender(results_dir, model_dir,
+    model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
                                    user_id_col, item_id_col, no_of_recs)
     results = model.evaluate(no_of_recs_to_eval, dataset, hold_out_ratio)
@@ -506,7 +547,7 @@ def recommend(results_dir, model_dir, train_test_dir,
     """recommend items for user"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
-    model = ItemBasedCFRecommender(results_dir, model_dir,
+    model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
                                    user_id_col, item_id_col, no_of_recs)
 
@@ -544,7 +585,7 @@ def train_eval_recommend(results_dir, model_dir, train_test_dir,
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Training Recommender...")
-    model = ItemBasedCFRecommender(results_dir, model_dir,
+    model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
                                    user_id_col, item_id_col, no_of_recs)
     model.train()
@@ -558,9 +599,8 @@ def train_eval_recommend(results_dir, model_dir, train_test_dir,
     print("Testing Recommendation for an User")
     users = test_data[user_id_col].unique()
     user_id = users[0]
-    items = list(test_data[test_data[user_id_col] == user_id][item_id_col].unique())
     print("Items recommended for a user with user_id : {}".format(user_id))
-    recommended_items = model.get_similar_items(items, dataset)
+    recommended_items = model.recommend_items(user_id, dataset)
     print()
     for item in recommended_items:
         print(item)
