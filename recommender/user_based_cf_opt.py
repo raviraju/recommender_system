@@ -144,11 +144,15 @@ class UserBasedCFRecommender(RecommenderIntf):
 
     def __init__(self, results_dir, model_dir,
                  train_data, test_data,
-                 user_id_col, item_id_col, no_of_recs=10):
+                 user_id_col, item_id_col,
+                 no_of_recs=10, hold_out_ratio=0.5):
         """constructor"""
         super().__init__(results_dir, model_dir,
                          train_data, test_data,
-                         user_id_col, item_id_col, no_of_recs)
+                         user_id_col, item_id_col,
+                         no_of_recs)
+        self.hold_out_ratio = hold_out_ratio
+        
         self.users_train = None
         self.items_train = None
         self.user_items_train_dict = dict()
@@ -162,6 +166,7 @@ class UserBasedCFRecommender(RecommenderIntf):
         self.user_similarity_matrix_df = None
         self.similar_users = None
         self.uim_df = None
+        self.eval_items = None
         self.model_file = os.path.join(self.model_dir, 'user_based_model.pkl')
 
     def __get_items(self, user_id, dataset='train'):
@@ -194,6 +199,96 @@ class UserBasedCFRecommender(RecommenderIntf):
         else:#test
             return self.items_test
 
+    def __get_known_items(self, items_interacted):
+        """return filtered items which are present in training set"""
+        known_items_interacted = []
+        items_training_set = self.__get_all_items(dataset='train')
+        for item in items_interacted:
+            if item in items_training_set:
+                known_items_interacted.append(item)
+        return known_items_interacted
+
+    def __split_items(self, items_interacted):
+        """return assume_interacted_items, hold_out_items"""
+        items_interacted_set = set(items_interacted)
+        '''
+        items_interacted_set = set()
+        for i in items_interacted:
+            items_interacted_set.add(i)
+        '''
+        assume_interacted_items = set()
+        hold_out_items = set()               
+        no_of_items_interacted = len(items_interacted_set)
+        no_of_items_to_be_held = int(no_of_items_interacted*self.hold_out_ratio)
+        hold_out_items = set(list(items_interacted_set)[-no_of_items_to_be_held:])
+        #hold_out_items = set(self.get_random_sample(items_interacted, self.hold_out_ratio))
+              
+        assume_interacted_items = items_interacted_set - hold_out_items
+
+        return list(assume_interacted_items), list(hold_out_items)
+    
+    def __save_eval_items(self):
+        """save eval items"""
+        eval_items_file = os.path.join(self.model_dir, 'eval_items.json')
+        utilities.dump_json_file(self.eval_items, eval_items_file)
+    
+    def __load_eval_items(self):
+        """load eval items"""
+        eval_items_file = os.path.join(self.model_dir, 'eval_items.json')
+        self.eval_items = utilities.load_json_file(eval_items_file)
+
+    def __get_custom_test_data(self, dataset='test'):
+        self.eval_items = dict()
+        users = self.__get_all_users(dataset='test')
+        no_of_users = len(users)
+        no_of_users_considered = 0
+        custom_test_data = None
+        for user_id in users:                                    
+            # Get all items with which user has interacted
+            items_interacted = self.__get_items(user_id, dataset='test')
+            if dataset != 'train':
+                items_interacted = self.__get_known_items(items_interacted)
+            assume_interacted_items, hold_out_items = self.__split_items(items_interacted)
+            if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
+                # print("WARNING !!!. User {} exempted from evaluation".format(user_id))
+                # print("Items Interacted Assumed : ")
+                # print(assume_interacted_items)
+                # print("Hold Out Items")
+                # print(hold_out_items)
+                # input()
+                continue
+            '''
+            print(user_id)
+            print("assume_interacted_items")
+            print(assume_interacted_items)
+            
+            print("hold_out_items")
+            print(hold_out_items)
+            print()
+            '''
+            
+            self.eval_items[user_id] = dict()
+            self.eval_items[user_id]['items_recommended'] = []
+            self.eval_items[user_id]['assume_interacted_items'] = assume_interacted_items
+            self.eval_items[user_id]['items_interacted'] = hold_out_items
+            no_of_users_considered += 1
+            
+                    
+            tmp = self.test_data[self.test_data[self.user_id_col] == user_id]
+            filter_tmp = tmp.loc[tmp[self.item_id_col].isin(assume_interacted_items)]
+            #print("filter_tmp")
+            #print(filter_tmp)
+            if custom_test_data is None:
+                custom_test_data = filter_tmp.copy()
+            else:
+                custom_test_data = custom_test_data.append(filter_tmp, ignore_index=True)
+            #print("custom_test_data")
+            #print(custom_test_data[[self.user_id_col, self.item_id_col]])
+        
+        print("No of test users considered for evaluation : ", len(self.eval_items))
+        self.__save_eval_items()        
+        return custom_test_data
+    
     def __save_uim(self):
         """save user item interaction matrix"""        
         uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
@@ -207,14 +302,14 @@ class UserBasedCFRecommender(RecommenderIntf):
         self.uim_df = pd.read_csv(uim_df_fname, index_col=[self.user_id_col])
         self.uim_df.index = self.uim_df.index.map(str)
 
-    def __compute_user_similarity_matrix(self):
+    def __compute_user_similarity_matrix(self, custom_test_data):
         """private function, Construct cooccurence matrix"""
         #Construct User Item Matrix
         
         start_time = default_timer()
         print()
         print("Combining users from train and test...")
-        users_data = self.train_data.append(self.test_data, ignore_index=True)
+        users_data = self.train_data.append(custom_test_data, ignore_index=True)
         print("Constructing User Item Matrix...")
         self.uim_df = pd.get_dummies(users_data[self.item_id_col])\
                         .groupby(users_data[self.user_id_col])\
@@ -306,45 +401,19 @@ class UserBasedCFRecommender(RecommenderIntf):
     def train(self):
         """Train the user similarity based recommender system model"""
         self.__derive_stats()
-        print("Training...")
+        custom_test_data = self.__get_custom_test_data(dataset='test')
+        
         # Construct user similarity matrix of size, len(users) X len(users)
+        print("Construct user similarity matrix...")
         start_time = default_timer()
-        self.user_similarity_matrix_df = self.__compute_user_similarity_matrix()
+        self.user_similarity_matrix_df = self.__compute_user_similarity_matrix(custom_test_data)
         end_time = default_timer()
-        print("{:50}    {}".format("Training Completed in : ",
+        print("{:50}    {}".format("Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
         #print(self.user_similarity_matrix_df.shape)
         joblib.dump(self.user_similarity_matrix_df, self.model_file)
-        LOGGER.debug("Saved Model")
-    
-    '''
-    def __derive_similar_users(self, jaccard_df):
-        """fetch ranked similar users for each user"""
-        similar_users_dict = dict()
-        for user_id, similar_users in jaccard_df.iterrows():
-            #print(user_id)
-            #print(similar_users)
-            sorted_similar_users = similar_users.sort_values(ascending=False)
-            most_similar_users = (sorted_similar_users.drop(user_id))
-
-            ranked_similar_users = dict()
-            rank = 1
-            for similar_user_id, score in most_similar_users.iteritems():
-                #print(user_id, rank, similar_user_id, score)
-                ranked_similar_users[rank] = {similar_user_id : score}
-                rank = rank + 1
-            similar_users_dict[user_id] = ranked_similar_users
-
-        self.similar_users = similar_users_dict
-        similar_users_file = os.path.join(self.model_dir, 'similar_users.json')
-        utilities.dump_json_file(self.similar_users, similar_users_file)
-
-    def __load_similar_users(self):
-        """load ranked similar users for each user"""
-        similar_users_file = os.path.join(self.model_dir, 'similar_users.json')
-        self.similar_users = utilities.load_json_file(similar_users_file)
-    '''
-        
+        LOGGER.debug("Saved Model")        
+           
     def __get_similar_users(self, user_id):
         #print(user_id)
         similar_users = self.user_similarity_matrix_df[user_id]
@@ -355,26 +424,19 @@ class UserBasedCFRecommender(RecommenderIntf):
         #print(len(most_similar_users))
         #print(most_similar_users)
         return most_similar_users
-
+        
     def __generate_top_recommendations(self, user_id, user_interacted_items):
         """Use the cooccurence matrix to make top recommendations"""
         # Calculate a weighted average of the scores in cooccurence matrix for
-        # all user items.
-
+        # all user items.              
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
 
         similar_users_weights = self.__get_similar_users(user_id)
-        #print(similar_users_weights)
         similar_user_ids = similar_users_weights.index
                 
         sub_uim_df = self.uim_df.loc[similar_user_ids]
-        #print(len(sub_uim_df))
-        #print(sub_uim_df.head())
-        #input()
         weighted_sub_uim_df = sub_uim_df.mul(similar_users_weights, axis='index')
-        #print(weighted_sub_uim_df.head())
-        #input()
         no_of_similar_users = sub_uim_df.shape[0]
         if no_of_similar_users != 0:
             item_scores = sub_uim_df.sum(axis=0) / float(no_of_similar_users)
@@ -405,127 +467,60 @@ class UserBasedCFRecommender(RecommenderIntf):
         #     return res_df
         return res_df
 
-    def recommend_items(self, user_id, dataset='test'):
+    def recommend_items(self, user_id):
         """Generate item recommendations for given user_id from chosen dataset"""
         self.__load_stats()
         self.__load_uim()
-
-        if not os.path.exists(self.model_file):
-            print("Trained Model not found !!!. Failed to recommend")
-            return None
-        self.user_similarity_matrix_df = joblib.load(self.model_file)
-        #print(self.user_similarity_matrix_df.shape)
-        LOGGER.debug("Loaded Trained Model")
-        # Get all unique items for this user
-        user_interacted_items = self.__get_items(user_id, dataset)
-        print("No. of items interacted by user_id {} : {}".format(user_id,
-                                                                  len(user_interacted_items)))
-
-        # Use the cooccurence matrix to make recommendations
-        start_time = default_timer()
-        user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                   user_interacted_items)
-        recommended_items = list(user_recommendations[self.item_id_col].values)
-        end_time = default_timer()
-        print("{:50}    {}".format("Recommendations generated in : ",
-                                   utilities.convert_sec(end_time - start_time)))
-        return recommended_items
-
-    def __split_items(self, items_interacted, hold_out_ratio):
-        """return assume_interacted_items, hold_out_items"""
-        #items_interacted_set = set(items_interacted)
-        items_interacted_set = set()
-        for i in items_interacted:
-            items_interacted_set.add(i)
-
-        assume_interacted_items = set()
-        hold_out_items = set()
-        # print("Items Interacted : ")
-        # print(items_interacted)
+        self.__load_eval_items()
+        #pprint(self.eval_items[user_id])
         
-        no_of_items_interacted = len(items_interacted_set)
-        no_of_items_to_be_held = int(no_of_items_interacted*hold_out_ratio)
-        hold_out_items = set(list(items_interacted_set)[-no_of_items_to_be_held:])
-        #hold_out_items = set(self.get_random_sample(items_interacted, hold_out_ratio))
-        
-        
-        # print("Items Held Out : ")
-        # print(hold_out_items)
-        # print("No of items to hold out:", len(hold_out_items))
-        assume_interacted_items = items_interacted_set - hold_out_items
-        # print("Items Assume to be interacted : ")
-        # print(assume_interacted_items)
-        # print("No of interacted_items assumed:", len(assume_interacted_items))
-        # input()
-        return list(assume_interacted_items), list(hold_out_items)
-
-    def __get_known_items(self, items_interacted):
-        """return filtered items which are present in training set"""
-        known_items_interacted = []
-        items_training_set = self.__get_all_items(dataset='train')
-        for item in items_interacted:
-            if item in items_training_set:
-                known_items_interacted.append(item)
-        return known_items_interacted
-
-    def __get_items_for_eval(self, dataset='test', hold_out_ratio=0.5):
-        """Generate recommended and interacted items for users"""
-        eval_items = dict()
-        users = self.__get_all_users(dataset)
-        no_of_users = len(users)
-        no_of_users_considered = 0
-        for user_id in users:
-            # Get all items with which user has interacted
-            items_interacted = self.__get_items(user_id, dataset)
-            if dataset != 'train':
-                items_interacted = self.__get_known_items(items_interacted)
-            assume_interacted_items, hold_out_items = self.__split_items(items_interacted,
-                                                                         hold_out_ratio)
-            if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
-                # print("WARNING !!!. User {} exempted from evaluation".format(user_id))
-                # print("Items Interacted Assumed : ")
-                # print(assume_interacted_items)
-                # print("Hold Out Items")
-                # print(hold_out_items)
-                # input()
-                continue
-
-            eval_items[user_id] = dict()
-            eval_items[user_id]['items_recommended'] = []
-            eval_items[user_id]['assume_interacted_items'] = []
-            eval_items[user_id]['items_interacted'] = []
-            no_of_users_considered += 1
-            user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                       assume_interacted_items)
-            recommended_items = list(user_recommendations[self.item_id_col].values)
-            eval_items[user_id]['items_recommended'] = recommended_items
-            eval_items[user_id]['assume_interacted_items'] = assume_interacted_items
-            eval_items[user_id]['items_interacted'] = hold_out_items
-        print("Evaluation : No of users : ", no_of_users)
-        print("Evaluation : No of users considered : ", no_of_users_considered)
-        return eval_items
-
-    def evaluate(self, no_of_recs_to_eval, dataset='test', hold_out_ratio=0.5):
-        """Evaluate trained model"""
-        print("Evaluating...")
-        self.__load_stats()
-        self.__load_uim()
-
-        start_time = default_timer()
         if os.path.exists(self.model_file):
             self.user_similarity_matrix_df = joblib.load(self.model_file)
             #print(self.user_similarity_matrix_df.shape)
             LOGGER.debug("Loaded Trained Model")
+            # Use the cooccurence matrix to make recommendations
+            start_time = default_timer()
+            user_recommendations = self.__generate_top_recommendations(user_id,
+                                                                       self.eval_items[user_id]['assume_interacted_items'])
+            recommended_items = list(user_recommendations[self.item_id_col].values)
+            end_time = default_timer()
+            print("{:50}    {}".format("Recommendations generated in : ",
+                                       utilities.convert_sec(end_time - start_time)))
+            return recommended_items
+        else:
+            print("Trained Model not found !!!. Failed to generate recommendations")
+            return None
 
+    def __get_reco_for_eval_items(self):
+        """Generate recommended and interacted items for users"""       
+        for user_id in self.eval_items:
+            user_recommendations = self.__generate_top_recommendations(user_id,
+                                                                       self.eval_items[user_id]['assume_interacted_items'])
+            
+            recommended_items = list(user_recommendations[self.item_id_col].values)
+            self.eval_items[user_id]['items_recommended'] = recommended_items
+
+        return self.eval_items
+
+    def evaluate(self, no_of_recs_to_eval):
+        """Evaluate trained model"""
+        self.__load_stats()
+        self.__load_uim()
+        self.__load_eval_items()
+                
+        if os.path.exists(self.model_file):
+            self.user_similarity_matrix_df = joblib.load(self.model_file)
+            #print(self.user_similarity_matrix_df.shape)
+            LOGGER.debug("Loaded Trained Model")
+            
+            start_time = default_timer()
             #Generate recommendations for the users
-            eval_items = self.__get_items_for_eval(dataset, hold_out_ratio)
-            precision_recall_eval_file = os.path.join(self.model_dir, 'eval_items.json')
-            utilities.dump_json_file(eval_items, precision_recall_eval_file)
-            #pprint(eval_items)
+            self.eval_items = self.__get_reco_for_eval_items()
+            self.__save_eval_items()
 
             precision_recall_intf = PrecisionRecall()
             results = precision_recall_intf.compute_precision_recall(
-                no_of_recs_to_eval, eval_items)
+                no_of_recs_to_eval, self.eval_items)
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed in : ",
                                        utilities.convert_sec(end_time - start_time)))
@@ -536,10 +531,7 @@ class UserBasedCFRecommender(RecommenderIntf):
             return results
         else:
             print("Trained Model not found !!!. Failed to evaluate")
-            results = {'status' : "Trained Model not found !!!. Failed to evaluate"}
-            end_time = default_timer()
-            print("{:50}    {}".format("Evaluation Completed in : ",
-                                       utilities.convert_sec(end_time - start_time)))
+            results = {'status' : "Trained Model not found !!!. Failed to evaluate"}            
             
             results_file = os.path.join(self.model_dir, 'results.json')
             utilities.dump_json_file(results, results_file)
@@ -548,71 +540,59 @@ class UserBasedCFRecommender(RecommenderIntf):
 
 def train(results_dir, model_dir, train_test_dir,
           user_id_col, item_id_col,
-          no_of_recs=10):
+          no_of_recs=10, hold_out_ratio=0.5):
     """train recommender"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Training Recommender...")
     model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col, item_id_col, no_of_recs)
+                                   user_id_col, item_id_col,
+                                   no_of_recs, hold_out_ratio)
     model.train()
     print('*' * 80)
 
 def evaluate(results_dir, model_dir, train_test_dir,
              user_id_col, item_id_col,
-             no_of_recs_to_eval, dataset='test',
+             no_of_recs_to_eval,
              no_of_recs=10, hold_out_ratio=0.5):
     """evaluate recommender"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
-    print("Evaluating Recommender System")
+    print("Evaluating Recommender System...")
     model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col, item_id_col, no_of_recs)
-    results = model.evaluate(no_of_recs_to_eval, dataset, hold_out_ratio)
+                                   user_id_col, item_id_col,
+                                   no_of_recs, hold_out_ratio)
+    results = model.evaluate(no_of_recs_to_eval)
     pprint(results)
     print('*' * 80)
 
 def recommend(results_dir, model_dir, train_test_dir,
               user_id_col, item_id_col,
-              user_id, no_of_recs=10, dataset='test', metadata_fields=None):
+              user_id,
+              no_of_recs=10, hold_out_ratio=0.5):
     """recommend items for user"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col, item_id_col, no_of_recs)
+                                   user_id_col, item_id_col,
+                                   no_of_recs, hold_out_ratio)
 
-    print("Items interactions for a user with user_id : {}".format(user_id))
-    interacted_items = list(test_data[test_data[user_id_col] == user_id][item_id_col])
-    for item in interacted_items:
-        print(item)
-        if (metadata_fields is not None):
-            record = test_data[test_data[item_id_col] == item]
-            if not record.empty:
-                for field in metadata_fields:
-                    print("\t{} : {}".format(field, record[field].values[0]))
-            
-    print()
-    print("Items recommended for a user with user_id : {}".format(user_id))
-    recommended_items = model.recommend_items(user_id, dataset)
-    print()
+    recommended_items = model.recommend_items(user_id)
+    print("Items recommended for a user with user_id : {}".format(user_id))    
     if recommended_items:
         for item in recommended_items:
-            print(item)
-            if (metadata_fields is not None):
-                record = train_data[train_data[item_id_col] == item]
-                if not record.empty:
-                    for field in metadata_fields:
-                        print("\t{} : {}".format(field, record[field].values[0]))
+            print(item)            
     else:
         print("No items to recommend")
     print('*' * 80)
 
+        
 def train_eval_recommend(results_dir, model_dir, train_test_dir,
                          user_id_col, item_id_col,
-                         no_of_recs_to_eval, dataset='test',
+                         no_of_recs_to_eval,
                          no_of_recs=10, hold_out_ratio=0.5):
     """Train Evaluate and Recommend for Item Based Recommender"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
@@ -620,21 +600,27 @@ def train_eval_recommend(results_dir, model_dir, train_test_dir,
     print("Training Recommender...")
     model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col, item_id_col, no_of_recs)
+                                   user_id_col, item_id_col,
+                                   no_of_recs, hold_out_ratio)
     model.train()
     print('*' * 80)
 
     print("Evaluating Recommender System")
-    results = model.evaluate(no_of_recs_to_eval, dataset, hold_out_ratio)
+    results = model.evaluate(no_of_recs_to_eval)
     pprint(results)
     print('*' * 80)
 
     print("Testing Recommendation for an User")
-    users = test_data[user_id_col].unique()
-    user_id = users[0]
+    #users = test_data[user_id_col].unique()
+    eval_items_file = os.path.join(model_dir, 'eval_items.json')
+    eval_items = utilities.load_json_file(eval_items_file)
+    users = list(eval_items.keys())
+    user_id = users[0]    
+    recommended_items = model.recommend_items(user_id)
     print("Items recommended for a user with user_id : {}".format(user_id))
-    recommended_items = model.recommend_items(user_id, dataset)
-    print()
-    for item in recommended_items:
-        print(item)
+    if recommended_items:
+        for item in recommended_items:
+            print(item)            
+    else:
+        print("No items to recommend")
     print('*' * 80)

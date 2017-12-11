@@ -19,6 +19,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from recommender.reco_interface import load_train_test
 from recommender import user_based_cf_opt
+from lib import utilities
 
 def preprocess_token(token):
     """preprocessing of tokens"""
@@ -126,65 +127,96 @@ def get_similarity_score(train_data, test_data, recommended_item, interacted_ite
                                                          item_name_tokens_pair[1])
     authors_similarity = get_jaccard_similarity(authors_pair[0], authors_pair[1])
     keywords_similarity = get_jaccard_similarity(keywords_pair[0], keywords_pair[1])
-    print(item_name_tokens_similarity, authors_similarity, keywords_similarity)
+    print("\t {:30s} : {}".format('item_name_tokens_similarity', item_name_tokens_similarity))
+    print("\t {:30s} : {}".format('authors_similarity', authors_similarity))
+    print("\t {:30s} : {}".format('keywords_similarity', keywords_similarity))
     score = item_name_tokens_similarity*0.25 + authors_similarity*0.25 + keywords_similarity*0.5
     return score
 
 def recommend(results_dir, model_dir, train_test_dir,
               user_id_col, item_id_col,
-              user_id, no_of_recs=10, dataset='test', metadata_fields=None):
+              user_id, metadata_fields=None,
+              no_of_recs=10, hold_out_ratio=0.5):
     """recommend items for user"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     model = user_based_cf_opt.UserBasedCFRecommender(results_dir, model_dir,
                                                      train_data, test_data,
-                                                     user_id_col, item_id_col, no_of_recs)
-
-    print("Items interactions for a user with user_id : {}".format(user_id))
-    interacted_items = list(test_data[test_data[user_id_col] == user_id][item_id_col])
-    for item in interacted_items:
-        print(item)
-        item_name_tokens, item_author, item_keywords = get_item_profile(test_data, item)
-        print("\t item_name_tokens : {}".format(item_name_tokens))
-        print("\t item_author : {}".format(item_author))
-        print("\t item_keywords : {}".format(item_keywords))
-        print()
-        if metadata_fields is not None:
-            record = test_data[test_data[item_id_col] == item]
-            if not record.empty:
-                for field in metadata_fields:
-                    print("\t {} : {}".format(field, record[field].values[0]))
-        print('#'*30)
-
-    print()
-    print("Items recommended for a user with user_id : {}".format(user_id))
-    recommended_items = model.recommend_items(user_id, dataset)
-    print()
-    if recommended_items:
-        for recommended_item in recommended_items:
-            print(recommended_item)
-            item_name_tokens, item_author, item_keywords = get_item_profile(train_data,
-                                                                            recommended_item)
-            print("\t item_name_tokens : {}".format(item_name_tokens))
-            print("\t item_author : {}".format(item_author))
-            print("\t item_keywords : {}".format(item_keywords))
-            print()
+                                                     user_id_col, item_id_col,
+                                                     no_of_recs, hold_out_ratio)
+    
+    eval_items_file = os.path.join(model_dir, 'eval_items.json')
+    eval_items = utilities.load_json_file(eval_items_file)
+    if user_id in eval_items:
+        assume_interacted_items = eval_items[user_id]['assume_interacted_items']
+        items_interacted = eval_items[user_id]['items_interacted']
+    
+        print("Assumed Item interactions for a user with user_id : {}".format(user_id))
+        for item in assume_interacted_items:
+            print(item)
             if metadata_fields is not None:
-                record = train_data[train_data[item_id_col] == recommended_item]
+                item_name_tokens, item_author, item_keywords = get_item_profile(test_data, item)
+                print("\t item_name_tokens : {}".format(item_name_tokens))
+                print("\t item_author : {}".format(item_author))
+                print("\t item_keywords : {}".format(item_keywords))
+                print()
+
+                record = test_data[test_data[item_id_col] == item]
                 if not record.empty:
                     for field in metadata_fields:
                         print("\t {} : {}".format(field, record[field].values[0]))
-            for interacted_item in interacted_items:
-                print(recommended_item,
-                      interacted_item,
-                      get_similarity_score(train_data, test_data,
-                                           recommended_item,
-                                           interacted_item))
-            print('#'*30)
-    else:
-        print("No items to recommend")
-    print('*' * 80)
+                print('\t '+ '#'*30)
+        
+        print()        
+        print("Items to be interacted for a user with user_id : {}".format(user_id))
+        for item in items_interacted:
+            print(item)
+            if metadata_fields is not None:
+                item_name_tokens, item_author, item_keywords = get_item_profile(test_data, item)
+                print("\t item_name_tokens : {}".format(item_name_tokens))
+                print("\t item_author : {}".format(item_author))
+                print("\t item_keywords : {}".format(item_keywords))
+                print()
 
+                record = test_data[test_data[item_id_col] == item]
+                if not record.empty:
+                    for field in metadata_fields:
+                        print("\t {} : {}".format(field, record[field].values[0]))
+                print('\t '+ '#'*30)
+
+        print()
+        print("Items recommended for a user with user_id : {}".format(user_id))
+        recommended_items = model.recommend_items(user_id)
+        print()
+        if recommended_items:
+            for recommended_item in recommended_items:
+                print(recommended_item)
+                if metadata_fields is not None:
+                    item_name_tokens, item_author, item_keywords = get_item_profile(train_data,
+                                                                                    recommended_item)
+                    print("\t item_name_tokens : {}".format(item_name_tokens))
+                    print("\t item_author : {}".format(item_author))
+                    print("\t item_keywords : {}".format(item_keywords))
+                    print()
+                
+                    record = train_data[train_data[item_id_col] == recommended_item]
+                    if not record.empty:
+                        for field in metadata_fields:
+                            print("\t {} : {}".format(field, record[field].values[0]))
+                    for interacted_item in items_interacted:
+                        score = get_similarity_score(train_data, test_data,
+                                                     recommended_item,
+                                                     interacted_item)
+                        print("\t {:20s} | {:20s} | {}".format('recommended_item', 'interacted_item', 'score'))
+                        print("\t {:20s} | {:20s} | {}".format(recommended_item, interacted_item, score))
+                        print()
+                    print('\t '+ '#'*30)
+        else:
+            print("No items to recommend")
+        print('*' * 80)
+    else:
+        print("Cannot generate recommendations as either items assumed to be interacted or items held out are None")
+        
 def main():
     """User based recommender interface"""
     parser = argparse.ArgumentParser(description="User Based Recommender")
@@ -210,31 +242,34 @@ def main():
         os.makedirs(model_dir)
 
     no_of_recs = 10
+    hold_out_ratio=0.5
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
     train_test_dir = os.path.join(current_dir, 'train_test_data')
-    metadata_fields = None#['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
-
+    metadata_fields = None
+    metadata_fields = ['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
+    
     if args.train:
         user_based_cf_opt.train(results_dir, model_dir, train_test_dir,
-                                user_id_col, item_id_col, no_of_recs=no_of_recs)
+                                user_id_col, item_id_col,
+                                no_of_recs=no_of_recs, hold_out_ratio=hold_out_ratio)
     elif args.eval:
         no_of_recs_to_eval = [1, 2, 5, 10]
         user_based_cf_opt.evaluate(results_dir, model_dir, train_test_dir,
                                    user_id_col, item_id_col,
-                                   no_of_recs_to_eval, dataset='test',
-                                   no_of_recs=no_of_recs, hold_out_ratio=0.5)
+                                   no_of_recs_to_eval,
+                                   no_of_recs=no_of_recs, hold_out_ratio=hold_out_ratio)
     elif args.recommend and args.user_id:
         recommend(results_dir, model_dir, train_test_dir,
                   user_id_col, item_id_col,
-                  args.user_id, no_of_recs=no_of_recs,
-                  metadata_fields=metadata_fields)
+                  args.user_id, metadata_fields=metadata_fields,
+                  no_of_recs=no_of_recs, hold_out_ratio=hold_out_ratio)
     else:
         no_of_recs_to_eval = [1, 2, 5, 10]
         user_based_cf_opt.train_eval_recommend(results_dir, model_dir, train_test_dir,
                                                user_id_col, item_id_col,
-                                               no_of_recs_to_eval, dataset='test',
-                                               no_of_recs=no_of_recs, hold_out_ratio=0.5)
+                                               no_of_recs_to_eval,
+                                               no_of_recs=no_of_recs, hold_out_ratio=hold_out_ratio)
 
 if __name__ == '__main__':
     main()
