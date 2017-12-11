@@ -210,12 +210,14 @@ class UserBasedCFRecommender(RecommenderIntf):
 
     def __split_items(self, items_interacted):
         """return assume_interacted_items, hold_out_items"""
-        items_interacted_set = set(items_interacted)
-        '''
+        #print(items_interacted)
+        items_interacted_sorted = sorted(items_interacted)        
         items_interacted_set = set()
-        for i in items_interacted:
+        for i in items_interacted_sorted:
             items_interacted_set.add(i)
-        '''
+        #print(items_interacted_set)
+        #input()
+        
         assume_interacted_items = set()
         hold_out_items = set()               
         no_of_items_interacted = len(items_interacted_set)
@@ -225,7 +227,13 @@ class UserBasedCFRecommender(RecommenderIntf):
               
         assume_interacted_items = items_interacted_set - hold_out_items
 
-        return list(assume_interacted_items), list(hold_out_items)
+        assume_interacted_items = list(assume_interacted_items)
+        assume_interacted_items.sort()
+        
+        hold_out_items = list(hold_out_items)
+        hold_out_items.sort()
+        
+        return assume_interacted_items, hold_out_items
     
     def __save_eval_items(self):
         """save eval items"""

@@ -177,31 +177,28 @@ class RandomBasedRecommender(RecommenderIntf):
 
     def __split_items(self, items_interacted, hold_out_ratio):
         """return assume_interacted_items, hold_out_items"""
-        #items_interacted_set = set(items_interacted)
-        items_interacted_set = set()
-        for i in items_interacted:
-            items_interacted_set.add(i)
-
+        #print(items_interacted)
+        items_interacted = list(set(items_interacted))
+        items_interacted.sort()                
+        #print(items_interacted)
+        #input()
+        
         assume_interacted_items = set()
-        hold_out_items = set()
-        # print("Items Interacted : ")
-        # print(items_interacted)
-        
-        no_of_items_interacted = len(items_interacted_set)
+        hold_out_items = set()               
+        no_of_items_interacted = len(items_interacted)
         no_of_items_to_be_held = int(no_of_items_interacted*hold_out_ratio)
-        hold_out_items = set(list(items_interacted_set)[-no_of_items_to_be_held:])
-        #hold_out_items = set(self.get_random_sample(items_interacted, hold_out_ratio))
+        hold_out_items = set(items_interacted[-no_of_items_to_be_held:])
+        #hold_out_items = set(self.get_random_sample(items_interacted, self.hold_out_ratio))
+              
+        assume_interacted_items = set(items_interacted) - hold_out_items
         
+        assume_interacted_items = list(assume_interacted_items)
+        assume_interacted_items.sort()
         
-        # print("Items Held Out : ")
-        # print(hold_out_items)
-        # print("No of items to hold out:", len(hold_out_items))
-        assume_interacted_items = items_interacted_set - hold_out_items
-        # print("Items Assume to be interacted : ")
-        # print(assume_interacted_items)
-        # print("No of interacted_items assumed:", len(assume_interacted_items))
-        # input()
-        return list(assume_interacted_items), list(hold_out_items)
+        hold_out_items = list(hold_out_items)
+        hold_out_items.sort()
+        
+        return assume_interacted_items, hold_out_items
 
     def __get_known_items(self, items_interacted):
         """return filtered items which are present in training set"""
@@ -217,18 +214,6 @@ class RandomBasedRecommender(RecommenderIntf):
         eval_items = dict()
         users = self.__get_all_users(dataset)
         no_of_users = len(users)
-        """
-        for user_id in users:
-            # Get all items with which user has interacted
-            items_interacted = self.__get_items(user_id, dataset)
-            eval_items[user_id] = dict()
-            eval_items[user_id]['items_recommended'] = []
-            eval_items[user_id]['items_interacted'] = []
-            recommended_items = self.__generate_top_recommendations()
-            eval_items[user_id]['items_recommended'] = recommended_items
-            eval_items[user_id]['items_interacted'] = items_interacted
-        print("Evaluation : No of users : ", no_of_users)
-        """
         no_of_users_considered = 0
         for user_id in users:
             # Get all items with which user has interacted
@@ -248,11 +233,12 @@ class RandomBasedRecommender(RecommenderIntf):
 
             eval_items[user_id] = dict()
             eval_items[user_id]['items_recommended'] = []
+            eval_items[user_id]['assume_interacted_items'] = []
             eval_items[user_id]['items_interacted'] = []
             no_of_users_considered += 1
             recommended_items = self.__generate_top_recommendations()
             eval_items[user_id]['items_recommended'] = recommended_items
-
+            eval_items[user_id]['assume_interacted_items'] = assume_interacted_items
             eval_items[user_id]['items_interacted'] = hold_out_items
         print("Evaluation : No of users : ", no_of_users)
         print("Evaluation : No of users considered : ", no_of_users_considered)

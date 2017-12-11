@@ -337,31 +337,28 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
     def __split_items(self, items_interacted, hold_out_ratio):
         """return assume_interacted_items, hold_out_items"""
-        #items_interacted_set = set(items_interacted)
-        items_interacted_set = set()
-        for i in items_interacted:
-            items_interacted_set.add(i)
-
+        #print(items_interacted)
+        items_interacted = list(set(items_interacted))
+        items_interacted.sort()                
+        #print(items_interacted)
+        #input()
+        
         assume_interacted_items = set()
-        hold_out_items = set()
-        # print("Items Interacted : ")
-        # print(items_interacted)
-        
-        no_of_items_interacted = len(items_interacted_set)
+        hold_out_items = set()               
+        no_of_items_interacted = len(items_interacted)
         no_of_items_to_be_held = int(no_of_items_interacted*hold_out_ratio)
-        hold_out_items = set(list(items_interacted_set)[-no_of_items_to_be_held:])
-        #hold_out_items = set(self.get_random_sample(items_interacted, hold_out_ratio))
+        hold_out_items = set(items_interacted[-no_of_items_to_be_held:])
+        #hold_out_items = set(self.get_random_sample(items_interacted, self.hold_out_ratio))
+              
+        assume_interacted_items = set(items_interacted) - hold_out_items
+
+        assume_interacted_items = list(assume_interacted_items)
+        assume_interacted_items.sort()
         
+        hold_out_items = list(hold_out_items)
+        hold_out_items.sort()
         
-        # print("Items Held Out : ")
-        # print(hold_out_items)
-        # print("No of items to hold out:", len(hold_out_items))
-        assume_interacted_items = items_interacted_set - hold_out_items
-        # print("Items Assume to be interacted : ")
-        # print(assume_interacted_items)
-        # print("No of interacted_items assumed:", len(assume_interacted_items))
-        # input()
-        return list(assume_interacted_items), list(hold_out_items)
+        return assume_interacted_items, hold_out_items
 
     def __get_known_items(self, items_interacted):
         """return filtered items which are present in training set"""
