@@ -56,7 +56,7 @@ class ContentBasedRecommender(RecommenderIntf):
         self.train_user_age_dict = dict()
         self.test_user_age_dict = dict()
         self.recommendations = None
-        self.model_file = os.path.join(self.model_dir, 'content_based_key_model.pkl')
+        self.model_file = os.path.join(self.model_dir, 'content_key_based_model.pkl')
         self.min_max = MinMaxScaling()
 
     def __get_items(self, user_id, dataset='train'):
@@ -880,7 +880,7 @@ def main():
     results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
-    model_dir = os.path.join(current_dir, 'model/content_based_key')
+    model_dir = os.path.join(current_dir, 'model/content_key_based')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 

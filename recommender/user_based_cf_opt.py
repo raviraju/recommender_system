@@ -211,21 +211,19 @@ class UserBasedCFRecommender(RecommenderIntf):
     def __split_items(self, items_interacted):
         """return assume_interacted_items, hold_out_items"""
         #print(items_interacted)
-        items_interacted_sorted = sorted(items_interacted)        
-        items_interacted_set = set()
-        for i in items_interacted_sorted:
-            items_interacted_set.add(i)
-        #print(items_interacted_set)
+        items_interacted = list(set(items_interacted))
+        items_interacted.sort()                
+        #print(items_interacted)
         #input()
         
         assume_interacted_items = set()
         hold_out_items = set()               
-        no_of_items_interacted = len(items_interacted_set)
+        no_of_items_interacted = len(items_interacted)
         no_of_items_to_be_held = int(no_of_items_interacted*self.hold_out_ratio)
-        hold_out_items = set(list(items_interacted_set)[-no_of_items_to_be_held:])
+        hold_out_items = set(items_interacted[-no_of_items_to_be_held:])
         #hold_out_items = set(self.get_random_sample(items_interacted, self.hold_out_ratio))
               
-        assume_interacted_items = items_interacted_set - hold_out_items
+        assume_interacted_items = set(items_interacted) - hold_out_items
 
         assume_interacted_items = list(assume_interacted_items)
         assume_interacted_items.sort()
