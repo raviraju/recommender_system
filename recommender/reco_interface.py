@@ -68,6 +68,30 @@ class RecommenderIntf(metaclass=ABCMeta):
         print("Sample no of common users, used for evaluation : {}".format(len(users_test_sample)))
         return users_test_sample
 
+    def split_items(self, items_interacted, hold_out_ratio):
+        """return assume_interacted_items, hold_out_items"""
+        #print("items_interacted : ", items_interacted)
+        
+        assume_interacted_items = []
+        hold_out_items = []
+        
+        no_of_items_interacted = len(items_interacted)
+        no_of_items_to_be_held = int(no_of_items_interacted*hold_out_ratio)
+        no_of_items_assumed_interacted = no_of_items_interacted - no_of_items_to_be_held
+        #print("no_of_items_interacted : ", no_of_items_interacted)
+        #print("no_of_items_to_be_held : ", no_of_items_to_be_held)
+        #print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
+        
+        if no_of_items_assumed_interacted != 0:
+            assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
+        if no_of_items_to_be_held != 0:
+            hold_out_items = items_interacted[-no_of_items_to_be_held:]
+        
+        #print("assume_interacted_items : ", assume_interacted_items)
+        #print("hold_out_items : ", hold_out_items)
+        #input()
+        return assume_interacted_items, hold_out_items
+
 def load_train_test(train_test_dir, user_id_col, item_id_col):
     """Loads data and returns training and test set"""
     print("Loading Training and Test Data")

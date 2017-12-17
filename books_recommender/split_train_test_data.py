@@ -61,13 +61,14 @@ def generate_random_split(train_test_dir, data, min_no_of_books = 10, test_size=
     test_data.to_csv(test_data_file, index=False)
     print("Train and Test Data are in ", train_test_dir)
 
-def generate_users_split(train_test_dir, data, min_no_of_books = 10, test_size=0.2):
+def generate_users_split(train_test_dir, data, test_size=0.2):
     """Loads data and returns training and test set"""
     print("Generate Training and Test Data")
     #Read learner_id-book_code-events
     events_df = pd.read_csv(data)
     
     #filtering data to be imported
+    print("Considering learners whose age range lies in 5-20")
     valid_ages_df = events_df[(events_df['age'] >= 5.0) & (events_df['age'] <= 20.0)]
     
     learners = valid_ages_df['learner_id'].unique()
@@ -150,8 +151,8 @@ def main():
 
     data_dir = os.path.join(current_dir, 'preprocessed_metadata')
     #data = os.path.join(data_dir, 'learner_books_info_close_events.csv')
-    data = os.path.join(data_dir, 'learner_books_info_close_min_3_events.csv')
-    #data = os.path.join(data_dir, 'learner_books_info_close_min_10_events.csv')
+    #data = os.path.join(data_dir, 'learner_books_info_close_min_3_events.csv')
+    data = os.path.join(data_dir, 'learner_books_info_close_min_10_events.csv')
     
     parser = argparse.ArgumentParser(description="Split train and test data")
     parser.add_argument("--random_split",
@@ -160,7 +161,7 @@ def main():
     parser.add_argument("--users_split",
                         help="split users into train and test",
                         action="store_true")
-    parser.add_argument("min_no_of_books",
+    parser.add_argument("--min_no_of_books",
                         help="min_no_of_books", type=int)    
     parser.add_argument("test_size",
                         help="test_size ratio", type=float)

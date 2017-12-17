@@ -600,31 +600,6 @@ class ContentBasedRecommender(RecommenderIntf):
                                    utilities.convert_sec(end_time - start_time)))
         return recommended_items
 
-    def __split_items(self, items_interacted, hold_out_ratio):
-        """return assume_interacted_items, hold_out_items"""       
-        #print(items_interacted)
-        items_interacted = list(set(items_interacted))
-        items_interacted.sort()                
-        #print(items_interacted)
-        #input()
-        
-        assume_interacted_items = set()
-        hold_out_items = set()               
-        no_of_items_interacted = len(items_interacted)
-        no_of_items_to_be_held = int(no_of_items_interacted*hold_out_ratio)
-        hold_out_items = set(items_interacted[-no_of_items_to_be_held:])
-        #hold_out_items = set(self.get_random_sample(items_interacted, self.hold_out_ratio))
-              
-        assume_interacted_items = set(items_interacted) - hold_out_items
-
-        assume_interacted_items = list(assume_interacted_items)
-        assume_interacted_items.sort()
-        
-        hold_out_items = list(hold_out_items)
-        hold_out_items.sort()
-        
-        return assume_interacted_items, hold_out_items
-
     def __get_known_items(self, items_interacted):
         """return filtered items which are present in training set"""
         known_items_interacted = []
@@ -659,8 +634,8 @@ class ContentBasedRecommender(RecommenderIntf):
                 #print(items_interacted)
             #print("all_items_interacted which are present in train set")
             #print(items_interacted)
-            assume_interacted_items, hold_out_items = self.__split_items(items_interacted,
-                                                                         hold_out_ratio)
+            assume_interacted_items, hold_out_items = self.split_items(items_interacted,
+                                                                       hold_out_ratio)
             if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
                 # print("WARNING !!!. User {} exempted from evaluation".format(user_id))
                 # print("Items Interacted Assumed : ")

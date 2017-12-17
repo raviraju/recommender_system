@@ -11,33 +11,48 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def extract_learner_books(bookclub_events, demographics, meta_data_file):
     """Extract learner_id-book_code-events_count triplets with demographics and metadata"""
     
-
+    print("Loading : {} ...".format(bookclub_events))
     dataframe = pd.read_csv(bookclub_events,
                             parse_dates=['event_time', 'receipt_time'])
-
-    print("No of records : ", len(dataframe))
+    
+    # eliminate rows with duplicate row_id
+    print("{:50s}   {}".format("Total No of records : ", len(dataframe)))
     dataframe = dataframe.drop_duplicates(['row_id'])
-    print("Removed Duplicate Row_ID, No of records : ", len(dataframe))
+    print("{:50s}   {}".format("Removed Duplicate Row_ID, No of records : ", len(dataframe)))
 
     # eliminate books with null id
     dataframe = dataframe[dataframe['book_code'].notnull()]
-    print("Removed books with null id, No of Records : ", len(dataframe))
+    print("{:50s}   {}".format("Removed books with null id, No of Records : ", len(dataframe)))
 
     # eliminate learners with null id
     dataframe = dataframe[dataframe['learner_id'].notnull()]
-    print("Removed learners with null id, No of Records : ", len(dataframe))
+    print("{:50s}   {}".format("Removed learners with null id, No of Records : ", len(dataframe)))
 
     #since no of open and close events are unequal, just filter on close events
     events_filter = ((dataframe['event_name'] == 'book_close') |\
                      (dataframe['event_name'] == 'video_close') |\
                      (dataframe['event_name'] == 'audio_close'))
     dataframe = dataframe[events_filter]
-    print("After filtering events for close events, No of Records : ", len(dataframe))
-
+    print("{:50s}   {}".format("After filtering events for close events, No of Records : ", len(dataframe)))
+    
+    #sort data by close event time
+    print("Sorting records by event time...")
+    dataframe.sort_values(by='event_time', inplace=True)
+    
     learner_books_df = dataframe.groupby(['learner_id', 'book_code'])\
-                               .size().reset_index()\
-                               .rename(columns={0: 'events_count'})
+                                .size()\
+                                .reset_index()\
+                                .rename(columns={0: 'events_count'})
 
+    first_closure_event_df = dataframe.groupby(['learner_id', 'book_code'])['event_time']\
+                                      .min()\
+                                      .reset_index()\
+                                      .rename(columns={'event_time': 'first_access_time'})
+    
+    learner_books_first_closure_df = learner_books_df.merge(first_closure_event_df,
+                                                            on=['learner_id', 'book_code'])
+    
+    print("Loading : {} ...".format(demographics))
     #merge with demographics info
     demograph = pd.read_csv(demographics, 
                             parse_dates=['learner_birthday'])
@@ -46,10 +61,16 @@ def extract_learner_books(bookclub_events, demographics, meta_data_file):
     demograph['dob'] = demograph['dob'].where(demograph['dob'] < now, demograph['dob'] -  np.timedelta64(100, 'Y'))
     demograph['age'] = (now - demograph['dob']).astype('<m8[Y]')
 
-    learner_books_info_df = pd.merge(learner_books_df, demograph, how='inner', on='learner_id')
+    learner_books_info_df = pd.merge(learner_books_first_closure_df, demograph,
+                                     how='inner',
+                                     on='learner_id')
 
+    print("Loading : {} ...".format(meta_data_file))
     metadata = pd.read_csv(meta_data_file)
-    learner_books_info_meta_df = pd.merge(learner_books_info_df, metadata, how='inner', left_on='book_code', right_on='BOOK_CODE')
+    learner_books_info_meta_df = pd.merge(learner_books_info_df, metadata,
+                                          how='inner',
+                                          left_on='book_code',
+                                          right_on='BOOK_CODE')
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     preprocessed_data_dir = os.path.join(current_dir, 'preprocessed_metadata')
