@@ -2,6 +2,7 @@
 import os
 import sys
 import argparse
+import logging
 
 import re
 import nltk
@@ -17,8 +18,83 @@ except LookupError as err:
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from pprint import pprint
+logging.basicConfig(level=logging.DEBUG)
+LOGGER = logging.getLogger(__name__)
+
 from recommender.reco_interface import load_train_test
 from recommender import item_based_cf_opt
+from lib import utilities
+
+class Books_ItemBasedCFRecommender(item_based_cf_opt.ItemBasedCFRecommender):
+    def __init__(self, results_dir, model_dir,
+                 train_data, test_data,
+                 user_id_col, item_id_col,
+                 no_of_recs=10):
+        """constructor"""
+        super().__init__(results_dir, model_dir,
+                         train_data, test_data,
+                         user_id_col, item_id_col,
+                         no_of_recs)
+        self.book_access_time_train = dict()
+        self.book_access_time_test = dict()
+        
+    def derive_stats(self):
+        """derive use case specific stats"""
+        super().derive_stats()
+
+        LOGGER.debug("Train Data :: Getting Access Time for each User-Item")
+        self.book_access_time_train = dict()
+        for index, row in self.train_data.iterrows():             
+            user = row['learner_id']
+            item = row['book_code']
+            if user in self.book_access_time_train:
+                self.book_access_time_train[user][item] = row['first_access_time']
+            else:
+                self.book_access_time_train[user] = {item : row['first_access_time']}
+        #pprint(self.book_access_time_train)
+        book_access_time_train_file = os.path.join(self.model_dir, 'book_access_time_train.json')
+        utilities.dump_json_file(self.book_access_time_train, book_access_time_train_file)
+        
+        LOGGER.debug("Test Data :: Getting Access Time for each User-Item")
+        for index, row in self.test_data.iterrows(): 
+            user = row['learner_id']
+            item = row['book_code']
+            if user in self.book_access_time_test:
+                self.book_access_time_test[user][item] = row['first_access_time']
+            else:
+                self.book_access_time_test[user] = {item : row['first_access_time']}        
+        #pprint(self.book_access_time_test)
+        book_access_time_test_file = os.path.join(self.model_dir, 'book_access_time_test.json')
+        utilities.dump_json_file(self.book_access_time_test, book_access_time_test_file)
+        
+    def load_stats(self):
+        """load use case specific stats"""
+        super().load_stats()
+        
+        LOGGER.debug("Train Data :: Loading Access Time for each User-Item")
+        book_access_time_train_file = os.path.join(self.model_dir, 'book_access_time_train.json')
+        self.book_access_time_train = utilities.load_json_file(book_access_time_train_file)
+        
+        LOGGER.debug("Test Data :: Loading Access Time for each User-Item")
+        book_access_time_test_file = os.path.join(self.model_dir, 'book_access_time_test.json')
+        self.book_access_time_test = utilities.load_json_file(book_access_time_test_file)
+    
+    def get_items(self, user_id, dataset='train'):
+        """Get unique items for a given user in sorted order of access time """
+        if dataset == "train":
+            items_access = self.book_access_time_train[user_id]
+        else:#test
+            items_access = self.book_access_time_test[user_id]
+        #pprint(items_access)
+        sorted_items = sorted(items_access.items(), key=lambda p: p[1])
+        #pprint(sorted_items)
+        items_access_ordered = []
+        for item, access in sorted_items:
+            items_access_ordered.append(item)
+        #print(items_access_ordered)
+        #input()
+        return items_access_ordered
 
 def preprocess_token(token):
     """preprocessing of tokens"""
@@ -132,6 +208,36 @@ def get_similarity_score(train_data, test_data, recommended_item, interacted_ite
     score = item_name_tokens_similarity*0.25 + authors_similarity*0.25 + keywords_similarity*0.5
     return score
 
+def train_eval_recommend(results_dir, model_dir, train_test_dir,
+                         user_id_col, item_id_col,
+                         no_of_recs_to_eval, dataset='test',
+                         no_of_recs=10, hold_out_ratio=0.5):
+    """Train Evaluate and Recommend for Item Based Recommender"""
+    train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
+
+    print("Training Recommender...")
+    model = Books_ItemBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col, item_id_col, no_of_recs)
+    model.train()
+    print('*' * 80)
+
+    print("Evaluating Recommender System")
+    results = model.evaluate(no_of_recs_to_eval, dataset, hold_out_ratio)
+    pprint(results)
+    print('*' * 80)
+
+    print("Testing Recommendation for an User")
+    users = test_data[user_id_col].unique()
+    user_id = users[0]
+    items = list(test_data[test_data[user_id_col] == user_id][item_id_col].unique())
+    print("Items recommended for a user with user_id : {}".format(user_id))
+    recommended_items = model.get_similar_items(items, dataset)
+    print()
+    for item in recommended_items:
+        print(item)
+    print('*' * 80)
+
 def recommend(results_dir, model_dir, train_test_dir,
               user_id_col, item_id_col,
               user_id, no_of_recs=10, dataset='test', metadata_fields=None):
@@ -237,10 +343,10 @@ def main():
                   metadata_fields=metadata_fields)
     else:
         no_of_recs_to_eval = [1, 2, 5, 10]
-        item_based_cf_opt.train_eval_recommend(results_dir, model_dir, train_test_dir,
-                                               user_id_col, item_id_col,
-                                               no_of_recs_to_eval, dataset='test',
-                                               no_of_recs=no_of_recs, hold_out_ratio=0.5)
+        train_eval_recommend(results_dir, model_dir, train_test_dir,
+                             user_id_col, item_id_col,
+                             no_of_recs_to_eval, dataset='test',
+                             no_of_recs=no_of_recs, hold_out_ratio=0.5)
 
 if __name__ == '__main__':
     main()

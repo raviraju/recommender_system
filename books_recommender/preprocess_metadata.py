@@ -52,6 +52,10 @@ def extract_learner_books(bookclub_events, demographics, meta_data_file):
     learner_books_first_closure_df = learner_books_df.merge(first_closure_event_df,
                                                             on=['learner_id', 'book_code'])
     
+    #sort data by first_access_time
+    #print("Sorting records by first_access_time...")
+    #learner_books_first_closure_df.sort_values(by='first_access_time', inplace=True)
+    
     print("Loading : {} ...".format(demographics))
     #merge with demographics info
     demograph = pd.read_csv(demographics, 

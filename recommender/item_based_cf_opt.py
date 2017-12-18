@@ -22,8 +22,8 @@ from recommender.evaluation import PrecisionRecall
 class ItemBasedCFRecommender(RecommenderIntf):
     """Item based colloborative filtering recommender system model"""
 
-    def __derive_stats(self):
-        """private function, derive stats"""
+    def derive_stats(self):
+        """derive stats"""
         LOGGER.debug("Train Data :: Deriving Stats...")
         self.users_train = [str(user_id) for user_id in self.train_data[self.user_id_col].unique()]
         LOGGER.debug("Train Data :: No. of users : " + str(len(self.users_train)))
@@ -108,8 +108,8 @@ class ItemBasedCFRecommender(RecommenderIntf):
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         utilities.dump_json_file(self.user_items_test_dict, user_items_test_file)
 
-    def __load_stats(self):
-        """private function, derive stats"""
+    def load_stats(self):
+        """load stats"""
         LOGGER.debug("Train Data :: Loading Stats...")
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         users_items_train_dict = utilities.load_json_file(users_items_train_file)
@@ -162,7 +162,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         self.cooccurence_matrix_df = None
         self.model_file = os.path.join(self.model_dir, 'item_based_model.pkl')
 
-    def __get_items(self, user_id, dataset='train'):
+    def get_items(self, user_id, dataset='train'):
         """private function, Get unique items for a given user"""
         if dataset == "train":
             user_items = self.user_items_train_dict[user_id]
@@ -261,7 +261,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
     def train(self):
         """Train the item similarity based recommender system model"""
-        self.__derive_stats()
+        self.derive_stats()
         print("Training...")
         # Construct item cooccurence matrix of size, len(items) X len(items)
         start_time = default_timer()
@@ -313,7 +313,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
     def recommend_items(self, user_id, dataset='test'):
         """Generate item recommendations for given user_id from chosen dataset"""
-        self.__load_stats()
+        self.load_stats()
         if not os.path.exists(self.model_file):
             print("Trained Model not found !!!. Failed to recommend")
             return None
@@ -321,7 +321,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         #print(self.cooccurence_matrix_df.shape)
         LOGGER.debug("Loaded Trained Model")
         # Get all unique items for this user
-        user_interacted_items = self.__get_items(user_id, dataset)
+        user_interacted_items = self.get_items(user_id, dataset)
         print("No. of items interacted by user_id {} : {}".format(user_id,
                                                                   len(user_interacted_items)))
 
@@ -352,7 +352,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
         no_of_users_considered = 0
         for user_id in users:
             # Get all items with which user has interacted
-            items_interacted = self.__get_items(user_id, dataset)
+            items_interacted = self.get_items(user_id, dataset)
             if dataset != 'train':
                 items_interacted = self.__get_known_items(items_interacted)
             assume_interacted_items, hold_out_items = self.split_items(items_interacted,
@@ -384,7 +384,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
     def evaluate(self, no_of_recs_to_eval, dataset='test', hold_out_ratio=0.5):
         """Evaluate trained model"""
         print("Evaluating...")
-        self.__load_stats()
+        self.load_stats()
         start_time = default_timer()
         if os.path.exists(self.model_file):
             self.cooccurence_matrix_df = joblib.load(self.model_file)
@@ -422,7 +422,7 @@ class ItemBasedCFRecommender(RecommenderIntf):
 
     def get_similar_items(self, item_list, dataset='test'):
         """Get items similar to given items"""
-        self.__load_stats()
+        self.load_stats()
         if not os.path.exists(self.model_file):
             print("Trained Model not found !!!. Failed to get similar items")
             return None

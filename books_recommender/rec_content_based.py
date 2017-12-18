@@ -55,8 +55,8 @@ class ContentBasedRecommender(RecommenderIntf):
         self.recommendations = None
         self.model_file = os.path.join(self.model_dir, 'content_based_model.pkl')
 
-    def __get_items(self, user_id, dataset='train'):
-        """private function, Get unique items for a given user"""
+    def get_items(self, user_id, dataset='train'):
+        """Get unique items for a given user"""
         if dataset == "train":
             user_items = self.user_items_train_dict[user_id]
         else:#test
@@ -196,8 +196,8 @@ class ContentBasedRecommender(RecommenderIntf):
                   }
         return profile
 
-    def __derive_stats(self):
-        """private function, derive stats"""
+    def derive_stats(self):
+        """derive stats"""
         LOGGER.debug("Train Data :: Deriving Stats...")
         self.users_train = [user_id for user_id in self.train_data[self.user_id_col].unique()]
         LOGGER.debug("Train Data :: No. of users : " + str(len(self.users_train)))
@@ -309,8 +309,8 @@ class ContentBasedRecommender(RecommenderIntf):
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         utilities.dump_json_file(self.user_items_test_dict, user_items_test_file)
 
-    def __load_stats(self):
-        """private function, derive stats"""
+    def load_stats(self):
+        """load stats"""
         LOGGER.debug("Train Data :: Loading Stats...")
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         users_items_train_dict = utilities.load_json_file(users_items_train_file)
@@ -370,7 +370,7 @@ class ContentBasedRecommender(RecommenderIntf):
     def train(self):
         """train the content based recommender system model"""
         start_time = default_timer()
-        self.__derive_stats()
+        self.derive_stats()
         print("Training...")
         end_time = default_timer()
         print("{:50}    {}".format("Training Completed in : ",
@@ -489,10 +489,10 @@ class ContentBasedRecommender(RecommenderIntf):
        
     def recommend_items(self, user_id, dataset='test'):
         """Generate item recommendations for given user_id from chosen dataset"""
-        self.__load_stats()
+        self.load_stats()
         start_time = default_timer()
         # Get all items with which user has interacted
-        items_interacted = self.__get_items(user_id, dataset)
+        items_interacted = self.get_items(user_id, dataset)
         user_age = self.__get_user_age(user_id, dataset)
         user_profile = self.get_user_profile(items_interacted, user_age, dataset)        
         print("User Profile")
@@ -534,7 +534,7 @@ class ContentBasedRecommender(RecommenderIntf):
             #print(user_id)           
             
             # Get all items with which user has interacted
-            items_interacted = self.__get_items(user_id, dataset)
+            items_interacted = self.get_items(user_id, dataset)
             #print("items_interacted in test")
             #print("all_items_interacted in test set")
             #print(items_interacted)
@@ -636,7 +636,7 @@ class ContentBasedRecommender(RecommenderIntf):
     def evaluate(self, no_of_recs_to_eval, dataset='test', hold_out_ratio=0.5):
         """Evaluate trained model"""
         print("Evaluating...")
-        self.__load_stats()
+        self.load_stats()
         start_time = default_timer()
 
         #Generate recommendations for the users
@@ -713,6 +713,76 @@ def recommend(results_dir, model_dir, train_test_dir,
         print("No items to recommend")
     print('*' * 80)
 
+class Books_ContentBasedRecommender(ContentBasedRecommender):
+    def __init__(self, results_dir, model_dir,
+                 train_data, test_data,
+                 user_id_col, item_id_col,
+                 no_of_recs=10):
+        """constructor"""
+        super().__init__(results_dir, model_dir,
+                         train_data, test_data,
+                         user_id_col, item_id_col,
+                         no_of_recs)
+        self.book_access_time_train = dict()
+        self.book_access_time_test = dict()
+
+    def derive_stats(self):
+        """derive use case specific stats"""
+        super().derive_stats()
+
+        LOGGER.debug("Train Data :: Getting Access Time for each User-Item")
+        self.book_access_time_train = dict()
+        for index, row in self.train_data.iterrows():             
+            user = row['learner_id']
+            item = row['book_code']
+            if user in self.book_access_time_train:
+                self.book_access_time_train[user][item] = row['first_access_time']
+            else:
+                self.book_access_time_train[user] = {item : row['first_access_time']}
+        #pprint(self.book_access_time_train)
+        book_access_time_train_file = os.path.join(self.model_dir, 'book_access_time_train.json')
+        utilities.dump_json_file(self.book_access_time_train, book_access_time_train_file)
+        
+        LOGGER.debug("Test Data :: Getting Access Time for each User-Item")
+        for index, row in self.test_data.iterrows(): 
+            user = row['learner_id']
+            item = row['book_code']
+            if user in self.book_access_time_test:
+                self.book_access_time_test[user][item] = row['first_access_time']
+            else:
+                self.book_access_time_test[user] = {item : row['first_access_time']}        
+        #pprint(self.book_access_time_test)
+        book_access_time_test_file = os.path.join(self.model_dir, 'book_access_time_test.json')
+        utilities.dump_json_file(self.book_access_time_test, book_access_time_test_file)
+        
+    def load_stats(self):
+        """load use case specific stats"""
+        super().load_stats()
+        
+        LOGGER.debug("Train Data :: Loading Access Time for each User-Item")
+        book_access_time_train_file = os.path.join(self.model_dir, 'book_access_time_train.json')
+        self.book_access_time_train = utilities.load_json_file(book_access_time_train_file)
+        
+        LOGGER.debug("Test Data :: Loading Access Time for each User-Item")
+        book_access_time_test_file = os.path.join(self.model_dir, 'book_access_time_test.json')
+        self.book_access_time_test = utilities.load_json_file(book_access_time_test_file)
+    
+    def get_items(self, user_id, dataset='train'):
+        """Get unique items for a given user in sorted order of access time """
+        if dataset == "train":
+            items_access = self.book_access_time_train[user_id]
+        else:#test
+            items_access = self.book_access_time_test[user_id]
+        #pprint(items_access)
+        sorted_items = sorted(items_access.items(), key=lambda p: p[1])
+        #pprint(sorted_items)
+        items_access_ordered = []
+        for item, access in sorted_items:
+            items_access_ordered.append(item)
+        #print(items_access_ordered)
+        #input()
+        return items_access_ordered
+
 def train_eval_recommend(results_dir, model_dir, train_test_dir,
                          user_id_col, item_id_col,
                          no_of_recs_to_eval, dataset='test',
@@ -721,9 +791,9 @@ def train_eval_recommend(results_dir, model_dir, train_test_dir,
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Training Recommender...")
-    model = ContentBasedRecommender(results_dir, model_dir,
-                                       train_data, test_data,
-                                       user_id_col, item_id_col, no_of_recs)
+    model = Books_ContentBasedRecommender(results_dir, model_dir,
+                                          train_data, test_data,
+                                          user_id_col, item_id_col, no_of_recs)
     model.train()
     print('*' * 80)
 

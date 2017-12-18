@@ -22,8 +22,8 @@ from recommender.evaluation import PrecisionRecall
 class UserBasedCFRecommender(RecommenderIntf):
     """User based colloborative filtering recommender system model"""
 
-    def __derive_stats(self):
-        """private function, derive stats"""
+    def derive_stats(self):
+        """derive stats"""
         LOGGER.debug("Train Data :: Deriving Stats...")
         self.users_train = [str(user_id) for user_id in self.train_data[self.user_id_col].unique()]
         LOGGER.debug("Train Data :: No. of users : " + str(len(self.users_train)))
@@ -108,8 +108,8 @@ class UserBasedCFRecommender(RecommenderIntf):
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         utilities.dump_json_file(self.user_items_test_dict, user_items_test_file)
 
-    def __load_stats(self):
-        """private function, derive stats"""
+    def load_stats(self):
+        """load stats"""
         LOGGER.debug("Train Data :: Loading Stats...")
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         users_items_train_dict = utilities.load_json_file(users_items_train_file)
@@ -169,8 +169,8 @@ class UserBasedCFRecommender(RecommenderIntf):
         self.eval_items = None
         self.model_file = os.path.join(self.model_dir, 'user_based_model.pkl')
 
-    def __get_items(self, user_id, dataset='train'):
-        """private function, Get unique items for a given user"""
+    def get_items(self, user_id, dataset='train'):
+        """Get unique items for a given user"""
         if dataset == "train":
             user_items = self.user_items_train_dict[user_id]
         else:#test
@@ -227,7 +227,7 @@ class UserBasedCFRecommender(RecommenderIntf):
         for user_id in users:
             #print(user_id)
             # Get all items with which user has interacted
-            items_interacted = self.__get_items(user_id, dataset='test')
+            items_interacted = self.get_items(user_id, dataset='test')
             if dataset != 'train':
                 items_interacted = self.__get_known_items(items_interacted)
             assume_interacted_items, hold_out_items = self.split_items(items_interacted,
@@ -383,7 +383,7 @@ class UserBasedCFRecommender(RecommenderIntf):
 
     def train(self):
         """Train the user similarity based recommender system model"""
-        self.__derive_stats()
+        self.derive_stats()
         custom_test_data = self.__get_custom_test_data(dataset='test')
         
         # Construct user similarity matrix of size, len(users) X len(users)
@@ -452,7 +452,7 @@ class UserBasedCFRecommender(RecommenderIntf):
 
     def recommend_items(self, user_id):
         """Generate item recommendations for given user_id from chosen dataset"""
-        self.__load_stats()
+        self.load_stats()
         self.__load_uim()
         self.__load_eval_items()
         #pprint(self.eval_items[user_id])
@@ -487,7 +487,7 @@ class UserBasedCFRecommender(RecommenderIntf):
 
     def evaluate(self, no_of_recs_to_eval):
         """Evaluate trained model"""
-        self.__load_stats()
+        self.load_stats()
         self.__load_uim()
         self.__load_eval_items()
                 
