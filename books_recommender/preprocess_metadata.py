@@ -39,6 +39,24 @@ def extract_learner_books(bookclub_events, demographics, meta_data_file):
     print("Sorting records by event time...")
     dataframe.sort_values(by='event_time', inplace=True)
     
+    
+    
+    item_type_stats = dataframe.groupby(['learner_id', 'event_name'])\
+                               .agg({'book_code' : (lambda x: len(x.unique()))})\
+                               .rename(columns={'book_code' : 'no_of_items'})\
+                               .reset_index()
+
+    total_item_type_stats = item_type_stats.groupby('learner_id')\
+                                           .agg({'no_of_items' : np.sum})\
+                                           .rename(columns={'no_of_items' : 'total_no_of_items'})\
+                                           .reset_index()
+
+    learner_item_type_stats = item_type_stats.merge(total_item_type_stats, on='learner_id')
+    learner_item_type_stats['percentage'] = learner_item_type_stats['no_of_items'] / learner_item_type_stats['total_no_of_items']
+    
+    
+    
+    
     learner_books_df = dataframe.groupby(['learner_id', 'book_code'])\
                                 .size()\
                                 .reset_index()\
@@ -65,6 +83,8 @@ def extract_learner_books(bookclub_events, demographics, meta_data_file):
     demograph['dob'] = demograph['dob'].where(demograph['dob'] < now, demograph['dob'] -  np.timedelta64(100, 'Y'))
     demograph['age'] = (now - demograph['dob']).astype('<m8[Y]')
 
+    learner_age_item_type_stats = learner_item_type_stats.merge(demograph, on='learner_id')
+    
     learner_books_info_df = pd.merge(learner_books_first_closure_df, demograph,
                                      how='inner',
                                      on='learner_id')
@@ -81,6 +101,9 @@ def extract_learner_books(bookclub_events, demographics, meta_data_file):
     if not os.path.exists(preprocessed_data_dir):
         os.makedirs(preprocessed_data_dir)
 
+    learner_age_item_type_file = os.path.join(preprocessed_data_dir, 'learner_age_item_type_stats.csv')
+    learner_age_item_type_stats.to_csv(learner_age_item_type_file, index=False)
+    
     learner_books_info_file = os.path.join(preprocessed_data_dir, 'learner_books_info_close_events.csv')
     learner_books_info_meta_df.to_csv(learner_books_info_file, index=False)
 
