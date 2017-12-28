@@ -221,9 +221,7 @@ def main():
     elif args.eval:
         kwargs['no_of_recs_to_eval'] = [1, 2, 5, 10]
         evaluate(results_dir, model_dir, train_test_dir,
-                 user_id_col, item_id_col,
-                 no_of_recs_to_eval,
-                 no_of_recs=no_of_recs, hold_out_ratio=hold_out_ratio)
+                 user_id_col, item_id_col, **kwargs)
     elif args.recommend and args.user_id:
         kwargs['metadata_fields'] = metadata_fields
         recommend(results_dir, model_dir, train_test_dir,

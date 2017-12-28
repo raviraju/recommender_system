@@ -6,6 +6,8 @@ import logging
 import re
 import nltk
 from nltk.corpus import stopwords
+from collections import defaultdict
+from math import log10
 
 logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -102,7 +104,7 @@ def preprocess_token(token):
 
 def get_book_keywords(dataframe, book_code):
     """keywords for given book_code"""
-    book_keywords = set()
+    book_keywords = []
     records = dataframe[dataframe['BOOK_CODE'] == book_code]
     for _, record in records.iterrows():
         first_record = record
@@ -115,7 +117,7 @@ def get_book_keywords(dataframe, book_code):
             for token in tokens:
                 preprocessed_token = preprocess_token(token)
                 if preprocessed_token:
-                    book_keywords.add(preprocessed_token)
+                    book_keywords.append(preprocessed_token)
     return book_keywords
 
 def get_target_age_range(dataframe, book_code):
@@ -144,24 +146,24 @@ def get_book_name(dataframe, book_code):
         first_record = record
         break
     book_name = first_record['T_BOOK_NAME']
-    book_name_tokens = set()
+    book_name_tokens_set = set()
     if isinstance(book_name, str):
         tokens = book_name.split(' ')
         for token in tokens:
             preprocessed_token = preprocess_token(token)
             if preprocessed_token:
-                book_name_tokens.add(preprocessed_token)
-    return book_name, book_name_tokens
+                book_name_tokens_set.add(preprocessed_token)
+    return book_name, book_name_tokens_set
 
 def get_item_profile(dataframe, book_code):
     """item profile for a given book_code"""
     item_keywords = get_book_keywords(dataframe, book_code)
-    name, item_name_tokens = get_book_name(dataframe, book_code)
+    name, item_name_tokens_set = get_book_name(dataframe, book_code)
     author = get_author(dataframe, book_code)
-    item_author = set()
+    item_author_set = set()
     if isinstance(author, str):
-        item_author.add(author)
-    return item_name_tokens, item_author, item_keywords
+        item_author_set.add(author)
+    return item_name_tokens_set, item_author_set, item_keywords
 
 def get_jaccard_similarity(set_a, set_b):
     """jaccard similarity"""
@@ -172,24 +174,60 @@ def get_jaccard_similarity(set_a, set_b):
     else:
         return 0
 
+def get_log_freq_weight(tf):
+    """log frequency weight"""
+    if tf > 0:
+        return 1+log10(tf)
+    else:
+        return 0
+
+def get_term_freq_similarity(word_list_a, word_list_b):
+    """term frequency similarity"""
+    tf_a = defaultdict(int)
+    tf_b = defaultdict(int)
+    set_a = set(word_list_a)
+    set_b = set(word_list_b)
+        
+    for term in word_list_a:
+        tf_a[term] += 1
+    for term in word_list_b:
+        tf_b[term] += 1
+        
+    #print(tf_a)
+    #print(tf_b)
+    intersection = set_a.intersection(set_b)
+    score = 0
+    for common_term in intersection:
+        log_freq_weight_a = get_log_freq_weight(tf_a[common_term])
+        log_freq_weight_b = get_log_freq_weight(tf_b[common_term])
+
+        log_freq_weight_avg = (log_freq_weight_a+log_freq_weight_b)/2
+        '''
+        print(common_term,
+              tf_a[common_term], log_freq_weight_a,
+              tf_b[common_term], log_freq_weight_b,
+              log_freq_weight_avg)
+        '''
+        score = score + log_freq_weight_avg    
+    return score
+    
 def get_similarity_score(train_data, test_data, recommended_item, interacted_item):
-    """content based similarity score"""
+    """content based similarity score bw recommended and interacted item"""
     item_profile_a = get_item_profile(train_data, recommended_item)
-    item_name_tokens_a, item_author_a, item_keywords_a = item_profile_a
+    item_name_tokens_set_a, item_author_set_a, item_keywords_a = item_profile_a
     item_profile_b = get_item_profile(test_data, interacted_item)
-    item_name_tokens_b, item_author_b, item_keywords_b = item_profile_b
+    item_name_tokens_set_b, item_author_set_b, item_keywords_b = item_profile_b
 
-    authors_pair = (item_author_a, item_author_b)
-    keywords_pair = (item_keywords_a, item_keywords_b)
-    item_name_tokens_pair = (item_name_tokens_a, item_name_tokens_b)
-
-    item_name_tokens_similarity = get_jaccard_similarity(item_name_tokens_pair[0],
-                                                         item_name_tokens_pair[1])
-    authors_similarity = get_jaccard_similarity(authors_pair[0], authors_pair[1])
-    keywords_similarity = get_jaccard_similarity(keywords_pair[0], keywords_pair[1])
+    item_name_tokens_similarity = get_jaccard_similarity(item_name_tokens_set_a,
+                                                         item_name_tokens_set_b)
+    authors_similarity = get_jaccard_similarity(item_author_set_a, item_author_set_b)
+    keywords_similarity = get_term_freq_similarity(item_keywords_a, item_keywords_b)
     print("\t {:30s} : {}".format('item_name_tokens_similarity',
                                   item_name_tokens_similarity))
     print("\t {:30s} : {}".format('authors_similarity', authors_similarity))
     print("\t {:30s} : {}".format('keywords_similarity', keywords_similarity))
-    score = item_name_tokens_similarity*0.25 + authors_similarity*0.25 + keywords_similarity*0.5
+    score = dict()
+    score['item_name_similarity'] = item_name_tokens_similarity
+    score['author_name_similarity'] = authors_similarity
+    score['keywords_similarity'] = keywords_similarity
     return score
