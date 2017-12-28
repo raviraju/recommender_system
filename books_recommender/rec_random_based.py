@@ -148,7 +148,7 @@ def recommend(results_dir, model_dir, train_test_dir,
                 print(recommended_item)
                 if metadata_fields is not None:
                     item_profile = books_rec_interface.get_item_profile(train_data,
-                                                                         recommended_item)
+                                                                        recommended_item)
                     item_name_tokens, item_author, item_keywords = item_profile
                     print("\t item_name_tokens : {}".format(item_name_tokens))
                     print("\t item_author : {}".format(item_author))
@@ -161,9 +161,9 @@ def recommend(results_dir, model_dir, train_test_dir,
                             print("\t {} : {}".format(field, record[field].values[0]))
                     for interacted_item in items_interacted:
                         score = books_rec_interface.get_similarity_score(train_data,
-                                                                          test_data,
-                                                                          recommended_item,
-                                                                          interacted_item)
+                                                                         test_data,
+                                                                         recommended_item,
+                                                                         interacted_item)
                         print("\t {:20s} | {:20s} | {}".format('recommended_item',
                                                                'interacted_item',
                                                                'score'))
@@ -210,7 +210,7 @@ def main():
     no_of_recs = 10
     hold_out_ratio = 0.5
     kwargs = {'no_of_recs':no_of_recs,
-              'hold_out_ratio':hold_out_ratio              
+              'hold_out_ratio':hold_out_ratio
              }
 
     #metadata_fields = None

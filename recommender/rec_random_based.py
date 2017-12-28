@@ -43,7 +43,7 @@ class RandomBasedRecommender(Recommender):
 
         items_train = self.get_all_items(dataset='train')
         random_items = random.sample(items_train,
-                                     self.no_of_recs)        
+                                     self.no_of_recs)
         score = round(1/self.no_of_recs, 2)
         rank = 1
         for item_id in random_items:
@@ -114,8 +114,7 @@ class RandomBasedRecommender(Recommender):
     #######################################
 
 def train(results_dir, model_dir, train_test_dir,
-          user_id_col, item_id_col,
-          no_of_recs=10, hold_out_ratio=0.5):
+          user_id_col, item_id_col, **kwargs):
     """train recommender"""
     train_data, test_data = load_train_test(train_test_dir,
                                             user_id_col,
@@ -124,15 +123,12 @@ def train(results_dir, model_dir, train_test_dir,
     print("Training Recommender...")
     model = RandomBasedRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col, item_id_col,
-                                   no_of_recs, hold_out_ratio)
+                                   user_id_col, item_id_col, **kwargs)
     model.train()
     print('*' * 80)
 
 def evaluate(results_dir, model_dir, train_test_dir,
-             user_id_col, item_id_col,
-             no_of_recs_to_eval,
-             no_of_recs=10, hold_out_ratio=0.5):
+             user_id_col, item_id_col, **kwargs):
     """evaluate recommender"""
     train_data, test_data = load_train_test(train_test_dir,
                                             user_id_col,
@@ -141,16 +137,13 @@ def evaluate(results_dir, model_dir, train_test_dir,
     print("Evaluating Recommender System...")
     model = RandomBasedRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col, item_id_col,
-                                   no_of_recs, hold_out_ratio)
-    evaluation_results = model.evaluate(no_of_recs_to_eval)
+                                   user_id_col, item_id_col, **kwargs)
+    evaluation_results = model.evaluate(kwargs['no_of_recs_to_eval'])
     pprint(evaluation_results)
     print('*' * 80)
 
 def recommend(results_dir, model_dir, train_test_dir,
-              user_id_col, item_id_col,
-              user_id,
-              no_of_recs=10, hold_out_ratio=0.5):
+              user_id_col, item_id_col, user_id, **kwargs):
     """recommend items for user"""
     train_data, test_data = load_train_test(train_test_dir,
                                             user_id_col,
@@ -158,8 +151,7 @@ def recommend(results_dir, model_dir, train_test_dir,
 
     model = RandomBasedRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col, item_id_col,
-                                   no_of_recs, hold_out_ratio)
+                                   user_id_col, item_id_col, **kwargs)
 
     recommended_items = model.recommend_items(user_id)
     print("Items recommended for a user with user_id : {}".format(user_id))
@@ -171,9 +163,7 @@ def recommend(results_dir, model_dir, train_test_dir,
     print('*' * 80)
 
 def train_eval_recommend(results_dir, model_dir, train_test_dir,
-                         user_id_col, item_id_col,
-                         no_of_recs_to_eval,
-                         no_of_recs=10, hold_out_ratio=0.5):
+                         user_id_col, item_id_col, **kwargs):
     """Train Evaluate and Recommend for Item Based Recommender"""
     train_data, test_data = load_train_test(train_test_dir,
                                             user_id_col,
@@ -182,13 +172,12 @@ def train_eval_recommend(results_dir, model_dir, train_test_dir,
     print("Training Recommender...")
     model = RandomBasedRecommender(results_dir, model_dir,
                                    train_data, test_data,
-                                   user_id_col, item_id_col,
-                                   no_of_recs, hold_out_ratio)
+                                   user_id_col, item_id_col, **kwargs)
     model.train()
     print('*' * 80)
 
     print("Evaluating Recommender System")
-    evaluation_results = model.evaluate(no_of_recs_to_eval)
+    evaluation_results = model.evaluate(kwargs['no_of_recs_to_eval'])
     pprint(evaluation_results)
     print('*' * 80)
 

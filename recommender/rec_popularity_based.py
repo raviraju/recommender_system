@@ -32,7 +32,7 @@ class PopularityBasedRecommender(Recommender):
                                        'popularity_based_model.pkl')
         #print(self.model_file)
         self.user_features = kwargs['user_features']
-        #print(self.user_features)        
+        #print(self.user_features)
         self.data_groups = None
     #######################################
     def train(self):
@@ -45,8 +45,8 @@ class PopularityBasedRecommender(Recommender):
                                             .agg({self.user_id_col: 'count'})\
                                             .reset_index()
         self.data_groups.rename(columns={self.user_id_col:'no_of_users',
-                                           self.item_id_col:self.item_id_col},
-                                  inplace=True)
+                                         self.item_id_col:self.item_id_col},
+                                inplace=True)
         #print(self.data_groups.head())
         end_time = default_timer()
         print("{:50}    {}".format("Completed. ",
@@ -76,13 +76,13 @@ class PopularityBasedRecommender(Recommender):
 
         #Sort the items based upon popularity score : no_of_users
         data_groups_sort = self.data_groups.sort_values(['no_of_users', self.item_id_col],
-                                                         ascending=[0, 1])
+                                                        ascending=[0, 1])
 
         total_no_of_users = len(self.get_all_users(dataset='train'))
         if total_no_of_users == 0:
             total_no_of_users = 1#to avoid division by zero
         data_groups_sort['users_percent'] = data_groups_sort['no_of_users']/total_no_of_users
-        
+
         #Generate a recommendation rank based upon score : users_percent
         data_groups_sort['rank'] = data_groups_sort['users_percent']\
                                   .rank(ascending=0, method='first')
@@ -182,8 +182,7 @@ class PopularityBasedRecommender(Recommender):
     #######################################
 
 def train(results_dir, model_dir, train_test_dir,
-          user_id_col, item_id_col,
-          no_of_recs=10, hold_out_ratio=0.5):
+          user_id_col, item_id_col, **kwargs):
     """train recommender"""
     train_data, test_data = load_train_test(train_test_dir,
                                             user_id_col,
@@ -192,15 +191,12 @@ def train(results_dir, model_dir, train_test_dir,
     print("Training Recommender...")
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
-                                       user_id_col, item_id_col,
-                                       no_of_recs, hold_out_ratio)
+                                       user_id_col, item_id_col, **kwargs)
     model.train()
     print('*' * 80)
 
 def evaluate(results_dir, model_dir, train_test_dir,
-             user_id_col, item_id_col,
-             no_of_recs_to_eval,
-             no_of_recs=10, hold_out_ratio=0.5):
+             user_id_col, item_id_col, **kwargs):
     """evaluate recommender"""
     train_data, test_data = load_train_test(train_test_dir,
                                             user_id_col,
@@ -209,16 +205,13 @@ def evaluate(results_dir, model_dir, train_test_dir,
     print("Evaluating Recommender System...")
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
-                                       user_id_col, item_id_col,
-                                       no_of_recs, hold_out_ratio)
-    evaluation_results = model.evaluate(no_of_recs_to_eval)
+                                       user_id_col, item_id_col, **kwargs)
+    evaluation_results = model.evaluate(kwargs['no_of_recs_to_eval'])
     pprint(evaluation_results)
     print('*' * 80)
 
 def recommend(results_dir, model_dir, train_test_dir,
-              user_id_col, item_id_col,
-              user_id,
-              no_of_recs=10, hold_out_ratio=0.5):
+              user_id_col, item_id_col, user_id, **kwargs):
     """recommend items for user"""
     train_data, test_data = load_train_test(train_test_dir,
                                             user_id_col,
@@ -226,8 +219,7 @@ def recommend(results_dir, model_dir, train_test_dir,
 
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
-                                       user_id_col, item_id_col,
-                                       no_of_recs, hold_out_ratio)
+                                       user_id_col, item_id_col, **kwargs)
 
     recommended_items = model.recommend_items(user_id)
     print("Items recommended for a user with user_id : {}".format(user_id))
@@ -239,9 +231,7 @@ def recommend(results_dir, model_dir, train_test_dir,
     print('*' * 80)
 
 def train_eval_recommend(results_dir, model_dir, train_test_dir,
-                         user_id_col, item_id_col,
-                         no_of_recs_to_eval,
-                         no_of_recs=10, hold_out_ratio=0.5):
+                         user_id_col, item_id_col, **kwargs):
     """Train Evaluate and Recommend for Item Based Recommender"""
     train_data, test_data = load_train_test(train_test_dir,
                                             user_id_col,
@@ -250,13 +240,12 @@ def train_eval_recommend(results_dir, model_dir, train_test_dir,
     print("Training Recommender...")
     model = PopularityBasedRecommender(results_dir, model_dir,
                                        train_data, test_data,
-                                       user_id_col, item_id_col,
-                                       no_of_recs, hold_out_ratio)
+                                       user_id_col, item_id_col, **kwargs)
     model.train()
     print('*' * 80)
 
     print("Evaluating Recommender System")
-    evaluation_results = model.evaluate(no_of_recs_to_eval)
+    evaluation_results = model.evaluate(kwargs['no_of_recs_to_eval'])
     pprint(evaluation_results)
     print('*' * 80)
 

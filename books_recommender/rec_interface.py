@@ -187,12 +187,12 @@ def get_term_freq_similarity(word_list_a, word_list_b):
     tf_b = defaultdict(int)
     set_a = set(word_list_a)
     set_b = set(word_list_b)
-        
+
     for term in word_list_a:
         tf_a[term] += 1
     for term in word_list_b:
         tf_b[term] += 1
-        
+
     #print(tf_a)
     #print(tf_b)
     intersection = set_a.intersection(set_b)
@@ -208,9 +208,9 @@ def get_term_freq_similarity(word_list_a, word_list_b):
               tf_b[common_term], log_freq_weight_b,
               log_freq_weight_avg)
         '''
-        score = score + log_freq_weight_avg    
+        score = score + log_freq_weight_avg
     return score
-    
+
 def get_similarity_score(train_data, test_data, recommended_item, interacted_item):
     """content based similarity score bw recommended and interacted item"""
     item_profile_a = get_item_profile(train_data, recommended_item)

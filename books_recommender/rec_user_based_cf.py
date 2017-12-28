@@ -95,7 +95,7 @@ def recommend(results_dir, model_dir, train_test_dir,
     model = UserBasedCFRecommender(results_dir, model_dir,
                                    train_data, test_data,
                                    user_id_col, item_id_col, **kwargs)
-    
+
     metadata_fields = kwargs['metadata_fields']
 
     eval_items_file = os.path.join(model_dir, 'items_for_evaluation.json')
@@ -148,7 +148,7 @@ def recommend(results_dir, model_dir, train_test_dir,
                 print(recommended_item)
                 if metadata_fields is not None:
                     item_profile = books_rec_interface.get_item_profile(train_data,
-                                                                         recommended_item)
+                                                                        recommended_item)
                     item_name_tokens, item_author, item_keywords = item_profile
                     print("\t item_name_tokens : {}".format(item_name_tokens))
                     print("\t item_author : {}".format(item_author))
@@ -161,9 +161,9 @@ def recommend(results_dir, model_dir, train_test_dir,
                             print("\t {} : {}".format(field, record[field].values[0]))
                     for interacted_item in items_interacted:
                         score = books_rec_interface.get_similarity_score(train_data,
-                                                                          test_data,
-                                                                          recommended_item,
-                                                                          interacted_item)
+                                                                         test_data,
+                                                                         recommended_item,
+                                                                         interacted_item)
                         print("\t {:20s} | {:20s} | {}".format('recommended_item',
                                                                'interacted_item',
                                                                'score'))
@@ -206,22 +206,22 @@ def main():
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
     train_test_dir = os.path.join(current_dir, 'train_test_data')
-    
+
     no_of_recs = 10
     hold_out_ratio = 0.5
     kwargs = {'no_of_recs':no_of_recs,
-              'hold_out_ratio':hold_out_ratio              
+              'hold_out_ratio':hold_out_ratio
              }
     #metadata_fields = None
     metadata_fields = ['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
 
     if args.train:
         train(results_dir, model_dir, train_test_dir,
-                                user_id_col, item_id_col, **kwargs)
+              user_id_col, item_id_col, **kwargs)
     elif args.eval:
         kwargs['no_of_recs_to_eval'] = [1, 2, 5, 10]
         evaluate(results_dir, model_dir, train_test_dir,
-                                   user_id_col, item_id_col, **kwargs)
+                 user_id_col, item_id_col, **kwargs)
     elif args.recommend and args.user_id:
         kwargs['metadata_fields'] = metadata_fields
         recommend(results_dir, model_dir, train_test_dir,
