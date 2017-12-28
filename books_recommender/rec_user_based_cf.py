@@ -1,4 +1,4 @@
-"""Module for Popularity Based Books Recommender"""
+"""Module for User Based CF Books Recommender"""
 import os
 import sys
 import argparse
@@ -13,12 +13,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import rec_interface as books_rec_interface
 from lib import utilities
 from recommender.rec_interface import load_train_test
-from recommender import rec_popularity_based
+from recommender import rec_user_based_cf
 
+class UserBasedCFRecommender(books_rec_interface.BooksRecommender,
+                             rec_user_based_cf.UserBasedCFRecommender):
+    """User based colloborative filtering recommender system model for Books"""
 
-class PopularityBasedRecommender(books_rec_interface.BooksRecommender,
-                                 rec_popularity_based.PopularityBasedRecommender):
-    """Popularity based recommender system model for Books"""
     def __init__(self, results_dir, model_dir,
                  train_data, test_data,
                  user_id_col, item_id_col, **kwargs):
@@ -35,9 +35,9 @@ def train(results_dir, model_dir, train_test_dir,
                                             item_id_col)
 
     print("Training Recommender...")
-    model = PopularityBasedRecommender(results_dir, model_dir,
-                                       train_data, test_data,
-                                       user_id_col, item_id_col, **kwargs)
+    model = UserBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col, item_id_col, **kwargs)
     model.train()
     print('*' * 80)
 
@@ -49,9 +49,9 @@ def evaluate(results_dir, model_dir, train_test_dir,
                                             item_id_col)
 
     print("Evaluating Recommender System...")
-    model = PopularityBasedRecommender(results_dir, model_dir,
-                                       train_data, test_data,
-                                       user_id_col, item_id_col, **kwargs)
+    model = UserBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col, item_id_col, **kwargs)
     evaluation_results = model.evaluate(kwargs['no_of_recs_to_eval'])
     pprint(evaluation_results)
     print('*' * 80)
@@ -62,9 +62,9 @@ def train_eval_recommend(results_dir, model_dir, train_test_dir,
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
     print("Training Recommender...")
-    model = PopularityBasedRecommender(results_dir, model_dir,
-                                       train_data, test_data,
-                                       user_id_col, item_id_col, **kwargs)
+    model = UserBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col, item_id_col, **kwargs)
     model.train()
     print('*' * 80)
 
@@ -92,9 +92,9 @@ def recommend(results_dir, model_dir, train_test_dir,
     """recommend items for user"""
     train_data, test_data = load_train_test(train_test_dir, user_id_col, item_id_col)
 
-    model = PopularityBasedRecommender(results_dir, model_dir,
-                                       train_data, test_data,
-                                       user_id_col, item_id_col, **kwargs)
+    model = UserBasedCFRecommender(results_dir, model_dir,
+                                   train_data, test_data,
+                                   user_id_col, item_id_col, **kwargs)
     
     metadata_fields = kwargs['metadata_fields']
 
@@ -199,7 +199,10 @@ def main():
     results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
-    
+    model_dir = os.path.join(current_dir, 'model/user_based')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
     train_test_dir = os.path.join(current_dir, 'train_test_data')
@@ -209,33 +212,24 @@ def main():
     kwargs = {'no_of_recs':no_of_recs,
               'hold_out_ratio':hold_out_ratio              
              }
-    
     #metadata_fields = None
     metadata_fields = ['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
 
-    user_features_configs = [[], ['learner_gender'], ['age'], ['learner_gender', 'age']]
-    for user_features in user_features_configs:        
-        user_features_str = '_'.join(user_features)
-        model_dir = os.path.join(current_dir, 'model/popularity_based_' + user_features_str)
-        print(model_dir)
-        kwargs['user_features'] = user_features
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
-        if args.train:
-            train(results_dir, model_dir, train_test_dir,
-                  user_id_col, item_id_col, **kwargs)
-        elif args.eval:
-            kwargs['no_of_recs_to_eval'] = [1, 2, 5, 10]
-            evaluate(results_dir, model_dir, train_test_dir,
-                     user_id_col, item_id_col, **kwargs)
-        elif args.recommend and args.user_id:
-            kwargs['metadata_fields'] = metadata_fields
-            recommend(results_dir, model_dir, train_test_dir,
-                      user_id_col, item_id_col, args.user_id, **kwargs)
-        else:
-            kwargs['no_of_recs_to_eval'] = [1, 2, 5, 10]
-            train_eval_recommend(results_dir, model_dir, train_test_dir,
-                                 user_id_col, item_id_col, **kwargs)
+    if args.train:
+        train(results_dir, model_dir, train_test_dir,
+                                user_id_col, item_id_col, **kwargs)
+    elif args.eval:
+        kwargs['no_of_recs_to_eval'] = [1, 2, 5, 10]
+        evaluate(results_dir, model_dir, train_test_dir,
+                                   user_id_col, item_id_col, **kwargs)
+    elif args.recommend and args.user_id:
+        kwargs['metadata_fields'] = metadata_fields
+        recommend(results_dir, model_dir, train_test_dir,
+                  user_id_col, item_id_col, args.user_id, **kwargs)
+    else:
+        kwargs['no_of_recs_to_eval'] = [1, 2, 5, 10]
+        train_eval_recommend(results_dir, model_dir, train_test_dir,
+                             user_id_col, item_id_col, **kwargs)
 
 if __name__ == '__main__':
     main()
