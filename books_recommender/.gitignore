@@ -4,3 +4,5 @@ results
 preprocessed_data
 preprocessed_metadata
 .ipynb_checkpoints
+plot_kfold_results
+plot_results

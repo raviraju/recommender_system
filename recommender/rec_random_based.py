@@ -3,8 +3,6 @@ import os
 import sys
 import logging
 from timeit import default_timer
-from pprint import pprint
-import joblib
 
 import random
 import pandas as pd
@@ -16,7 +14,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib import utilities
 from recommender.rec_interface import Recommender
-from recommender.rec_interface import load_train_test
 from recommender.evaluation import PrecisionRecall
 
 class RandomBasedRecommender(Recommender):
@@ -91,9 +88,9 @@ class RandomBasedRecommender(Recommender):
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
         return self.items_for_evaluation
 
-    def evaluate(self, no_of_recs_to_eval):
+    def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
         """Evaluate trained model for different no of ranked recommendations"""
-        super().evaluate(no_of_recs_to_eval)
+        super().evaluate(no_of_recs_to_eval, eval_res_file)
 
         start_time = default_timer()
         #Generate recommendations for the users
@@ -107,90 +104,9 @@ class RandomBasedRecommender(Recommender):
         print("{:50}    {}".format("Evaluation Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
 
-        results_file = os.path.join(self.model_dir, 'evaluation_results.json')
+        results_file = os.path.join(self.model_dir, eval_res_file)
         utilities.dump_json_file(evaluation_results, results_file)
 
         return evaluation_results
     #######################################
 
-def train(results_dir, model_dir, train_test_dir,
-          user_id_col, item_id_col, **kwargs):
-    """train recommender"""
-    train_data, test_data = load_train_test(train_test_dir,
-                                            user_id_col,
-                                            item_id_col)
-
-    print("Training Recommender...")
-    model = RandomBasedRecommender(results_dir, model_dir,
-                                   train_data, test_data,
-                                   user_id_col, item_id_col, **kwargs)
-    model.train()
-    print('*' * 80)
-
-def evaluate(results_dir, model_dir, train_test_dir,
-             user_id_col, item_id_col, **kwargs):
-    """evaluate recommender"""
-    train_data, test_data = load_train_test(train_test_dir,
-                                            user_id_col,
-                                            item_id_col)
-
-    print("Evaluating Recommender System...")
-    model = RandomBasedRecommender(results_dir, model_dir,
-                                   train_data, test_data,
-                                   user_id_col, item_id_col, **kwargs)
-    evaluation_results = model.evaluate(kwargs['no_of_recs_to_eval'])
-    pprint(evaluation_results)
-    print('*' * 80)
-
-def recommend(results_dir, model_dir, train_test_dir,
-              user_id_col, item_id_col, user_id, **kwargs):
-    """recommend items for user"""
-    train_data, test_data = load_train_test(train_test_dir,
-                                            user_id_col,
-                                            item_id_col)
-
-    model = RandomBasedRecommender(results_dir, model_dir,
-                                   train_data, test_data,
-                                   user_id_col, item_id_col, **kwargs)
-
-    recommended_items = model.recommend_items(user_id)
-    print("Items recommended for a user with user_id : {}".format(user_id))
-    if recommended_items:
-        for item in recommended_items:
-            print(item)
-    else:
-        print("No items to recommend")
-    print('*' * 80)
-
-def train_eval_recommend(results_dir, model_dir, train_test_dir,
-                         user_id_col, item_id_col, **kwargs):
-    """Train Evaluate and Recommend for Item Based Recommender"""
-    train_data, test_data = load_train_test(train_test_dir,
-                                            user_id_col,
-                                            item_id_col)
-
-    print("Training Recommender...")
-    model = RandomBasedRecommender(results_dir, model_dir,
-                                   train_data, test_data,
-                                   user_id_col, item_id_col, **kwargs)
-    model.train()
-    print('*' * 80)
-
-    print("Evaluating Recommender System")
-    evaluation_results = model.evaluate(kwargs['no_of_recs_to_eval'])
-    pprint(evaluation_results)
-    print('*' * 80)
-
-    print("Testing Recommendation for an User")
-    items_for_evaluation_file = os.path.join(model_dir, 'items_for_evaluation.json')
-    items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
-    users = list(items_for_evaluation.keys())
-    user_id = users[0]
-    recommended_items = model.recommend_items(user_id)
-    print("Items recommended for a user with user_id : {}".format(user_id))
-    if recommended_items:
-        for item in recommended_items:
-            print(item)
-    else:
-        print("No items to recommend")
-    print('*' * 80)

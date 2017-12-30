@@ -4,6 +4,7 @@ import sys
 import random
 import logging
 
+from pprint import pprint
 from abc import ABCMeta, abstractmethod
 
 import pandas as pd
@@ -305,7 +306,7 @@ class Recommender(metaclass=ABCMeta):
         self.load_items_for_evaluation()
 
     @abstractmethod
-    def evaluate(self, no_of_recs_to_eval):
+    def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
         """evaluate trained model for different no of ranked recommendations"""
         self.load_stats()
         self.load_items_for_evaluation()
@@ -332,17 +333,15 @@ class Recommender(metaclass=ABCMeta):
         print("Sample no of common users, used for evaluation : {}".format(len(users_test_sample)))
         return users_test_sample
 
-def load_train_test(train_test_dir, user_id_col, item_id_col):
+def load_train_test(train_data_file, test_data_file, user_id_col, item_id_col):
     """Loads data and returns training and test set"""
     print("Loading Training and Test Data")
-    train_data_file = os.path.join(train_test_dir, 'train_data.csv')
     if os.path.exists(train_data_file):
         train_data = pd.read_csv(train_data_file, dtype=object)
     else:
         print("Unable to find train data in : ", train_data_file)
         exit(0)
 
-    test_data_file = os.path.join(train_test_dir, 'test_data.csv')
     if os.path.exists(test_data_file):
         test_data = pd.read_csv(test_data_file, dtype=object)
     else:
@@ -362,3 +361,108 @@ def load_train_test(train_test_dir, user_id_col, item_id_col):
                               len(test_data[item_id_col].unique())))
     print('#' * 40)
     return train_data, test_data
+
+def train(recommender):
+    """train recommender"""
+    recommender.train()
+    print('*' * 80)
+
+def recommend(recommender, model_dir, user_id):
+    """recommend items for user"""
+    eval_items_file = os.path.join(model_dir, 'items_for_evaluation.json')
+    eval_items = utilities.load_json_file(eval_items_file)
+    if user_id in eval_items:
+        assume_interacted_items = eval_items[user_id]['assume_interacted_items']
+        items_interacted = eval_items[user_id]['items_interacted']
+
+        print("Assumed Item interactions for a user with user_id : {}".format(user_id))
+        for item in assume_interacted_items:
+            print(item)
+
+        print()
+        print("Items to be interacted for a user with user_id : {}".format(user_id))
+        for item in items_interacted:
+            print(item)
+
+        print()
+        print("Items recommended for a user with user_id : {}".format(user_id))
+        recommended_items = recommender.recommend_items(user_id)
+        print()
+        if recommended_items:
+            for recommended_item in recommended_items:
+                print(recommended_item)
+        else:
+            print("No items to recommend")
+        print('*' * 80)
+    else:
+        print("""Cannot generate recommendations as either
+              items assumed to be interacted or items held out are None""")
+
+def evaluate(recommender, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
+    """evaluate recommender"""
+    evaluation_results = recommender.evaluate(no_of_recs_to_eval, eval_res_file)
+    pprint(evaluation_results)
+    print('*' * 80)
+    return evaluation_results
+
+def train_eval_recommend(recommender, model_dir, no_of_recs_to_eval):
+    """train, evaluate and recommend"""
+    print("Training Recommender...")
+    recommender.train()
+    print('*' * 80)
+
+    print("Evaluating Recommender System")
+    evaluation_results = recommender.evaluate(no_of_recs_to_eval)
+    pprint(evaluation_results)
+    print('*' * 80)
+
+    print("Testing Recommendation for an User")
+    items_for_evaluation_file = os.path.join(model_dir, 'items_for_evaluation.json')
+    items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
+    users = list(items_for_evaluation.keys())
+    user_id = users[0]
+    recommended_items = recommender.recommend_items(user_id)
+    print("Items recommended for a user with user_id : {}".format(user_id))
+    if recommended_items:
+        for item in recommended_items:
+            print(item)
+    else:
+        print("No items to recommend")
+    print('*' * 80)
+
+def get_avg_kfold_exp_res(kfold_experiments):
+    """compute avg scores for all kfold experiments"""
+    #pprint(kfold_experiments)
+    avg_kfold_exp_res = dict()
+    avg_kfold_exp_res['no_of_items_to_recommend'] = dict()
+    for _, kfold_exp_res in kfold_experiments.items():
+        for no_of_items, score in kfold_exp_res['no_of_items_to_recommend'].items():
+            exp_avg_f1_score = score['avg_f1_score']
+            exp_avg_precision = score['avg_precision']
+            exp_avg_recall = score['avg_recall']
+            if no_of_items not in avg_kfold_exp_res['no_of_items_to_recommend']:
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items] = dict()
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_f1_score'] = exp_avg_f1_score
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] = exp_avg_precision
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_recall'] = exp_avg_recall
+            else:
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_f1_score'] += exp_avg_f1_score
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] += exp_avg_precision
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_recall'] += exp_avg_recall
+
+    #print('total_kfold_exp_res:')
+    #pprint(avg_kfold_exp_res)
+    no_of_kfold_exp = len(kfold_experiments)
+    for no_of_items, score in avg_kfold_exp_res['no_of_items_to_recommend'].items():
+        avg_kfold_avg_f1_score = round(score['avg_f1_score'] / no_of_kfold_exp, 4)
+        avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_f1_score'] = avg_kfold_avg_f1_score
+
+        avg_kfold_avg_precision = round(score['avg_precision'] / no_of_kfold_exp, 4)
+        avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] = avg_kfold_avg_precision
+
+        avg_kfold_avg_recall = round(score['avg_recall'] / no_of_kfold_exp, 4)
+        avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_recall'] = avg_kfold_avg_recall
+
+    #print('avg_kfold_exp_res:')
+    #pprint(avg_kfold_exp_res)
+    return avg_kfold_exp_res

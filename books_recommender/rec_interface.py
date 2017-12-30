@@ -3,11 +3,13 @@ import os
 import sys
 import logging
 
+from collections import defaultdict
+from math import log10
+
 import re
 import nltk
 from nltk.corpus import stopwords
-from collections import defaultdict
-from math import log10
+
 
 logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -158,7 +160,7 @@ def get_book_name(dataframe, book_code):
 def get_item_profile(dataframe, book_code):
     """item profile for a given book_code"""
     item_keywords = get_book_keywords(dataframe, book_code)
-    name, item_name_tokens_set = get_book_name(dataframe, book_code)
+    _, item_name_tokens_set = get_book_name(dataframe, book_code)
     author = get_author(dataframe, book_code)
     item_author_set = set()
     if isinstance(author, str):
@@ -174,10 +176,10 @@ def get_jaccard_similarity(set_a, set_b):
     else:
         return 0
 
-def get_log_freq_weight(tf):
-    """log frequency weight"""
-    if tf > 0:
-        return 1+log10(tf)
+def get_log_freq_weight(term_frequency):
+    """log term_frequency weight"""
+    if term_frequency > 0:
+        return 1+log10(term_frequency)
     else:
         return 0
 
@@ -231,3 +233,87 @@ def get_similarity_score(train_data, test_data, recommended_item, interacted_ite
     score['author_name_similarity'] = authors_similarity
     score['keywords_similarity'] = keywords_similarity
     return score
+
+def recommend(recommender, model_dir, user_id,
+              train_data, test_data,
+              item_id_col, metadata_fields):
+    """recommend items for user"""
+    eval_items_file = os.path.join(model_dir, 'items_for_evaluation.json')
+    eval_items = utilities.load_json_file(eval_items_file)
+    if user_id in eval_items:
+        assume_interacted_items = eval_items[user_id]['assume_interacted_items']
+        items_interacted = eval_items[user_id]['items_interacted']
+
+        print("Assumed Item interactions for a user with user_id : {}".format(user_id))
+        for item in assume_interacted_items:
+            print(item)
+            if metadata_fields is not None:
+                item_profile = get_item_profile(test_data, item)
+                item_name_tokens, item_author, item_keywords = item_profile
+                print("\t item_name_tokens : {}".format(item_name_tokens))
+                print("\t item_author : {}".format(item_author))
+                print("\t item_keywords : {}".format(item_keywords))
+                print()
+
+                record = test_data[test_data[item_id_col] == item]
+                if not record.empty:
+                    for field in metadata_fields:
+                        print("\t {} : {}".format(field, record[field].values[0]))
+                print('\t '+ '#'*30)
+
+        print()
+        print("Items to be interacted for a user with user_id : {}".format(user_id))
+        for item in items_interacted:
+            print(item)
+            if metadata_fields is not None:
+                item_profile = get_item_profile(test_data, item)
+                item_name_tokens, item_author, item_keywords = item_profile
+                print("\t item_name_tokens : {}".format(item_name_tokens))
+                print("\t item_author : {}".format(item_author))
+                print("\t item_keywords : {}".format(item_keywords))
+                print()
+
+                record = test_data[test_data[item_id_col] == item]
+                if not record.empty:
+                    for field in metadata_fields:
+                        print("\t {} : {}".format(field, record[field].values[0]))
+                print('\t '+ '#'*30)
+
+        print()
+        print("Items recommended for a user with user_id : {}".format(user_id))
+        recommended_items = recommender.recommend_items(user_id)
+        print()
+        if recommended_items:
+            for recommended_item in recommended_items:
+                print(recommended_item)
+                if metadata_fields is not None:
+                    item_profile = get_item_profile(train_data, recommended_item)
+                    item_name_tokens, item_author, item_keywords = item_profile
+                    print("\t item_name_tokens : {}".format(item_name_tokens))
+                    print("\t item_author : {}".format(item_author))
+                    print("\t item_keywords : {}".format(item_keywords))
+                    print()
+
+                    record = train_data[train_data[item_id_col] == recommended_item]
+                    if not record.empty:
+                        for field in metadata_fields:
+                            print("\t {} : {}".format(field, record[field].values[0]))
+                    for interacted_item in items_interacted:
+                        score = get_similarity_score(train_data,
+                                                     test_data,
+                                                     recommended_item,
+                                                     interacted_item)
+                        print("\t {:20s} | {:20s} | {}".format('recommended_item',
+                                                               'interacted_item',
+                                                               'score'))
+                        print("\t {:20s} | {:20s} | {}".format(recommended_item,
+                                                               interacted_item,
+                                                               score))
+                        print()
+                    print('\t '+ '#'*30)
+        else:
+            print("No items to recommend")
+        print('*' * 80)
+    else:
+        print("""Cannot generate recommendations as either
+              items assumed to be interacted or items held out are None""")
