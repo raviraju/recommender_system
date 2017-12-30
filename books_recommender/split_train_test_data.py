@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 
-def generate_random_split(train_test_dir, data, min_no_of_books=10, test_size=0.2):
+def generate_random_split(train_test_dir, data, test_size=0.2, min_no_of_books=10):
     """Loads data and returns training and test set by random split of data"""
     print("Generate Training and Test Data")
     #Read learner_id-book_code-events
@@ -232,7 +232,10 @@ def main():
 
     args = parser.parse_args()
     if args.random_split and args.test_size and args.data:
-        generate_random_split(train_test_dir, args.data, args.min_no_of_books, args.test_size)
+        if args.min_no_of_books:
+            generate_random_split(train_test_dir, args.data, args.test_size, args.min_no_of_books)
+        else:
+            generate_random_split(train_test_dir, args.data, args.test_size)
     elif args.users_split and args.test_size and args.data:
         generate_users_split(train_test_dir, args.data, args.test_size)
     elif args.kfold_split and args.kfolds and args.data:

@@ -1,4 +1,4 @@
-"""Module for Item Based CF Books Recommender"""
+"""Module for Random Based Songs Recommender"""
 import os
 import sys
 import argparse
@@ -12,23 +12,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib import utilities
 from recommender import rec_interface as generic_rec_interface
-from recommender import rec_item_based_cf as generic_rec_item_based_cf
-import rec_interface as books_rec_interface
-
-class ItemBasedCFRecommender(books_rec_interface.BooksRecommender,
-                             generic_rec_item_based_cf.ItemBasedCFRecommender):
-    """Item based colloborative filtering recommender system model for Books"""
-    def __init__(self, results_dir, model_dir,
-                 train_data, test_data,
-                 user_id_col, item_id_col, **kwargs):
-        """constructor"""
-        super().__init__(results_dir, model_dir,
-                         train_data, test_data,
-                         user_id_col, item_id_col, **kwargs)
+from recommender import rec_random_based as generic_rec_random_based
 
 def main():
-    """Item based recommender interface"""
-    parser = argparse.ArgumentParser(description="User Based Recommender")
+    """Random based recommender interface"""
+    parser = argparse.ArgumentParser(description="Random Based Recommender")
     parser.add_argument("--train",
                         help="Train Model",
                         action="store_true")
@@ -56,21 +44,18 @@ def main():
     results_dir = os.path.join(current_dir, 'results')
     # if not os.path.exists(results_dir):
     #     os.makedirs(results_dir)
-    model_dir = os.path.join(current_dir, 'model/item_based')
+    model_dir = os.path.join(current_dir, 'model/random_based')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
-    user_id_col = 'learner_id'
-    item_id_col = 'book_code'
+    user_id_col = 'user_id'
+    item_id_col = 'song'
 
     no_of_recs = 10
     hold_out_ratio = 0.5
     kwargs = {'no_of_recs':no_of_recs,
               'hold_out_ratio':hold_out_ratio
              }
-
-    #metadata_fields = None
-    metadata_fields = ['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
 
     if args.cross_eval and args.kfolds:
         kfold_experiments = dict()
@@ -90,9 +75,13 @@ def main():
                                            'kfold_exp_' + str(kfold_exp))
             if not os.path.exists(kfold_model_dir):
                 os.makedirs(kfold_model_dir)
-            recommender = ItemBasedCFRecommender(results_dir, kfold_model_dir,
-                                                 train_data, test_data,
-                                                 user_id_col, item_id_col, **kwargs)
+            recommender = generic_rec_random_based.RandomBasedRecommender(results_dir,
+                                                                          kfold_model_dir,
+                                                                          train_data,
+                                                                          test_data,
+                                                                          user_id_col,
+                                                                          item_id_col,
+                                                                          **kwargs)
             generic_rec_interface.train(recommender)
             no_of_recs_to_eval = [1, 2, 5, 10]
             kfold_eval_file = 'kfold_exp_' + str(kfold_exp) + '_evaluation.json'
@@ -108,23 +97,22 @@ def main():
         utilities.dump_json_file(avg_kfold_exp_res, results_file)
         return
 
+
     train_data, test_data = generic_rec_interface.load_train_test(args.train_data,
                                                                   args.test_data,
                                                                   user_id_col,
                                                                   item_id_col)
-    recommender = ItemBasedCFRecommender(results_dir, model_dir,
-                                         train_data, test_data,
-                                         user_id_col, item_id_col, **kwargs)
+    recommender = generic_rec_random_based.RandomBasedRecommender(results_dir, model_dir,
+                                                                  train_data, test_data,
+                                                                  user_id_col, item_id_col,
+                                                                  **kwargs)
     if args.train:
         generic_rec_interface.train(recommender)
     elif args.eval:
         no_of_recs_to_eval = [1, 2, 5, 10]
         generic_rec_interface.evaluate(recommender, no_of_recs_to_eval)
     elif args.recommend and args.user_id:
-        #generic_rec_interface.recommend(recommender, model_dir, args.user_id)
-        books_rec_interface.recommend(recommender, model_dir, args.user_id,
-                                      train_data, test_data,
-                                      item_id_col, metadata_fields)
+        generic_rec_interface.recommend(recommender, model_dir, args.user_id)
     else:
         no_of_recs_to_eval = [1, 2, 5, 10]
         generic_rec_interface.train_eval_recommend(recommender, model_dir, no_of_recs_to_eval)

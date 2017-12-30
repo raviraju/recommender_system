@@ -1,4 +1,7 @@
-preprocessed_data/*
-train_test_data/*
-model/*
-results/*
+model
+train_test_data
+results
+preprocessed_data
+.ipynb_checkpoints
+plot_kfold_results
+plot_results
