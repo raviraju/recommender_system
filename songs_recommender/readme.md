@@ -4,7 +4,7 @@
 song_data.csv : https://static.turi.com/datasets/millionsong/song_data.csv
 
 ## Data Preprocessing
-songs_recommender$ python data_preprocess.py 
+python data_preprocess.py 
 Preprocessed data available in preprocessed_data/
 
 ## Split Data into Train and Test

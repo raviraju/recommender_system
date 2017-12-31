@@ -7,7 +7,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def extract_user_songs(user_song_triplets_file, songs_metadata_file):
     """Extract userid-song-listen_count triplets"""
-
     #song_df_1 = pd.read_table(user_song_triplets_file, header=None)
     #song_df_1.columns = ['user_id', 'song_id', 'listen_count']
     song_df_1 = pd.read_csv(user_song_triplets_file)

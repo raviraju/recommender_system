@@ -362,13 +362,37 @@ def load_train_test(train_data_file, test_data_file, user_id_col, item_id_col):
     print('#' * 40)
     return train_data, test_data
 
-def train(recommender):
+def train(recommender_obj,
+          results_dir, model_dir,
+          train_data_file, test_data_file,
+          user_id_col, item_id_col,
+          **kwargs):
     """train recommender"""
+    train_data, test_data = load_train_test(train_data_file,
+                                            test_data_file,
+                                            user_id_col,
+                                            item_id_col)
+    recommender = recommender_obj(results_dir, model_dir,
+                                  train_data, test_data,
+                                  user_id_col, item_id_col,
+                                  **kwargs)
     recommender.train()
     print('*' * 80)
 
-def recommend(recommender, model_dir, user_id):
+def recommend(recommender_obj,
+              results_dir, model_dir,
+              train_data_file, test_data_file,
+              user_id_col, item_id_col,
+              user_id, **kwargs):
     """recommend items for user"""
+    train_data, test_data = load_train_test(train_data_file,
+                                            test_data_file,
+                                            user_id_col,
+                                            item_id_col)
+    recommender = recommender_obj(results_dir, model_dir,
+                                  train_data, test_data,
+                                  user_id_col, item_id_col,
+                                  **kwargs)
     eval_items_file = os.path.join(model_dir, 'items_for_evaluation.json')
     eval_items = utilities.load_json_file(eval_items_file)
     if user_id in eval_items:
@@ -398,15 +422,42 @@ def recommend(recommender, model_dir, user_id):
         print("""Cannot generate recommendations as either
               items assumed to be interacted or items held out are None""")
 
-def evaluate(recommender, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
+def evaluate(recommender_obj,
+             results_dir, model_dir,
+             train_data_file, test_data_file,
+             user_id_col, item_id_col,
+             no_of_recs_to_eval,
+             eval_res_file, **kwargs):
     """evaluate recommender"""
-    evaluation_results = recommender.evaluate(no_of_recs_to_eval, eval_res_file)
+    train_data, test_data = load_train_test(train_data_file,
+                                            test_data_file,
+                                            user_id_col,
+                                            item_id_col)
+    recommender = recommender_obj(results_dir, model_dir,
+                                  train_data, test_data,
+                                  user_id_col, item_id_col,
+                                  **kwargs)
+    evaluation_results = recommender.evaluate(no_of_recs_to_eval,
+                                              eval_res_file)
     pprint(evaluation_results)
     print('*' * 80)
     return evaluation_results
 
-def train_eval_recommend(recommender, model_dir, no_of_recs_to_eval):
+def train_eval_recommend(recommender_obj,
+                         results_dir, model_dir,
+                         train_data_file, test_data_file,
+                         user_id_col, item_id_col,
+                         no_of_recs_to_eval,
+                         **kwargs):
     """train, evaluate and recommend"""
+    train_data, test_data = load_train_test(train_data_file,
+                                            test_data_file,
+                                            user_id_col,
+                                            item_id_col)
+    recommender = recommender_obj(results_dir, model_dir,
+                                  train_data, test_data,
+                                  user_id_col, item_id_col,
+                                  **kwargs)
     print("Training Recommender...")
     recommender.train()
     print('*' * 80)
@@ -429,6 +480,48 @@ def train_eval_recommend(recommender, model_dir, no_of_recs_to_eval):
     else:
         print("No items to recommend")
     print('*' * 80)
+
+def kfold_evaluation(recommender_obj,
+                     kfolds,
+                     results_dir, model_dir,
+                     train_data_dir, test_data_dir,
+                     user_id_col, item_id_col,
+                     no_of_recs_to_eval, **kwargs):
+    """train and evaluation for kfolds of data"""
+    kfold_experiments = dict()
+    for kfold in range(kfolds):
+        kfold_exp = kfold+1
+        train_data_file = os.path.join(train_data_dir, str(kfold_exp) + '_train_data.csv')
+        test_data_file = os.path.join(test_data_dir, str(kfold_exp) + '_test_data.csv')
+        print("Loading...")
+        print(train_data_file)
+        print(test_data_file)
+        kfold_model_dir = os.path.join(model_dir,
+                                       'kfold_experiments',
+                                       'kfold_exp_' + str(kfold_exp))
+        if not os.path.exists(kfold_model_dir):
+            os.makedirs(kfold_model_dir)
+
+        train(recommender_obj,
+              results_dir, kfold_model_dir,
+              train_data_file, test_data_file,
+              user_id_col, item_id_col,
+              **kwargs)
+
+        kfold_eval_file = 'kfold_exp_' + str(kfold_exp) + '_evaluation.json'
+        evaluation_results = evaluate(recommender_obj,
+                                      results_dir, kfold_model_dir,
+                                      train_data_file, test_data_file,
+                                      user_id_col, item_id_col,
+                                      no_of_recs_to_eval,
+                                      eval_res_file=kfold_eval_file, **kwargs)
+        kfold_experiments[kfold_exp] = evaluation_results
+
+    avg_kfold_exp_res = get_avg_kfold_exp_res(kfold_experiments)
+    print('average of kfold evaluation results')
+    pprint(avg_kfold_exp_res)
+    results_file = os.path.join(model_dir, 'kfold_experiments', 'kfold_evaluation.json')
+    utilities.dump_json_file(avg_kfold_exp_res, results_file)
 
 def get_avg_kfold_exp_res(kfold_experiments):
     """compute avg scores for all kfold experiments"""

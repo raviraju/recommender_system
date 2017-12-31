@@ -3,14 +3,12 @@ import os
 import sys
 import argparse
 import logging
-from pprint import pprint
 
 logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lib import utilities
 from recommender import rec_interface as generic_rec_interface
 from recommender import rec_item_based_cf as generic_rec_item_based_cf
 import rec_interface as books_rec_interface
@@ -54,8 +52,7 @@ def main():
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(current_dir, 'results')
-    # if not os.path.exists(results_dir):
-    #     os.makedirs(results_dir)
+
     model_dir = os.path.join(current_dir, 'model/item_based')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
@@ -68,66 +65,50 @@ def main():
     kwargs = {'no_of_recs':no_of_recs,
               'hold_out_ratio':hold_out_ratio
              }
-
-    #metadata_fields = None
-    metadata_fields = ['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
+    no_of_recs_to_eval = [1, 2, 5, 10]
+    recommender_obj = ItemBasedCFRecommender
 
     if args.cross_eval and args.kfolds:
-        kfold_experiments = dict()
-        for kfold in range(args.kfolds):
-            kfold_exp = kfold+1
-            train_data_file = os.path.join(args.train_data, str(kfold_exp) + '_train_data.csv')
-            test_data_file = os.path.join(args.train_data, str(kfold_exp) + '_test_data.csv')
-            print("Loading...")
-            print(train_data_file)
-            print(test_data_file)
-            train_data, test_data = generic_rec_interface.load_train_test(train_data_file,
-                                                                          test_data_file,
-                                                                          user_id_col,
-                                                                          item_id_col)
-            kfold_model_dir = os.path.join(model_dir,
-                                           'kfold_experiments',
-                                           'kfold_exp_' + str(kfold_exp))
-            if not os.path.exists(kfold_model_dir):
-                os.makedirs(kfold_model_dir)
-            recommender = ItemBasedCFRecommender(results_dir, kfold_model_dir,
-                                                 train_data, test_data,
-                                                 user_id_col, item_id_col, **kwargs)
-            generic_rec_interface.train(recommender)
-            no_of_recs_to_eval = [1, 2, 5, 10]
-            kfold_eval_file = 'kfold_exp_' + str(kfold_exp) + '_evaluation.json'
-            evaluation_results = generic_rec_interface.evaluate(recommender,
-                                                                no_of_recs_to_eval,
-                                                                eval_res_file=kfold_eval_file)
-            kfold_experiments[kfold_exp] = evaluation_results
-
-        avg_kfold_exp_res = generic_rec_interface.get_avg_kfold_exp_res(kfold_experiments)
-        print('average of kfold evaluation results')
-        pprint(avg_kfold_exp_res)
-        results_file = os.path.join(model_dir, 'kfold_experiments', 'kfold_evaluation.json')
-        utilities.dump_json_file(avg_kfold_exp_res, results_file)
+        generic_rec_interface.kfold_evaluation(recommender_obj,
+                                               args.kfolds,
+                                               results_dir, model_dir,
+                                               args.train_data, args.test_data,
+                                               user_id_col, item_id_col,
+                                               no_of_recs_to_eval, **kwargs)
         return
-
-    train_data, test_data = generic_rec_interface.load_train_test(args.train_data,
-                                                                  args.test_data,
-                                                                  user_id_col,
-                                                                  item_id_col)
-    recommender = ItemBasedCFRecommender(results_dir, model_dir,
-                                         train_data, test_data,
-                                         user_id_col, item_id_col, **kwargs)
     if args.train:
-        generic_rec_interface.train(recommender)
+        generic_rec_interface.train(recommender_obj,
+                                    results_dir, model_dir,
+                                    args.train_data, args.test_data,
+                                    user_id_col, item_id_col,
+                                    **kwargs)
     elif args.eval:
-        no_of_recs_to_eval = [1, 2, 5, 10]
-        generic_rec_interface.evaluate(recommender, no_of_recs_to_eval)
+        generic_rec_interface.evaluate(recommender_obj,
+                                       results_dir, model_dir,
+                                       args.train_data, args.test_data,
+                                       user_id_col, item_id_col,
+                                       no_of_recs_to_eval,
+                                       eval_res_file='evaluation_results.json',
+                                       **kwargs)
     elif args.recommend and args.user_id:
-        #generic_rec_interface.recommend(recommender, model_dir, args.user_id)
-        books_rec_interface.recommend(recommender, model_dir, args.user_id,
-                                      train_data, test_data,
-                                      item_id_col, metadata_fields)
+        # generic_rec_interface.recommend(recommender_obj,
+        #                                 results_dir, model_dir,
+        #                                 args.train_data, args.test_data,
+        #                                 user_id_col, item_id_col,
+        #                                 args.user_id, **kwargs)
+        # metadata_fields = None
+        metadata_fields = ['T_BOOK_NAME', 'T_KEYWORD', 'T_AUTHOR']
+        books_rec_interface.recommend(recommender_obj,
+                                      results_dir, model_dir,
+                                      args.train_data, args.test_data,
+                                      user_id_col, item_id_col,
+                                      args.user_id, metadata_fields, **kwargs)
     else:
-        no_of_recs_to_eval = [1, 2, 5, 10]
-        generic_rec_interface.train_eval_recommend(recommender, model_dir, no_of_recs_to_eval)
+        generic_rec_interface.train_eval_recommend(recommender_obj,
+                                                   results_dir, model_dir,
+                                                   args.train_data, args.test_data,
+                                                   user_id_col, item_id_col,
+                                                   no_of_recs_to_eval, **kwargs)
 
 if __name__ == '__main__':
     main()

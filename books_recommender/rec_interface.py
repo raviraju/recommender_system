@@ -24,9 +24,9 @@ except LookupError as err:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib import utilities
-from recommender.rec_interface import Recommender
+from recommender import rec_interface as generic_rec_interface
 
-class BooksRecommender(Recommender):
+class BooksRecommender(generic_rec_interface.Recommender):
     """encapsulating common functionality for books recommender use case"""
     def __init__(self, results_dir, model_dir,
                  train_data, test_data,
@@ -234,10 +234,21 @@ def get_similarity_score(train_data, test_data, recommended_item, interacted_ite
     score['keywords_similarity'] = keywords_similarity
     return score
 
-def recommend(recommender, model_dir, user_id,
-              train_data, test_data,
-              item_id_col, metadata_fields):
+def recommend(recommender_obj,
+              results_dir, model_dir,
+              train_data_file, test_data_file,
+              user_id_col, item_id_col,
+              user_id, metadata_fields, **kwargs):
     """recommend items for user"""
+    train_data, test_data = generic_rec_interface.load_train_test(train_data_file,
+                                                                  test_data_file,
+                                                                  user_id_col,
+                                                                  item_id_col)
+    recommender = recommender_obj(results_dir, model_dir,
+                                  train_data, test_data,
+                                  user_id_col, item_id_col,
+                                  **kwargs)
+
     eval_items_file = os.path.join(model_dir, 'items_for_evaluation.json')
     eval_items = utilities.load_json_file(eval_items_file)
     if user_id in eval_items:
