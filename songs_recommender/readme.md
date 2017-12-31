@@ -1,27 +1,29 @@
-NOTE : Download dataset from the following urls and place in `data` directory
+## Download dataset from the following urls and place in `data` directory
 
 10000.txt : https://static.turi.com/datasets/millionsong/10000.txt
 song_data.csv : https://static.turi.com/datasets/millionsong/song_data.csv
 
-Popularity Based Recommendation
-```
-$ python popularity_based.py
-No. of users in the training set: 365
-No. of items in the training set: 4483
-Training Completed in :                               Time Taken : 0.1024    sec
-Recommendations generated in :                        Time Taken : 0.0376    sec
-Popularity Based Recommendations are found in results/
-```
+## Data Preprocessing
+songs_recommender$ python data_preprocess.py 
+Preprocessed data available in preprocessed_data/
 
-Item Based Colloborative Filtering Recommendation
-```
-$ python item_based_cf.py
-No. of users in the training set: 365
-No. of items in the training set: 4483
-No. of items for the user_id 97e48f0f188e04dcdb0f8e20a29dacb881d80c9e : 104
-Non zero values in Co-Occurence_matrix : 17904
-Density : 0.038401482523722094
-Computing CoOccurence Matrix Completed in :           Time Taken : 6.0697    sec
-Recommendations generated in :                        Time Taken : 0.0553    sec
-Item Based Recommendations are found in results/
-```
+## Split Data into Train and Test
+python split_train_test_data.py --users_split --test_size 0.2 --min_no_of_songs 10 preprocessed_data/user_songs.csv
+python split_train_test_data.py --kfold_split --kfolds 10 --min_no_of_songs 10 preprocessed_data/user_songs.csv
+
+## Generate recommendations
+python rec_random_based.py train_test_data/train_data.csv train_test_data/test_data.csv
+python rec_popularity_based.py train_test_data/train_data.csv train_test_data/test_data.csv
+python rec_item_based_cf.py train_test_data/train_data.csv train_test_data/test_data.csv
+python rec_user_based_cf.py train_test_data/train_data.csv train_test_data/test_data.csv
+
+## Generate recommendations using kfold cross validation
+python rec_random_based.py --cross_eval --kfolds 10 train_test_data/ train_test_data/
+python rec_popularity_based.py --cross_eval --kfolds 10 train_test_data/ train_test_data/
+python rec_item_based_cf.py --cross_eval --kfolds 10 train_test_data/ train_test_data/
+python rec_user_based_cf.py --cross_eval --kfolds 10 train_test_data/ train_test_data/
+
+## Evaluate recommendations
+cd ..
+python compare_models.py songs_recommender/
+python compare_models.py --kfold songs_recommender/

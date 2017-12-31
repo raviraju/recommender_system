@@ -8,8 +8,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def extract_user_songs(user_song_triplets_file, songs_metadata_file):
     """Extract userid-song-listen_count triplets"""
 
-    song_df_1 = pd.read_table(user_song_triplets, header=None)
-    song_df_1.columns = ['user_id', 'song_id', 'listen_count']
+    #song_df_1 = pd.read_table(user_song_triplets_file, header=None)
+    #song_df_1.columns = ['user_id', 'song_id', 'listen_count']
+    song_df_1 = pd.read_csv(user_song_triplets_file)
     #eliminate users with null id
     song_df_1 = song_df_1[song_df_1['user_id'].notnull()]
     #eliminate songs with null code
@@ -34,7 +35,12 @@ def extract_user_songs(user_song_triplets_file, songs_metadata_file):
     user_song_df.to_csv(user_songs_file, index=False)
     print("Preprocessed data available in preprocessed_data/")
 
-if __name__ == '__main__':
-    user_song_triplets = os.path.join('data/', '10000.txt')
+def main():
+    """perform data preprocessing"""
+    #user_song_triplets = os.path.join('data/', '10000_songs.txt')
+    user_song_triplets = os.path.join('data/', '940_songs.txt')
     songs_file = os.path.join('data/', 'song_data.csv')
     extract_user_songs(user_song_triplets, songs_file)
+
+if __name__ == '__main__':
+    main()
