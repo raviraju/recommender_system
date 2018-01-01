@@ -21,7 +21,7 @@ import rec_interface as books_rec_interface
 from recommender.evaluation import PrecisionRecall
 
 class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommender,
-                                generic_rec_user_based_cf.UserBasedCFRecommender):
+                                             generic_rec_user_based_cf.UserBasedCFRecommender):
     """Hybrid of User Based CF with (Age and/or Item Type Preference) Books Recommender"""
 
     def __init__(self, results_dir, model_dir,
@@ -34,7 +34,7 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
     #######################################
     def compute_user_cosine_similarity(self):
         """construct matrix using cosine similarity of user age and item type Preference"""
-        #Fetch User Item Matrix        
+        #Fetch User Item Matrix
         super().load_uim()
         items = [str(col) for col in self.uim_df.columns]
         no_of_items = len(items)
@@ -45,8 +45,7 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
 
         #Compute User-User Similarity Matrix with Cosine Similarity of user features
         print()
-        print("""Computing User-User Similarity Matrix with Cosine Similarity of age,\
-item type preferences...""")
+        print("""Computing User-User Similarity Matrix with Cosine Similarity of age, item type preferences...""")
         measures_df = pd.read_csv('preprocessed_metadata/learner_measures.csv')
         measures_df.set_index('learner_id', inplace=True)
         #print(measures_df.head())
@@ -65,7 +64,7 @@ item type preferences...""")
                                                  index=users)
         #print(user_cosine_similarity_df.head())
         return user_cosine_similarity_df
-    
+
     def train(self):
         """train the user similarity based recommender system model"""
         super().train()

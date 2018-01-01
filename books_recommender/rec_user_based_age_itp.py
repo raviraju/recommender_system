@@ -52,15 +52,14 @@ class UserBasedAgeItpRecommender(books_rec_interface.BooksRecommender,
         no_of_users = len(users)
         print("No of Items : ", no_of_items)
         print("No of Users : ", no_of_users)
-        
+
         #Compute User-User Similarity Matrix with Cosine Similarity of user features
         print()
-        print("""Computing User-User Similarity Matrix with Cosine Similarity of age,\
-item type preferences...""")
+        print("""Computing User-User Similarity Matrix with Cosine Similarity of age, item type preferences...""")
         measures_df = pd.read_csv('preprocessed_metadata/learner_measures.csv')
         measures_df.set_index('learner_id', inplace=True)
         #print(measures_df.head())
-        
+
         '''
         audio_users = measures_df[(measures_df['audio_close'] == 1.0) & \
                                   (measures_df['book_close'] == 0)    & \
@@ -80,14 +79,16 @@ item type preferences...""")
         print("len(video_users) : ", len(video_users))
         print("len(book_users) : ", len(book_users))
         '''
-        
+
         measures_df_train_test = measures_df[measures_df.index.isin(users)]
         #print(measures_df_train_test.head())
-        measures_df_train_test = measures_df_train_test[['audio_close', 'book_close', 'video_close']]
+        measures_df_train_test = measures_df_train_test[['audio_close',
+                                                         'book_close',
+                                                         'video_close']]
         #measures_df_train_test = measures_df_train_test[['age']]
         #print(measures_df_train_test.head())
         #input()
-        
+
         users_cosine_similarity = cosine_similarity(measures_df_train_test.as_matrix())
         users_cosine_similarity_df = pd.DataFrame(users_cosine_similarity,
                                                   columns=users,
