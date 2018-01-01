@@ -53,7 +53,7 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(current_dir, 'results')
 
-    model_dir = os.path.join(current_dir, 'model/item_based')
+    model_dir = os.path.join(current_dir, 'model/item_based_cf')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 

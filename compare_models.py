@@ -62,7 +62,7 @@ def plot_roc(recommender, results, plot_results_dir='results'):
     plt.xlabel('1-precision')
 
     handles, labels = ax1.get_legend_handles_labels()
-    ax1.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.2, 1))
+    ax1.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.8, 1))
     ax1.grid('on')
     img_name = 'results_roc.png'
     results_dir = os.path.join(recommender, plot_results_dir)

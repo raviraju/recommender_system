@@ -34,20 +34,20 @@ class UserBasedCFRecommender(Recommender):
         self.similar_users = None
         self.uim_df = None
     #######################################
-    def __save_uim(self):
+    def save_uim(self):
         """save user item interaction matrix"""
         uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
         uim_df = self.uim_df.reset_index()#so that user_id col is added as first col
         uim_df.to_csv(uim_df_fname, index=False)#do not write the default index,
                                                 #so that on read first col is picked as index col
 
-    def __load_uim(self):
+    def load_uim(self):
         """load user item interaction matrix"""
         uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
         self.uim_df = pd.read_csv(uim_df_fname, index_col=[self.user_id_col])
         self.uim_df.index = self.uim_df.index.map(str)
     #######################################
-    def __compute_user_similarity(self):
+    def compute_user_similarity(self):
         """private function, construct matrix using cooccurence of items"""
         #Compute User Item Matrix
         start_time = default_timer()
@@ -59,7 +59,7 @@ class UserBasedCFRecommender(Recommender):
         self.uim_df = pd.get_dummies(train_test_data[self.item_id_col])\
                         .groupby(train_test_data[self.user_id_col])\
                         .apply(max)
-        self.__save_uim()
+        self.save_uim()
         uim = self.uim_df.as_matrix()
         end_time = default_timer()
         print("{:50}    {}".format("Completed. ",
@@ -148,13 +148,13 @@ class UserBasedCFRecommender(Recommender):
         # Compute user similarity matrix of size, len(users) X len(users)
         print("Compute user similarity matrix...")
         start_time = default_timer()
-        self.user_similarity_matrix_df = self.__compute_user_similarity()
+        self.user_similarity_matrix_df = self.compute_user_similarity()
         end_time = default_timer()
         print("{:50}    {}".format("Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
         #print(self.user_similarity_matrix_df.shape)
         joblib.dump(self.user_similarity_matrix_df, self.model_file)
-        LOGGER.debug("Saved Model")
+        LOGGER.debug("Saved Model : " + self.model_file)
     #######################################
     def __get_similar_users(self, user_id):
         """retrieve similar users for a given user_id"""
@@ -166,18 +166,23 @@ class UserBasedCFRecommender(Recommender):
         most_similar_users = most_similar_users[most_similar_users > 0]#score > 0
         #print(len(most_similar_users))
         #print(most_similar_users)
+        #input()
         return most_similar_users
 
     def __generate_top_recommendations(self, user_id, user_interacted_items):
         """Use the cooccurence matrix to make top recommendations"""
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
+        #print(user_id)
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
 
         similar_users_weights = self.__get_similar_users(user_id)
         similar_user_ids = similar_users_weights.index
-
+        #print(similar_user_ids)
+        #top_10_users = list(similar_users_weights.head(10).index)
+        #print(top_10_users)
+        #input()
         sub_uim_df = self.uim_df.loc[similar_user_ids]
         weighted_sub_uim_df = sub_uim_df.mul(similar_users_weights, axis='index')
         no_of_similar_users = weighted_sub_uim_df.shape[0]
@@ -214,7 +219,7 @@ class UserBasedCFRecommender(Recommender):
         """recommend items for given user_id from test dataset"""
         super().recommend_items(user_id)
         #pprint(self.items_for_evaluation[user_id])
-        self.__load_uim()
+        self.load_uim()
 
         if os.path.exists(self.model_file):
             self.user_similarity_matrix_df = joblib.load(self.model_file)
@@ -248,7 +253,7 @@ class UserBasedCFRecommender(Recommender):
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
         """evaluate trained model for different no of ranked recommendations"""
         super().evaluate(no_of_recs_to_eval, eval_res_file)
-        self.__load_uim()
+        self.load_uim()
 
         if os.path.exists(self.model_file):
             self.user_similarity_matrix_df = joblib.load(self.model_file)
