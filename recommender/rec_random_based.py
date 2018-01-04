@@ -75,7 +75,7 @@ class RandomBasedRecommender(Recommender):
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated. ",
                                    utilities.convert_sec(end_time - start_time)))
-        return recommended_items
+        return user_recommendations
     #######################################
     def __recommend_items_to_evaluate(self):
         """recommend items for all users from test dataset"""

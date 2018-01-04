@@ -3,7 +3,6 @@ import os
 import sys
 import argparse
 import logging
-from pprint import pprint
 
 logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)

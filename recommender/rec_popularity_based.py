@@ -129,7 +129,7 @@ class PopularityBasedRecommender(Recommender):
             end_time = default_timer()
             print("{:50}    {}".format("Recommendations generated. ",
                                        utilities.convert_sec(end_time - start_time)))
-            return recommended_items
+            return user_recommendations
         else:
             print("Trained Model not found !!!. Failed to generate recommendations")
             return None

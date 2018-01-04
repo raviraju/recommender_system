@@ -174,7 +174,7 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
             end_time = default_timer()
             print("{:50}    {}".format("Recommendations generated. ",
                                        utilities.convert_sec(end_time - start_time)))
-            return recommended_items
+            return user_recommendations
         else:
             print("Trained Model not found !!!. Failed to generate recommendations")
             return None
