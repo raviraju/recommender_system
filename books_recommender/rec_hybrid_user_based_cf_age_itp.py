@@ -31,6 +31,7 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
         super().__init__(results_dir, model_dir,
                          train_data, test_data,
                          user_id_col, item_id_col, **kwargs)
+        self.kwargs = kwargs
     #######################################
     def compute_user_cosine_similarity(self):
         """construct matrix using cosine similarity of user age and item type Preference"""
@@ -54,8 +55,12 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
         #print(len(measures_df_train_test))
         #print(measures_df_train_test.head())
         
-        #measures_df_train_test = measures_df_train_test[['audio_close', 'book_close', 'video_close']]
-        #measures_df_train_test = measures_df_train_test[['age']]
+        if self.kwargs['age_or_itp'] == 'itp':
+            measures_df_train_test = measures_df_train_test[['audio_close', 'book_close', 'video_close']]
+        if self.kwargs['age_or_itp'] == 'age':
+            measures_df_train_test = measures_df_train_test[['age']]
+        if self.kwargs['age_or_itp'] == 'age_and_itp':
+            measures_df_train_test = measures_df_train_test
         #print(measures_df_train_test.head())
         
         users_cosine_similarity = cosine_similarity(measures_df_train_test.as_matrix())
@@ -254,14 +259,12 @@ def main():
                         help="Train Data")
     parser.add_argument("test_data",
                         help="Test Data")
+    parser.add_argument("--age_or_itp",
+                        help="select age or item_type preference")
     args = parser.parse_args()
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(current_dir, 'results')
-
-    model_dir = os.path.join(current_dir, 'model/user_based_cf_age_itp')
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
 
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
@@ -271,6 +274,18 @@ def main():
     kwargs = {'no_of_recs':no_of_recs,
               'hold_out_ratio':hold_out_ratio
              }
+
+    if args.age_or_itp == 'itp':
+        kwargs['age_or_itp'] = 'itp'
+        model_dir = os.path.join(current_dir, 'model/user_based_cf_itp')
+    if args.age_or_itp == 'age':
+        kwargs['age_or_itp'] = 'age'
+        model_dir = os.path.join(current_dir, 'model/user_based_cf_age')
+    if args.age_or_itp == 'age_and_itp':
+        kwargs['age_or_itp'] = 'age_and_itp'
+        model_dir = os.path.join(current_dir, 'model/user_based_cf_age_itp')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
 
     no_of_recs_to_eval = [1, 2, 5, 10]
     recommender_obj = Hybrid_UserBased_CF_AgeItp_Recommender

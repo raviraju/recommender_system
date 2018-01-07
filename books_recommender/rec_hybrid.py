@@ -14,6 +14,8 @@ from recommender import rec_interface as generic_rec_interface
 from books_recommender import rec_item_based_cf as books_rec_item_based_cf
 from books_recommender import rec_user_based_cf as books_rec_user_based_cf
 from books_recommender import rec_popularity_based as books_rec_popularity_based
+from rec_hybrid_user_based_cf_age_itp import Hybrid_UserBased_CF_AgeItp_Recommender
+from rec_content_based import ContentBasedRecommender
 
 def main():
     """Hybrid of Songs Recommenders interface"""
@@ -43,14 +45,7 @@ def main():
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(current_dir, 'results')
-
-    model_dir = os.path.join(current_dir, 'model/hybrid_based')
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
-    recommenders = {books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
-                    books_rec_user_based_cf.UserBasedCFRecommender : 0.5}
-
+    
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
 
@@ -61,6 +56,32 @@ def main():
              }
     no_of_recs_to_eval = [1, 2, 5, 10]
 
+    
+    model_dir = os.path.join(current_dir, 'model/hybrid_item_user_cf')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    recommenders = {books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
+                    books_rec_user_based_cf.UserBasedCFRecommender : 0.5}
+    
+    
+    '''
+    model_dir = os.path.join(current_dir, 'model/hybrid_item_user_age_itp_cf')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    recommenders = {books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
+                    Hybrid_UserBased_CF_AgeItp_Recommender : 0.5}
+    kwargs['age_or_itp'] = 'age_and_itp'
+    '''
+    
+    '''
+    model_dir = os.path.join(current_dir, 'model/hybrid_item_cf_content')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    recommenders = {books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
+                    ContentBasedRecommender : 0.5}
+    '''
+    
+    
     if args.cross_eval and args.kfolds:
         generic_rec_interface.hybrid_kfold_evaluation(recommenders,
                                                       args.kfolds,
