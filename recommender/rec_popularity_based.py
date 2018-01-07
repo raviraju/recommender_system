@@ -81,15 +81,12 @@ class PopularityBasedRecommender(Recommender):
             total_no_of_users = 1#to avoid division by zero
         data_groups_sort['users_percent'] = data_groups_sort['no_of_users']/total_no_of_users
 
-        #Generate a recommendation rank based upon score : users_percent
-        data_groups_sort['rank'] = data_groups_sort['users_percent']\
-                                  .rank(ascending=0, method='first')
         data_groups_sort.reset_index(drop=True, inplace=True)
         #print(data_groups_sort.head())
+        rank = 1
         for _, reco in data_groups_sort.iterrows():
             item_id = reco[self.item_id_col]
             score = reco['users_percent']
-            rank = reco['rank']
             if item_id in user_interacted_items:#to avoid items which user has already aware
                 continue
             if rank > self.no_of_recs:#limit no of recommendations
@@ -102,7 +99,7 @@ class PopularityBasedRecommender(Recommender):
             }
             #print(user_id, item_id, score, rank)
             items_to_recommend.append(item_dict)
-
+            rank += 1
         res_df = pd.DataFrame(items_to_recommend, columns=columns)
         #print(res_df)
         # Handle the case where there are no recommendations

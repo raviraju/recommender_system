@@ -157,14 +157,14 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
             # print(data_frame['sim_score'])
         return data_frame
 
-    def __generate_top_recommendations(self, user_id, user_interacted_items):
+    def generate_top_recommendations(self, user_id, user_interacted_items, user_dataset='test'):
         """Get all items from train data and recommend them
         which are most similar to user_profile"""
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
 
         user_profile = self.__get_user_profile(user_interacted_items,
-                                               dataset='test')
+                                               user_dataset)
         #print("User Profile")
         # print(user_profile)
         # print()
@@ -209,18 +209,15 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         # Sort the items based upon similarity scores
         item_scores_df = item_scores_df.sort_values(['sim_score', self.item_id_col],
                                                     ascending=[0, 1])
-        # Generate a recommendation rank based upon score
-        item_scores_df['rank'] = item_scores_df[
-            'sim_score'].rank(ascending=0, method='first')
         item_scores_df.reset_index(drop=True, inplace=True)
         #print(item_scores_df[item_scores_df['sim_score'] > 0])
 
         # print(item_scores_df.head())
+        rank = 1
         for _, item_score in item_scores_df.iterrows():
             item_id = item_score[self.item_id_col]
             if item_id in user_interacted_items:  # to avoid items which user has already aware
                 continue
-            rank = item_score['rank']
             if rank > self.no_of_recs:  # limit no of recommendations
                 break
             item_dict = {
@@ -230,6 +227,7 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
                 'rank': rank
             }
             items_to_recommend.append(item_dict)
+            rank += 1
         res_df = pd.DataFrame(items_to_recommend, columns=columns)
         # Handle the case where there are no recommendations
         # if res_df.shape[0] == 0:
@@ -245,10 +243,10 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
 
         start_time = default_timer()
         assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-        user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                   assume_interacted_items)
+        user_recommendations = self.generate_top_recommendations(user_id,
+                                                                 assume_interacted_items)
 
-        recommended_items = list(user_recommendations[self.item_id_col].values)
+        #recommended_items = list(user_recommendations[self.item_id_col].values)
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated. ",
                                    utilities.convert_sec(end_time - start_time)))
@@ -259,7 +257,7 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         for user_id in self.items_for_evaluation:
             assume_interacted_items = self.items_for_evaluation[
                 user_id]['assume_interacted_items']
-            user_recommendations = self.__generate_top_recommendations(user_id,
+            user_recommendations = self.generate_top_recommendations(user_id,
                                                                        assume_interacted_items)
 
             recommended_items = list(user_recommendations[self.item_id_col].values)
