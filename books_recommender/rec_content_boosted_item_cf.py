@@ -1,4 +1,4 @@
-"""Module for Content Boosted User Based CF Books Recommender"""
+"""Module for Content Boosted Item Based CF Books Recommender"""
 import os
 import sys
 import argparse
@@ -13,14 +13,14 @@ LOGGER = logging.getLogger(__name__)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from rec_content_based import ContentBasedRecommender
-from rec_user_based_cf import UserBasedCFRecommender
+from rec_item_based_cf import ItemBasedCFRecommender
 
 from recommender import rec_interface as generic_rec_interface
 import rec_interface as books_rec_interface
 
 
 class ContentBoostedRecommender(ContentBasedRecommender,
-                                UserBasedCFRecommender):
+                                ItemBasedCFRecommender):
     """Content boosted User based cf recommender system model for Books"""
 
     def __init__(self, results_dir, model_dir,
@@ -32,7 +32,7 @@ class ContentBoostedRecommender(ContentBasedRecommender,
                          user_id_col, item_id_col, **kwargs)
         self.threshold_similarity = 0.8
         self.model_file = os.path.join(self.model_dir,
-                                       'content_boosted_user_cf_model.pkl')
+                                       'content_boosted_item_cf_model.pkl')        
     #######################################
     def compute_uim(self):
         """compute psedo uim by using similar items from content based recommendations"""
@@ -71,15 +71,15 @@ class ContentBoostedRecommender(ContentBasedRecommender,
 
     def train(self):
         """train the content boosted user cf recommender system model"""
-        UserBasedCFRecommender.train(self)
+        ItemBasedCFRecommender.train(self)
 
     def recommend_items(self, user_id):
         """recommend items for given user_id from test dataset"""
-        return UserBasedCFRecommender.recommend_items(self, user_id)
+        return ItemBasedCFRecommender.recommend_items(self, user_id)
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
         """evaluate trained model for different no of ranked recommendations"""
-        return UserBasedCFRecommender.evaluate(self, no_of_recs_to_eval, eval_res_file)
+        return ItemBasedCFRecommender.evaluate(self, no_of_recs_to_eval, eval_res_file)
 
 def main():
     """Content based recommender interface"""
@@ -110,7 +110,7 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(current_dir, 'results')
 
-    model_dir = os.path.join(current_dir, 'model/content_boosted_user_cf')
+    model_dir = os.path.join(current_dir, 'model/content_boosted_item_cf')
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 

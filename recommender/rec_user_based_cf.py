@@ -62,14 +62,19 @@ class UserBasedCFRecommender(Recommender):
         end_time = default_timer()
         print("{:50}    {}".format("Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
+        uim = uim_df.as_matrix()
+        non_zero_count = np.count_nonzero(uim)
+        count = uim.size
+        density = non_zero_count/count
+        print("Density of User Item Matrix : ", density)
         return uim_df
 
     def compute_user_similarity(self):
         """construct matrix using cooccurence of items"""
         #Compute User Item Matrix
         self.uim_df = self.compute_uim()
-        uim = self.uim_df.as_matrix()
         self.save_uim(self.uim_df)
+        uim = self.uim_df.as_matrix()
         #         Item1   Item2   Item3   Item4
         # User1       1       1       0       0
         # User2       0       1       1       0
@@ -88,11 +93,6 @@ class UserBasedCFRecommender(Recommender):
         no_of_users = len(users)
         print("No of Items : ", no_of_items)
         print("No of Users : ", no_of_users)
-        non_zero_count = np.count_nonzero(uim)
-        count = uim.size
-        density = non_zero_count/count
-        print("Density of User Item Matrix : ", density)
-
         #Compute User-User Similarity Matrix with intersection of items interacted
         print()
         print("Computing User-User Similarity Matrix with intersection of items interacted...")

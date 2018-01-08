@@ -62,7 +62,7 @@ def plot_roc(recommender, results, plot_results_dir='results'):
     plt.xlabel('1-precision')
 
     handles, labels = ax1.get_legend_handles_labels()
-    ax1.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.8, 1))
+    ax1.legend(handles, labels, loc='upper left', bbox_to_anchor=(0.7, 1))
     ax1.grid('on')
     img_name = 'results_roc.png'
     results_dir = os.path.join(recommender, plot_results_dir)
@@ -99,7 +99,7 @@ def plot_graph(recommender, results, measure, plot_results_dir='results'):
     #print(x_no_of_items_to_recommend)
     #print(y_param)
 
-    fig = plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(8, 16))
     ax1 = fig.add_subplot(111)
 
     #for model, values, col in zip(models_dict.keys(), y_param, colors):
@@ -118,7 +118,7 @@ def plot_graph(recommender, results, measure, plot_results_dir='results'):
     plt.xlabel('no_of_items_to_recommend')
 
     handles, labels = ax1.get_legend_handles_labels()
-    ax1.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.8, 1))
+    ax1.legend(handles, labels, loc='upper left', bbox_to_anchor=(0.5, 0.7))
     ax1.grid('on')
     img_name = 'results_' + measure + '.png'
     results_dir = os.path.join(recommender, plot_results_dir)

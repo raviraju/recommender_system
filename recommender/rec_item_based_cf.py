@@ -33,33 +33,45 @@ class ItemBasedCFRecommender(Recommender):
         self.item_similarity_matrix_df = None
         self.uim_df = None
     #######################################
-    def __save_uim(self):
+    def save_uim(self, uim_df):
         """save user item interaction matrix"""
         uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
-        uim_df = self.uim_df.reset_index()#so that user_id col is added as first col
+        uim_df = uim_df.reset_index()#so that user_id col is added as first col
         uim_df.to_csv(uim_df_fname, index=False)#do not write the default index,
                                                 #so that on read first col is picked as index col
 
-    def __load_uim(self):
+    def load_uim(self):
         """load user item interaction matrix"""
         uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
-        self.uim_df = pd.read_csv(uim_df_fname, index_col=[self.user_id_col])
-        self.uim_df.index = self.uim_df.index.map(str)
+        uim_df = pd.read_csv(uim_df_fname, index_col=[self.user_id_col])
+        uim_df.index = uim_df.index.map(str)
+        return uim_df
     #######################################
-    def __compute_item_similarity(self):
-        """private function, construct matrix using cooccurence of users"""
-        #Construct User Item Matrix
+    def compute_uim(self):
+        """Compute User Item Matrix"""
         start_time = default_timer()
         print()
         print("Computing User Item Matrix...")
-        self.uim_df = pd.get_dummies(self.train_data[self.item_id_col])\
+        uim_df = pd.get_dummies(self.train_data[self.item_id_col])\
                    .groupby(self.train_data[self.user_id_col])\
                    .apply(max)
-        self.__save_uim()
-        uim = self.uim_df.as_matrix()
+
         end_time = default_timer()
         print("{:50}    {}".format("Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
+        uim = uim_df.as_matrix()
+        non_zero_count = np.count_nonzero(uim)
+        count = uim.size
+        density = non_zero_count/count
+        print("Density of User Item Matrix : ", density)
+        return uim_df
+
+    def __compute_item_similarity(self):
+        """private function, construct matrix using cooccurence of users"""
+        #Construct User Item Matrix
+        self.uim_df = self.compute_uim()
+        self.save_uim(self.uim_df)
+        uim = self.uim_df.as_matrix()
         #for ex
         #         Item1   Item2   Item3   Item4
         # User1       1       1       0       0
@@ -190,7 +202,7 @@ class ItemBasedCFRecommender(Recommender):
         """recommend items for given user_id from test dataset"""
         super().recommend_items(user_id)
         #pprint(self.items_for_evaluation[user_id])
-        self.__load_uim()
+        self.uim_df = self.load_uim()
 
         if os.path.exists(self.model_file):
             self.item_similarity_matrix_df = joblib.load(self.model_file)
@@ -224,7 +236,7 @@ class ItemBasedCFRecommender(Recommender):
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
         """Evaluate trained model for different no of ranked recommendations"""
         super().evaluate(no_of_recs_to_eval, eval_res_file)
-        self.__load_uim()
+        self.uim_df = self.load_uim()
 
         if os.path.exists(self.model_file):
             self.item_similarity_matrix_df = joblib.load(self.model_file)

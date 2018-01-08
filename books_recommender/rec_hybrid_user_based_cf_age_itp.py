@@ -36,7 +36,7 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
     def compute_user_cosine_similarity(self):
         """construct matrix using cosine similarity of user age and item type Preference"""
         #Fetch User Item Matrix
-        super().load_uim()
+        self.uim_df = self.load_uim()
         items = [str(col) for col in self.uim_df.columns]
         no_of_items = len(items)
         users = [str(idx) for idx in self.uim_df.index]
@@ -159,12 +159,12 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
         """recommend items for given user_id from test dataset"""
         super().recommend_items(user_id)
         #pprint(self.items_for_evaluation[user_id])
-        self.load_uim()
+        self.uim_df = self.load_uim()
 
         if os.path.exists(self.model_file):
             self.user_similarity_matrix_df = joblib.load(self.model_file)
             #print(self.user_similarity_matrix_df.shape)
-            
+
             user_based_itp_model_file = os.path.join(self.model_dir, 'user_based_itp_model.pkl')
             self.user_cosine_similarity_df = joblib.load(user_based_itp_model_file)
             #print(self.user_cosine_similarity_df.shape)
@@ -196,10 +196,10 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
-        """evaluate trained model for different no of ranked recommendations"""        
+        """evaluate trained model for different no of ranked recommendations"""
         super().load_stats()
         super().load_items_for_evaluation()
-        self.load_uim()
+        self.uim_df = self.load_uim()
 
         if os.path.exists(self.model_file):
             self.user_similarity_matrix_df = joblib.load(self.model_file)

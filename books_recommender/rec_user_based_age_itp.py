@@ -43,7 +43,7 @@ class UserBasedAgeItpRecommender(books_rec_interface.BooksRecommender,
         self.uim_df = pd.get_dummies(train_test_data[self.item_id_col])\
                         .groupby(train_test_data[self.user_id_col])\
                         .apply(max)
-        self.save_uim()
+        self.save_uim(self.uim_df)
 
         #stats
         print()
