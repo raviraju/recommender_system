@@ -391,6 +391,13 @@ class HybridRecommender():
         eval_items_file = os.path.join(self.model_dir, 'items_for_evaluation.json')
         copyfile(model_eval_items_file, eval_items_file)
 
+        model_users_items_train_file = os.path.join(self.model_dir,
+                                                    list(self.recommenders.keys())[0].__name__,
+                                                    'users_items_train.json')
+        users_items_train_file = os.path.join(self.model_dir,
+                                              'users_items_train.json')
+        copyfile(model_users_items_train_file, users_items_train_file)
+
     def recommend_items(self, user_id, user_interacted_items):
         """combine items recommended for user from given set of recommenders"""
         items_to_recommend = []
@@ -480,9 +487,14 @@ class HybridRecommender():
         self.items_for_evaluation = self.__recommend_items_to_evaluate()
         self.__save_items_for_evaluation()
 
+        users_items_train_file = os.path.join(self.model_dir,
+                                              'users_items_train.json')
+        users_items_train_dict = utilities.load_json_file(users_items_train_file)
+        items_train = users_items_train_dict['items_train']
+
         precision_recall_intf = PrecisionRecall()
         evaluation_results = precision_recall_intf.compute_precision_recall(
-            no_of_recs_to_eval, self.items_for_evaluation)
+            no_of_recs_to_eval, self.items_for_evaluation, items_train)
         end_time = default_timer()
         print("{:50}    {}".format("Evaluation Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
@@ -692,15 +704,18 @@ def get_avg_kfold_exp_res(kfold_experiments):
     for _, kfold_exp_res in kfold_experiments.items():
         for no_of_items, score in kfold_exp_res['no_of_items_to_recommend'].items():
             exp_avg_f1_score = score['avg_f1_score']
+            exp_avg_mcc_score = score['avg_mcc_score']
             exp_avg_precision = score['avg_precision']
             exp_avg_recall = score['avg_recall']
             if no_of_items not in avg_kfold_exp_res['no_of_items_to_recommend']:
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items] = dict()
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_f1_score'] = exp_avg_f1_score
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_mcc_score'] = exp_avg_mcc_score
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] = exp_avg_precision
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_recall'] = exp_avg_recall
             else:
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_f1_score'] += exp_avg_f1_score
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_mcc_score'] += exp_avg_mcc_score
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] += exp_avg_precision
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_recall'] += exp_avg_recall
 
@@ -710,6 +725,9 @@ def get_avg_kfold_exp_res(kfold_experiments):
     for no_of_items, score in avg_kfold_exp_res['no_of_items_to_recommend'].items():
         avg_kfold_avg_f1_score = round(score['avg_f1_score'] / no_of_kfold_exp, 4)
         avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_f1_score'] = avg_kfold_avg_f1_score
+
+        avg_kfold_avg_mcc_score = round(score['avg_mcc_score'] / no_of_kfold_exp, 4)
+        avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_mcc_score'] = avg_kfold_avg_mcc_score
 
         avg_kfold_avg_precision = round(score['avg_precision'] / no_of_kfold_exp, 4)
         avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] = avg_kfold_avg_precision

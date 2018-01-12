@@ -146,6 +146,7 @@ def analyse(recommender):
                     results[no_of_items_to_recommend][model_name] = res
 
     plot_graph(recommender, results, 'avg_f1_score', plot_results_dir='plot_results')
+    plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir='plot_results')
     plot_graph(recommender, results, 'avg_precision', plot_results_dir='plot_results')
     plot_graph(recommender, results, 'avg_recall', plot_results_dir='plot_results')
     plot_roc(recommender, results, plot_results_dir='plot_results')
@@ -168,6 +169,7 @@ def analyse_kfold(recommender):
                     results[no_of_items_to_recommend][model_name] = res
 
     plot_graph(recommender, results, 'avg_f1_score', plot_results_dir='plot_kfold_results')
+    plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir='plot_kfold_results')
     plot_graph(recommender, results, 'avg_precision', plot_results_dir='plot_kfold_results')
     plot_graph(recommender, results, 'avg_recall', plot_results_dir='plot_kfold_results')
     plot_roc(recommender, results, plot_results_dir='plot_kfold_results')

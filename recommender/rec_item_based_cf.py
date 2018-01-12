@@ -250,7 +250,7 @@ class ItemBasedCFRecommender(Recommender):
 
             precision_recall_intf = PrecisionRecall()
             evaluation_results = precision_recall_intf.compute_precision_recall(
-                no_of_recs_to_eval, self.items_for_evaluation)
+                no_of_recs_to_eval, self.items_for_evaluation, self.items_train)
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed. ",
                                        utilities.convert_sec(end_time - start_time)))
