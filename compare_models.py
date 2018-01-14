@@ -19,51 +19,55 @@ def get_cmap(index, name='tab20b_r'):
     return plt.cm.get_cmap(name, index)
 
 def plot_roc(recommender, results, plot_results_dir='results'):
-    """plot roc(recall vs 1-precision)"""
+    """plot roc(tpr vs fpr)"""
     #pprint(results)
     no_of_items_to_recommend = []
-    avg_precision_models_dict = OrderedDict()
-    avg_recall_models_dict = OrderedDict()
+    avg_tpr_models_dict = OrderedDict()
+    avg_fpr_models_dict = OrderedDict()
     for no_of_items in results:
         no_of_items_to_recommend.append(int(no_of_items))
         for model in results[no_of_items]:
-            if model not in avg_precision_models_dict:
-                avg_precision_models_dict[model] = []
-            if model not in avg_recall_models_dict:
-                avg_recall_models_dict[model] = []
+            if model not in avg_tpr_models_dict:
+                avg_tpr_models_dict[model] = []
+            if model not in avg_fpr_models_dict:
+                avg_fpr_models_dict[model] = []
     #print(no_of_items_to_recommend)
     for no_of_items in no_of_items_to_recommend:
-        for model in avg_precision_models_dict.keys():
-            avg_precision_val = 1 - float(results[str(no_of_items)][model]['avg_precision'])
-            avg_precision_models_dict[model].append(avg_precision_val)
-        for model in avg_recall_models_dict.keys():
-            avg_recall_val = float(results[str(no_of_items)][model]['avg_recall'])
-            avg_recall_models_dict[model].append(avg_recall_val)
-    #pprint(avg_precision_models_dict)
-    #pprint(avg_recall_models_dict)
+        for model in avg_tpr_models_dict.keys():
+            avg_tpr_val = float(results[str(no_of_items)][model]['avg_tpr'])
+            avg_tpr_models_dict[model].append(avg_tpr_val)
+        for model in avg_fpr_models_dict.keys():
+            avg_fpr_val = float(results[str(no_of_items)][model]['avg_fpr'])
+            avg_fpr_models_dict[model].append(avg_fpr_val)
+    #pprint(avg_tpr_models_dict)
+    #pprint(avg_fpr_models_dict)
 
-    fig = plt.figure(figsize=(8, 6))
-    ax1 = fig.add_subplot(111)
-
+    fig = plt.figure(figsize=(10, 6))
+    ax = fig.add_subplot(111)
+    ax.set_title('ROC')
     i = 0
-    no_of_models = len(avg_precision_models_dict)
+    no_of_models = len(avg_tpr_models_dict)
     cmap = get_cmap(no_of_models)
-    for model in avg_precision_models_dict:
-        precisions = avg_precision_models_dict[model]
-        recalls = avg_recall_models_dict[model]
-
-        x_precisions = np.array(precisions)
-        y_recalls = np.array(recalls)
+    for model in avg_tpr_models_dict:
+        tprs = avg_tpr_models_dict[model]
+        fprs = avg_fpr_models_dict[model]
+        
+        x_fprs = np.array(fprs)
+        y_tprs = np.array(tprs)
         color = cmap(i)
         #print(i, color, model)
-        ax1.plot(x_precisions, y_recalls, label=model, color=color, marker='o')
+        ax.plot(x_fprs, y_tprs, label=model, color=color, marker='o')
         i = i+1
-    plt.ylabel('recall')
-    plt.xlabel('1-precision')
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    
+    # Shrink current axis by 30%
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+    # Put a legend to the right of the current axis
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    handles, labels = ax1.get_legend_handles_labels()
-    ax1.legend(handles, labels, loc='upper left', bbox_to_anchor=(0.7, 1))
-    ax1.grid('on')
+    ax.grid('on')
     img_name = 'results_roc.png'
     results_dir = os.path.join(recommender, plot_results_dir)
     if not os.path.exists(results_dir):
@@ -72,7 +76,7 @@ def plot_roc(recommender, results, plot_results_dir='results'):
     print("Generated Plot : {}".format(img_file))
     plt.savefig(img_file)
     plt.show()
-
+    
 def plot_graph(recommender, results, measure, plot_results_dir='results'):
     """plot precision recall and f1-score"""
     #pprint(results)
@@ -99,27 +103,33 @@ def plot_graph(recommender, results, measure, plot_results_dir='results'):
     #print(x_no_of_items_to_recommend)
     #print(y_param)
 
-    fig = plt.figure(figsize=(8, 16))
-    ax1 = fig.add_subplot(111)
+    fig = plt.figure(figsize=(10, 6))
+    ax = fig.add_subplot(111)
 
     #for model, values, col in zip(models_dict.keys(), y_param, colors):
-        #ax1.plot(x_no_of_items_to_recommend, values, label=model, color=col, marker='o')
+        #ax.plot(x_no_of_items_to_recommend, values, label=model, color=col, marker='o')
     i = 0
     no_of_models = len(models_dict)
     cmap = get_cmap(no_of_models)
     for model, values in zip(models_dict.keys(), y_param):
         color = cmap(i)
         #print(i, color, model)
-        ax1.plot(x_no_of_items_to_recommend, values, label=model, color=color, marker='o')
+        ax.plot(x_no_of_items_to_recommend, values, label=model, color=color, marker='o')
         i = i+1
 
     plt.xticks(x_no_of_items_to_recommend)
     plt.ylabel(measure)
     plt.xlabel('no_of_items_to_recommend')
 
-    handles, labels = ax1.get_legend_handles_labels()
-    ax1.legend(handles, labels, loc='upper left', bbox_to_anchor=(0.5, 0.7))
-    ax1.grid('on')
+    handles, labels = ax.get_legend_handles_labels()
+
+    # Shrink current axis by 30%
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+    # Put a legend to the right of the current axis
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    
+    ax.grid('on')
     img_name = 'results_' + measure + '.png'
     results_dir = os.path.join(recommender, plot_results_dir)
     if not os.path.exists(results_dir):

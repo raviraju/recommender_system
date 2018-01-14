@@ -675,12 +675,6 @@ def kfold_evaluation(recommender_obj,
         if not os.path.exists(kfold_model_dir):
             os.makedirs(kfold_model_dir)
 
-        train(recommender_obj,
-              results_dir, kfold_model_dir,
-              train_data_file, test_data_file,
-              user_id_col, item_id_col,
-              **kwargs)
-
         kfold_eval_file = 'kfold_exp_' + str(kfold_exp) + '_evaluation.json'
         evaluation_results = evaluate(recommender_obj,
                                       results_dir, kfold_model_dir,
@@ -705,17 +699,29 @@ def get_avg_kfold_exp_res(kfold_experiments):
         for no_of_items, score in kfold_exp_res['no_of_items_to_recommend'].items():
             exp_avg_f1_score = score['avg_f1_score']
             exp_avg_mcc_score = score['avg_mcc_score']
+            
+            exp_avg_tpr = score['avg_tpr']
+            exp_avg_fpr = score['avg_fpr']
+            
             exp_avg_precision = score['avg_precision']
             exp_avg_recall = score['avg_recall']
             if no_of_items not in avg_kfold_exp_res['no_of_items_to_recommend']:
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items] = dict()
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_f1_score'] = exp_avg_f1_score
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_mcc_score'] = exp_avg_mcc_score
+                
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_tpr'] = exp_avg_tpr
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_fpr'] = exp_avg_fpr
+                
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] = exp_avg_precision
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_recall'] = exp_avg_recall
             else:
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_f1_score'] += exp_avg_f1_score
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_mcc_score'] += exp_avg_mcc_score
+                
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_tpr'] += exp_avg_tpr
+                avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_fpr'] += exp_avg_fpr
+                
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] += exp_avg_precision
                 avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_recall'] += exp_avg_recall
 
@@ -728,6 +734,12 @@ def get_avg_kfold_exp_res(kfold_experiments):
 
         avg_kfold_avg_mcc_score = round(score['avg_mcc_score'] / no_of_kfold_exp, 4)
         avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_mcc_score'] = avg_kfold_avg_mcc_score
+        
+        avg_kfold_avg_tpr = round(score['avg_tpr'] / no_of_kfold_exp, 4)
+        avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_tpr'] = avg_kfold_avg_tpr
+
+        avg_kfold_avg_fpr = round(score['avg_fpr'] / no_of_kfold_exp, 4)
+        avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_fpr'] = avg_kfold_avg_fpr
 
         avg_kfold_avg_precision = round(score['avg_precision'] / no_of_kfold_exp, 4)
         avg_kfold_exp_res['no_of_items_to_recommend'][no_of_items]['avg_precision'] = avg_kfold_avg_precision
@@ -846,12 +858,6 @@ def hybrid_kfold_evaluation(recommenders,
                                        'kfold_exp_' + str(kfold_exp))
         if not os.path.exists(kfold_model_dir):
             os.makedirs(kfold_model_dir)
-
-        hybrid_train(recommenders,
-                     results_dir, kfold_model_dir,
-                     train_data_file, test_data_file,
-                     user_id_col, item_id_col,
-                     **kwargs)
 
         kfold_eval_file = 'kfold_exp_' + str(kfold_exp) + '_evaluation.json'
         evaluation_results = hybrid_evaluate(recommenders,

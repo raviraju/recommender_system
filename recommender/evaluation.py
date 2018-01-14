@@ -21,6 +21,8 @@ class PrecisionRecall():
 
             sum_precision = 0
             sum_recall = 0
+            sum_tpr = 0
+            sum_fpr= 0
             sum_f1_score = 0
             sum_mcc_score = 0
 
@@ -51,14 +53,11 @@ class PrecisionRecall():
                         true_positive += 1  # If the item is interacted and it is recommended
                     else:
                         false_negative += 1  # If the item is interacted and it is NOT recommended
-                for recommend_item in items_recommended_set:
-                    if recommend_item not in items_interacted_set:
-                        false_positive += 1  # If the item is recommended and it is NOT interacted
                 for non_interacted_item in items_not_interacted_set:
                     if non_interacted_item in items_recommended_set:
                         false_positive += 1  # If the item is NOT interacted and it is recommended
                     else:
-                        true_negative += 1
+                        true_negative += 1  # If the item is NOT interacted and it is NOT recommended
                 # precision is the proportion of recommendations that are good
                 # recommendations
                 # precision = float(len(hitset)) / no_of_items_to_recommend
@@ -80,7 +79,16 @@ class PrecisionRecall():
                     recall = float(true_positive) / true_positive_false_negative
                 else:
                     recall = 0.0
-                #print("now precision : {} recall : {}".format(precision, recall))
+                #print("precision : {} recall : {}".format(precision, recall))
+                
+                tpr = recall
+                false_positive_true_negative = false_positive + true_negative
+                if false_positive_true_negative != 0:
+                    fpr= float(false_positive) / false_positive_true_negative
+                else:
+                    fpr= 0.0
+                #print("tpr : {} fpr: {} 1-precision : {}".format(tpr, fpr, 1-precision))
+
                 if (recall + precision) != 0:
                     f1_score = float(2 * precision * recall) / (recall + precision)
                 else:
@@ -101,11 +109,17 @@ class PrecisionRecall():
                 
                 sum_precision += precision
                 sum_recall += recall
+                sum_tpr += tpr
+                sum_fpr += fpr
                 sum_f1_score += f1_score
                 sum_mcc_score += mcc_score
 
             avg_precision = sum_precision / float(num_users_sample)
             avg_recall = sum_recall / float(num_users_sample)
+            
+            avg_tpr = sum_tpr / float(num_users_sample)
+            avg_fpr= sum_fpr/ float(num_users_sample)
+            
             avg_f1_score = sum_f1_score / float(num_users_sample)
             avg_mcc_score = sum_mcc_score / float(num_users_sample)
 
@@ -113,6 +127,12 @@ class PrecisionRecall():
                 'avg_precision'] = round(avg_precision, 4)
             results['no_of_items_to_recommend'][no_of_items_to_recommend][
                 'avg_recall'] = round(avg_recall, 4)
+            
+            results['no_of_items_to_recommend'][no_of_items_to_recommend][
+                'avg_tpr'] = round(avg_tpr, 4)
+            results['no_of_items_to_recommend'][no_of_items_to_recommend][
+                'avg_fpr'] = round(avg_fpr, 4)
+            
             results['no_of_items_to_recommend'][no_of_items_to_recommend][
                 'avg_f1_score'] = round(avg_f1_score, 4)
             results['no_of_items_to_recommend'][no_of_items_to_recommend][

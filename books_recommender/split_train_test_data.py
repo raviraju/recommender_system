@@ -83,7 +83,14 @@ def generate_users_split(train_test_dir, data, test_size=0.2):
     print("Considering learners whose age range lies in 5-20")
     valid_ages_df = events_df[(events_df['age'] >= 5.0) & (events_df['age'] <= 20.0)]
 
-    learners = valid_ages_df['learner_id'].unique()
+    user_items_df = valid_ages_df.groupby(['learner_id']).agg({'book_code': 'count'})
+    user_items_df.rename(columns={'book_code' : 'no_of_books'}, inplace=True)
+    min_items = 20
+    user_min_items_df = user_items_df[user_items_df['no_of_books'] >= min_items]
+    user_min_items_df.reset_index(inplace=True)
+    
+
+    learners = user_min_items_df['learner_id'].unique()
     no_of_learners = len(learners)
     no_of_test_learners = int(no_of_learners * test_size)
     #no_of_train_learners = no_of_learners - no_of_test_learners
@@ -118,6 +125,7 @@ def generate_users_split(train_test_dir, data, test_size=0.2):
     print()
     print("{:10} : {:20} : {}".format("Common ", "No of learners", len(common_learners)))
     print("{:10} : {:20} : {}".format("Common ", "No of books", len(common_books)))
+
     train_data_file = os.path.join(train_test_dir, 'train_data.csv')
     train_data.to_csv(train_data_file, index=False)
     test_data_file = os.path.join(train_test_dir, 'test_data.csv')
@@ -134,7 +142,13 @@ def generate_kfolds_split(train_test_dir, data, kfolds=10):
     print("Considering learners whose age range lies in 5-20")
     valid_ages_df = events_df[(events_df['age'] >= 5.0) & (events_df['age'] <= 20.0)]
 
-    learners = np.array(valid_ages_df['learner_id'].unique())
+    user_items_df = valid_ages_df.groupby(['learner_id']).agg({'book_code': 'count'})
+    user_items_df.rename(columns={'book_code' : 'no_of_books'}, inplace=True)
+    min_items = 20
+    user_min_items_df = user_items_df[user_items_df['no_of_books'] >= min_items]
+    user_min_items_df.reset_index(inplace=True)
+        
+    learners = np.array(user_min_items_df['learner_id'].unique())
     no_of_learners = len(learners)
     print("No of learners : {}".format(no_of_learners))
     kfolds = KFold(n_splits=kfolds)
