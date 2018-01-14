@@ -6,6 +6,7 @@ import fnmatch
 from pathlib import Path
 from collections import OrderedDict
 
+import pandas as pd
 import numpy as np
 import matplotlib
 matplotlib.use('agg')
@@ -20,7 +21,6 @@ def get_cmap(index, name='tab20b_r'):
 
 def plot_roc(recommender, results, plot_results_dir='results'):
     """plot roc(tpr vs fpr)"""
-    #pprint(results)
     no_of_items_to_recommend = []
     avg_tpr_models_dict = OrderedDict()
     avg_fpr_models_dict = OrderedDict()
@@ -43,31 +43,31 @@ def plot_roc(recommender, results, plot_results_dir='results'):
     #pprint(avg_fpr_models_dict)
 
     fig = plt.figure(figsize=(10, 6))
-    ax = fig.add_subplot(111)
-    ax.set_title('ROC')
+    axis = fig.add_subplot(111)
+    axis.set_title('ROC')
     i = 0
     no_of_models = len(avg_tpr_models_dict)
     cmap = get_cmap(no_of_models)
     for model in avg_tpr_models_dict:
         tprs = avg_tpr_models_dict[model]
         fprs = avg_fpr_models_dict[model]
-        
+
         x_fprs = np.array(fprs)
         y_tprs = np.array(tprs)
         color = cmap(i)
         #print(i, color, model)
-        ax.plot(x_fprs, y_tprs, label=model, color=color, marker='o')
+        axis.plot(x_fprs, y_tprs, label=model, color=color, marker='o')
         i = i+1
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
-    
-    # Shrink current axis by 30%
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
-    # Put a legend to the right of the current axis
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    ax.grid('on')
+    # Shrink current axis by 30%
+    box = axis.get_position()
+    axis.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+    # Put a legend to the right of the current axis
+    axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+    axis.grid('on')
     img_name = 'results_roc.png'
     results_dir = os.path.join(recommender, plot_results_dir)
     if not os.path.exists(results_dir):
@@ -76,7 +76,7 @@ def plot_roc(recommender, results, plot_results_dir='results'):
     print("Generated Plot : {}".format(img_file))
     plt.savefig(img_file)
     plt.show()
-    
+
 def plot_graph(recommender, results, measure, plot_results_dir='results'):
     """plot precision recall and f1-score"""
     #pprint(results)
@@ -104,32 +104,30 @@ def plot_graph(recommender, results, measure, plot_results_dir='results'):
     #print(y_param)
 
     fig = plt.figure(figsize=(10, 6))
-    ax = fig.add_subplot(111)
+    axis = fig.add_subplot(111)
 
     #for model, values, col in zip(models_dict.keys(), y_param, colors):
-        #ax.plot(x_no_of_items_to_recommend, values, label=model, color=col, marker='o')
+        #axis.plot(x_no_of_items_to_recommend, values, label=model, color=col, marker='o')
     i = 0
     no_of_models = len(models_dict)
     cmap = get_cmap(no_of_models)
     for model, values in zip(models_dict.keys(), y_param):
         color = cmap(i)
         #print(i, color, model)
-        ax.plot(x_no_of_items_to_recommend, values, label=model, color=color, marker='o')
+        axis.plot(x_no_of_items_to_recommend, values, label=model, color=color, marker='o')
         i = i+1
 
     plt.xticks(x_no_of_items_to_recommend)
     plt.ylabel(measure)
     plt.xlabel('no_of_items_to_recommend')
 
-    handles, labels = ax.get_legend_handles_labels()
-
     # Shrink current axis by 30%
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0, box.width * 0.7, box.height])
+    box = axis.get_position()
+    axis.set_position([box.x0, box.y0, box.width * 0.7, box.height])
     # Put a legend to the right of the current axis
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    
-    ax.grid('on')
+    axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+    axis.grid('on')
     img_name = 'results_' + measure + '.png'
     results_dir = os.path.join(recommender, plot_results_dir)
     if not os.path.exists(results_dir):
@@ -138,6 +136,22 @@ def plot_graph(recommender, results, measure, plot_results_dir='results'):
     print("Generated Plot : {}".format(img_file))
     plt.savefig(img_file)
     #plt.show()
+
+def dump_scores(recommender, results, score_results_dir='results'):
+    """Dump Scores"""
+    results_dir = os.path.join(recommender, score_results_dir)
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+    result_file = os.path.join(results_dir, 'results.csv')
+    all_results = pd.DataFrame()
+    for no_of_items_to_recommend in results:
+        result = pd.DataFrame(results[no_of_items_to_recommend]).transpose()
+        result['no_of_items_to_recommend'] = no_of_items_to_recommend
+        #print(result)
+        all_results = all_results.append(result)
+        #print(all_results)
+    all_results.to_csv(result_file)
+    print("Evaluation Scores : {}".format(result_file))
 
 def analyse(recommender):
     """analyse single experiment for recommender using evalution_results.json"""
@@ -154,7 +168,7 @@ def analyse(recommender):
                         results[no_of_items_to_recommend] = dict()
                     res = result_dict['no_of_items_to_recommend'][no_of_items_to_recommend]
                     results[no_of_items_to_recommend][model_name] = res
-
+    dump_scores(recommender, results, score_results_dir='score_results')
     plot_graph(recommender, results, 'avg_f1_score', plot_results_dir='plot_results')
     plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir='plot_results')
     plot_graph(recommender, results, 'avg_precision', plot_results_dir='plot_results')
@@ -177,7 +191,7 @@ def analyse_kfold(recommender):
                         results[no_of_items_to_recommend] = dict()
                     res = result_dict['no_of_items_to_recommend'][no_of_items_to_recommend]
                     results[no_of_items_to_recommend][model_name] = res
-
+    dump_scores(recommender, results, score_results_dir='score_kfold_results')
     plot_graph(recommender, results, 'avg_f1_score', plot_results_dir='plot_kfold_results')
     plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir='plot_kfold_results')
     plot_graph(recommender, results, 'avg_precision', plot_results_dir='plot_kfold_results')

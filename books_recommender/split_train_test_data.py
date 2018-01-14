@@ -73,7 +73,7 @@ def generate_random_split(train_test_dir, data, test_size=0.2, min_no_of_books=1
     test_data.to_csv(test_data_file, index=False)
     print("Train and Test Data are in ", train_test_dir)
 
-def generate_users_split(train_test_dir, data, test_size=0.2):
+def generate_users_split(train_test_dir, data, test_size=0.2, min_no_of_books=10):
     """Loads data and returns training and test set by random selection of users"""
     print("Generate Training and Test Data")
     #Read learner_id-book_code-events
@@ -83,12 +83,11 @@ def generate_users_split(train_test_dir, data, test_size=0.2):
     print("Considering learners whose age range lies in 5-20")
     valid_ages_df = events_df[(events_df['age'] >= 5.0) & (events_df['age'] <= 20.0)]
 
-    user_items_df = valid_ages_df.groupby(['learner_id']).agg({'book_code': 'count'})
+    user_items_df = valid_ages_df.groupby(['learner_id'])\
+                                 .agg({'book_code': 'count'})
     user_items_df.rename(columns={'book_code' : 'no_of_books'}, inplace=True)
-    min_items = 20
-    user_min_items_df = user_items_df[user_items_df['no_of_books'] >= min_items]
+    user_min_items_df = user_items_df[user_items_df['no_of_books'] >= min_no_of_books]
     user_min_items_df.reset_index(inplace=True)
-    
 
     learners = user_min_items_df['learner_id'].unique()
     no_of_learners = len(learners)
@@ -132,7 +131,7 @@ def generate_users_split(train_test_dir, data, test_size=0.2):
     test_data.to_csv(test_data_file, index=False)
     print("Train and Test Data are in ", train_test_dir)
 
-def generate_kfolds_split(train_test_dir, data, kfolds=10):
+def generate_kfolds_split(train_test_dir, data, kfolds=10, min_no_of_books=10):
     """Loads data and returns training and test sets by kfolds selection of users"""
     print("Generate Training and Test Data")
     #Read learner_id-book_code-events
@@ -144,10 +143,9 @@ def generate_kfolds_split(train_test_dir, data, kfolds=10):
 
     user_items_df = valid_ages_df.groupby(['learner_id']).agg({'book_code': 'count'})
     user_items_df.rename(columns={'book_code' : 'no_of_books'}, inplace=True)
-    min_items = 20
-    user_min_items_df = user_items_df[user_items_df['no_of_books'] >= min_items]
+    user_min_items_df = user_items_df[user_items_df['no_of_books'] >= min_no_of_books]
     user_min_items_df.reset_index(inplace=True)
-        
+
     learners = np.array(user_min_items_df['learner_id'].unique())
     no_of_learners = len(learners)
     print("No of learners : {}".format(no_of_learners))
@@ -243,17 +241,17 @@ def main():
     parser.add_argument("--kfolds",
                         help="no of k folds", type=int)
     parser.add_argument("data", help="data used to split into train and test")
-
     args = parser.parse_args()
+
+    if not args.min_no_of_books:
+        min_no_of_books = 10
+
     if args.random_split and args.test_size and args.data:
-        if args.min_no_of_books:
-            generate_random_split(train_test_dir, args.data, args.test_size, args.min_no_of_books)
-        else:
-            generate_random_split(train_test_dir, args.data, args.test_size)
+        generate_random_split(train_test_dir, args.data, args.test_size, min_no_of_books)
     elif args.users_split and args.test_size and args.data:
-        generate_users_split(train_test_dir, args.data, args.test_size)
+        generate_users_split(train_test_dir, args.data, args.test_size, min_no_of_books)
     elif args.kfold_split and args.kfolds and args.data:
-        generate_kfolds_split(train_test_dir, args.data, args.kfolds)
+        generate_kfolds_split(train_test_dir, args.data, args.kfolds, min_no_of_books)
     else:
         print("Invalid option")
 

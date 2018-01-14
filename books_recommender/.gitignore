@@ -6,3 +6,5 @@ preprocessed_metadata
 .ipynb_checkpoints
 plot_kfold_results
 plot_results
+score_kfold_results
+score_results

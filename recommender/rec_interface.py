@@ -675,6 +675,12 @@ def kfold_evaluation(recommender_obj,
         if not os.path.exists(kfold_model_dir):
             os.makedirs(kfold_model_dir)
 
+        train(recommender_obj,
+              results_dir, kfold_model_dir,
+              train_data_file, test_data_file,
+              user_id_col, item_id_col,
+              **kwargs)
+
         kfold_eval_file = 'kfold_exp_' + str(kfold_exp) + '_evaluation.json'
         evaluation_results = evaluate(recommender_obj,
                                       results_dir, kfold_model_dir,
@@ -858,6 +864,12 @@ def hybrid_kfold_evaluation(recommenders,
                                        'kfold_exp_' + str(kfold_exp))
         if not os.path.exists(kfold_model_dir):
             os.makedirs(kfold_model_dir)
+
+        hybrid_train(recommenders,
+                     results_dir, kfold_model_dir,
+                     train_data_file, test_data_file,
+                     user_id_col, item_id_col,
+                     **kwargs)
 
         kfold_eval_file = 'kfold_exp_' + str(kfold_exp) + '_evaluation.json'
         evaluation_results = hybrid_evaluate(recommenders,
