@@ -245,6 +245,8 @@ def main():
 
     if not args.min_no_of_books:
         min_no_of_books = 10
+    else:
+        min_no_of_books = args.min_no_of_books
 
     if args.random_split and args.test_size and args.data:
         generate_random_split(train_test_dir, args.data, args.test_size, min_no_of_books)

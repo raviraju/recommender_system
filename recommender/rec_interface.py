@@ -231,6 +231,28 @@ class Recommender(metaclass=ABCMeta):
         #print("hold_out_items : ", hold_out_items)
         #input()
         return assume_interacted_items, hold_out_items
+    
+    def split_items1(self, items_interacted, hold_out_ratio):
+        """return assume_interacted_items, hold_out_items"""
+        #print("items_interacted : ", items_interacted)
+
+        assume_interacted_items = []
+        hold_out_items = []
+
+        no_of_items_interacted = len(items_interacted)
+        no_of_items_to_be_held = 10 #int(no_of_items_interacted*hold_out_ratio)
+        no_of_items_assumed_interacted = 10 #no_of_items_interacted - no_of_items_to_be_held
+        #print("no_of_items_interacted : ", no_of_items_interacted)
+        #print("no_of_items_to_be_held : ", no_of_items_to_be_held)
+        #print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
+
+        assume_interacted_items = items_interacted[0:no_of_items_assumed_interacted]
+        hold_out_items = items_interacted[no_of_items_assumed_interacted:(no_of_items_to_be_held+no_of_items_assumed_interacted)]
+
+        #print("assume_interacted_items : ", assume_interacted_items)
+        #print("hold_out_items : ", hold_out_items)
+        #input()
+        return assume_interacted_items, hold_out_items
 
     def save_items_for_evaluation(self):
         """save items to be considered for evaluation for each test user id"""
