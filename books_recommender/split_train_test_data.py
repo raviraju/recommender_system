@@ -164,6 +164,24 @@ def generate_kfolds_split(train_test_dir, data, kfolds=10, min_no_of_books=10):
 
         train_data = valid_ages_df[valid_ages_df['learner_id'].isin(train_learners_set)]
         test_data = valid_ages_df[valid_ages_df['learner_id'].isin(test_learners_set)]
+        
+        train_data_stats = train_data.groupby(['learner_id'])\
+                                     .agg({'book_code' : 'count'})\
+                                     .rename(columns={'book_code' : 'no_of_items'})\
+                                     .reset_index()
+        #print(train_data_stats.head())
+        print("train_data : no of items stats:")
+        print(train_data_stats['no_of_items'].describe())
+        
+        test_data_stats = test_data.groupby(['learner_id'])\
+                                   .agg({'book_code' : 'count'})\
+                                   .rename(columns={'book_code' : 'no_of_items'})\
+                                   .reset_index()
+        #print(test_data_stats.head())
+        print("test_data : no of items stats:")
+        print(test_data_stats['no_of_items'].describe())
+        
+        
 
         train_data_learners = set(train_data['learner_id'].unique())
         test_data_learners = set(test_data['learner_id'].unique())
@@ -199,6 +217,7 @@ def generate_kfolds_split(train_test_dir, data, kfolds=10, min_no_of_books=10):
 
         i += 1
         print('*'*30)
+        input()
     print("Train and Test Data are in ", train_test_dir)
     #Validation of kfold splits
     # all_learners = set(learners)

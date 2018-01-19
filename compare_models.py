@@ -44,7 +44,7 @@ def plot_roc(recommender, results, plot_results_dir='results'):
 
     fig = plt.figure(figsize=(10, 6))
     axis = fig.add_subplot(111)
-    axis.set_title('ROC')
+    axis.set_title('ROC2')
     i = 0
     no_of_models = len(avg_tpr_models_dict)
     cmap = get_cmap(no_of_models)
