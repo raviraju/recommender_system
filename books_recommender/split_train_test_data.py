@@ -6,60 +6,61 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 
+def get_filtered_data(events_df, min_no_of_books):
+    """apply filtering on data"""
+    print("{:10} : {:20} : {}".format("Data", "No of records", len(events_df)))
+    print("{:10} : {:20} : {}".format("Data", "No of learners", len(events_df['learner_id'].unique())))
+    print("{:10} : {:20} : {}".format("Data", "No of books", len(events_df['book_code'].unique())))
+
+    #filtering data to be imported on age
+    print("Considering learners whose age range lies in 5-20")
+    events_df = events_df[(events_df['age'] >= 5.0) & (events_df['age'] <= 20.0)]
+    print("{:10} : {:20} : {}".format("Filtered age", "No of records", len(events_df)))
+    print("{:10} : {:20} : {}".format("Filtered age", "No of learners", len(events_df['learner_id'].unique())))
+    print("{:10} : {:20} : {}".format("Filtered age", "No of books", len(events_df['book_code'].unique())))
+
+    #filtering data to be imported on min_no_of_books
+    user_items_df = events_df.groupby('learner_id')\
+                             .agg({'book_code' : 'count'})\
+                             .rename(columns={'book_code' : 'no_of_books'})\
+                             .reset_index()
+    user_items_df = user_items_df[user_items_df['no_of_books'] >= min_no_of_books]
+    filtered_data = pd.merge(user_items_df, events_df, how='inner', on='learner_id')
+    print("No of Books Distribution")
+    print(filtered_data['no_of_books'].describe())
+    print()
+    print("{:10} : {:20} : {}".format("Filtered min_no_of_books>=" + str(min_no_of_books), "No of records", len(filtered_data)))
+    print("{:10} : {:20} : {}".format("Filtered min_no_of_books>=" + str(min_no_of_books), "No of learners", len(filtered_data['learner_id'].unique())))
+    print("{:10} : {:20} : {}".format("Filtered min_no_of_books>=" + str(min_no_of_books), "No of books", len(filtered_data['book_code'].unique())))
+
+    return filtered_data
+
 def generate_random_split(train_test_dir, data, test_size=0.2, min_no_of_books=10):
     """Loads data and returns training and test set by random split of data"""
     print("Generate Training and Test Data")
     #Read learner_id-book_code-events
     events_df = pd.read_csv(data)
-    print("{:10} : {:20} : {}".format("Total", "No of records",
-                                      len(events_df)))
-    #filtering data to be imported
-    events_df = events_df[(events_df['age'] >= 5.0) & (events_df['age'] <= 20.0)]
 
-    #filtering data to be imported
-    learner_books_df = events_df.groupby('learner_id')\
-                                        .agg({'book_code' : 'count'})\
-                                        .rename(columns={'book_code' : 'no_of_books'})\
-                                        .reset_index()
-    dist = learner_books_df['no_of_books'].describe()
-    no_of_books_list = [dist['min'], dist['25%'], dist['50%'], dist['75%'], dist['max']]
-    print("Distribution of book_counts (min, 25%, 50%, 75%, max)")
-    for no_of_books in no_of_books_list:
-        no_of_learners = len(learner_books_df[learner_books_df['no_of_books'] == no_of_books])
-        print("No of Books : ", no_of_books,
-              " No of learners : ", no_of_learners)
-    print()
+    filtered_data = get_filtered_data(events_df, min_no_of_books)
 
-    learner_books_df = learner_books_df[learner_books_df['no_of_books'] >= min_no_of_books]
-    print("Min no of Books : ", min_no_of_books,
-          " No of learners : ", len(learner_books_df))
-    #split train and test data
-    print("{:10} : {:20} : {}".format("Filtered", "No of records",
-                                      len(learner_books_df)))
-
-    data = pd.merge(learner_books_df, events_df, how='inner', on='learner_id')
-    train_data, test_data = train_test_split(data,
+    train_data, test_data = train_test_split(filtered_data,
                                              test_size=test_size,
                                              random_state=None)
                                              #random_state=0)
                                              #If int, random_state is the seed used
                                              #by the random number generator
     print()
-    print("{:10} : {:20} : {}".format("Data", "No of records", len(data)))
-    print("{:10} : {:20} : {}".format("Data", "No of learners", len(data['learner_id'].unique())))
-    print("{:10} : {:20} : {}".format("Data", "No of books", len(data['book_code'].unique())))
+    print("{:10} : {:20} : {}".format("Data for train n test", "No of records", len(data)))
+    print("{:10} : {:20} : {}".format("Data for train n test", "No of learners", len(data['learner_id'].unique())))
+    print("{:10} : {:20} : {}".format("Data for train n test", "No of books", len(data['book_code'].unique())))
     print()
     print("{:10} : {:20} : {}".format("Train Data", "No of records", len(train_data)))
-    print("{:10} : {:20} : {}".format("Train Data", "No of learners",
-                                      len(train_data['learner_id'].unique())))
-    print("{:10} : {:20} : {}".format("Train Data", "No of books",
-                                      len(train_data['book_code'].unique())))
+    print("{:10} : {:20} : {}".format("Train Data", "No of learners", len(train_data['learner_id'].unique())))
+    print("{:10} : {:20} : {}".format("Train Data", "No of books", len(train_data['book_code'].unique())))
     print()
     print("{:10} : {:20} : {}".format("Test Data", "No of records", len(test_data)))
-    print("{:10} : {:20} : {}".format("Test Data", "No of learners",
-                                      len(test_data['learner_id'].unique())))
-    print("{:10} : {:20} : {}".format("Test Data", "No of books",
-                                      len(test_data['book_code'].unique())))
+    print("{:10} : {:20} : {}".format("Test Data", "No of learners", len(test_data['learner_id'].unique())))
+    print("{:10} : {:20} : {}".format("Test Data", "No of books", len(test_data['book_code'].unique())))
 
     common_learners = set(train_data['learner_id'].unique()) & set(test_data['learner_id'].unique())
     common_books = set(train_data['book_code'].unique()) & set(test_data['book_code'].unique())
@@ -79,17 +80,9 @@ def generate_users_split(train_test_dir, data, test_size=0.2, min_no_of_books=10
     #Read learner_id-book_code-events
     events_df = pd.read_csv(data)
 
-    #filtering data to be imported
-    print("Considering learners whose age range lies in 5-20")
-    valid_ages_df = events_df[(events_df['age'] >= 5.0) & (events_df['age'] <= 20.0)]
+    filtered_data = get_filtered_data(events_df, min_no_of_books)
 
-    user_items_df = valid_ages_df.groupby(['learner_id'])\
-                                 .agg({'book_code': 'count'})
-    user_items_df.rename(columns={'book_code' : 'no_of_books'}, inplace=True)
-    user_min_items_df = user_items_df[user_items_df['no_of_books'] >= min_no_of_books]
-    user_min_items_df.reset_index(inplace=True)
-
-    learners = user_min_items_df['learner_id'].unique()
+    learners = filtered_data['learner_id'].unique()
     no_of_learners = len(learners)
     no_of_test_learners = int(no_of_learners * test_size)
     #no_of_train_learners = no_of_learners - no_of_test_learners
@@ -103,8 +96,8 @@ def generate_users_split(train_test_dir, data, test_size=0.2, min_no_of_books=10
     print("No of test learners : {}".format(len(test_learners_set)))
     print("No of common learners : {}".format(len(common_learners)))
 
-    test_data = valid_ages_df[valid_ages_df['learner_id'].isin(test_learners_set)]
-    train_data = valid_ages_df[valid_ages_df['learner_id'].isin(train_learners_set)]
+    test_data = events_df[events_df['learner_id'].isin(test_learners_set)]
+    train_data = events_df[events_df['learner_id'].isin(train_learners_set)]
 
     common_learners = set(train_data['learner_id'].unique()) & set(test_data['learner_id'].unique())
     common_books = set(train_data['book_code'].unique()) & set(test_data['book_code'].unique())
@@ -137,34 +130,28 @@ def generate_kfolds_split(train_test_dir, data, kfolds=10, min_no_of_books=10):
     #Read learner_id-book_code-events
     events_df = pd.read_csv(data)
 
-    #filtering data to be imported
-    print("Considering learners whose age range lies in 5-20")
-    valid_ages_df = events_df[(events_df['age'] >= 5.0) & (events_df['age'] <= 20.0)]
+    filtered_data = get_filtered_data(events_df, min_no_of_books)
 
-    user_items_df = valid_ages_df.groupby(['learner_id']).agg({'book_code': 'count'})
-    user_items_df.rename(columns={'book_code' : 'no_of_books'}, inplace=True)
-    user_min_items_df = user_items_df[user_items_df['no_of_books'] >= min_no_of_books]
-    user_min_items_df.reset_index(inplace=True)
-
-    learners = np.array(user_min_items_df['learner_id'].unique())
+    learners = np.array(filtered_data['learner_id'].unique())
     no_of_learners = len(learners)
     print("No of learners : {}".format(no_of_learners))
     kfolds = KFold(n_splits=kfolds)
     i = 1
-    # experiments = dict()
-    # experiments['train'] = dict()
-    # experiments['test'] = dict()
+    experiments = dict()
+    experiments['train'] = dict()
+    experiments['test'] = dict()
     for train_indices, test_indices in kfolds.split(learners):
         #print("%s %s" % (train_indices, test_indices))
         train_learners_set = set(learners[train_indices])
         test_learners_set = set(learners[test_indices])
         #print(train, test)
-        # experiments['train'][i] = train_learners_set
-        # experiments['test'][i] = test_learners_set
+        experiments['train'][i] = train_learners_set
+        experiments['test'][i] = test_learners_set
 
-        train_data = valid_ages_df[valid_ages_df['learner_id'].isin(train_learners_set)]
-        test_data = valid_ages_df[valid_ages_df['learner_id'].isin(test_learners_set)]
+        train_data = events_df[events_df['learner_id'].isin(train_learners_set)]
+        test_data = events_df[events_df['learner_id'].isin(test_learners_set)]
         
+        '''
         train_data_stats = train_data.groupby(['learner_id'])\
                                      .agg({'book_code' : 'count'})\
                                      .rename(columns={'book_code' : 'no_of_items'})\
@@ -180,9 +167,7 @@ def generate_kfolds_split(train_test_dir, data, kfolds=10, min_no_of_books=10):
         #print(test_data_stats.head())
         print("test_data : no of items stats:")
         print(test_data_stats['no_of_items'].describe())
-        
-        
-
+        '''
         train_data_learners = set(train_data['learner_id'].unique())
         test_data_learners = set(test_data['learner_id'].unique())
         common_learners = train_data_learners & test_data_learners
@@ -192,24 +177,16 @@ def generate_kfolds_split(train_test_dir, data, kfolds=10, min_no_of_books=10):
         common_books = train_data_books & test_data_books
 
         print()
-        print("{} {:10} : {:20} : {}".format(i, "Train Data",
-                                             "No of records", len(train_data)))
-        print("{} {:10} : {:20} : {}".format(i, "Train Data",
-                                             "No of learners", len(train_data_learners)))
-        print("{} {:10} : {:20} : {}".format(i, "Train Data",
-                                             "No of books", len(train_data_books)))
+        print("{} {:10} : {:20} : {}".format(i, "Train Data", "No of records", len(train_data)))
+        print("{} {:10} : {:20} : {}".format(i, "Train Data", "No of learners", len(train_data_learners)))
+        print("{} {:10} : {:20} : {}".format(i, "Train Data", "No of books", len(train_data_books)))
         print()
-        print("{} {:10} : {:20} : {}".format(i, "Test Data",
-                                             "No of records", len(test_data)))
-        print("{} {:10} : {:20} : {}".format(i, "Test Data",
-                                             "No of learners", len(test_data_learners)))
-        print("{} {:10} : {:20} : {}".format(i, "Test Data",
-                                             "No of books", len(test_data_books)))
+        print("{} {:10} : {:20} : {}".format(i, "Test Data", "No of records", len(test_data)))
+        print("{} {:10} : {:20} : {}".format(i, "Test Data", "No of learners", len(test_data_learners)))
+        print("{} {:10} : {:20} : {}".format(i, "Test Data", "No of books", len(test_data_books)))
         print()
-        print("{} {:10} : {:20} : {}".format(i, "Common ",
-                                             "No of learners", len(common_learners)))
-        print("{} {:10} : {:20} : {}".format(i, "Common ",
-                                             "No of books", len(common_books)))
+        print("{} {:10} : {:20} : {}".format(i, "Common ", "No of learners", len(common_learners)))
+        print("{} {:10} : {:20} : {}".format(i, "Common ", "No of books", len(common_books)))
         train_data_file = os.path.join(train_test_dir, str(i) + '_train_data.csv')
         train_data.to_csv(train_data_file, index=False)
         test_data_file = os.path.join(train_test_dir, str(i) + '_test_data.csv')
@@ -217,18 +194,18 @@ def generate_kfolds_split(train_test_dir, data, kfolds=10, min_no_of_books=10):
 
         i += 1
         print('*'*30)
-        input()
     print("Train and Test Data are in ", train_test_dir)
-    #Validation of kfold splits
-    # all_learners = set(learners)
-    # all_test_learners = set()
-    # for i in experiments['test']:
-    #     all_test_learners |= set(experiments['test'][i])
-    # print(all_learners - all_test_learners)
-    # all_train_learners = set()
-    # for i in experiments['train']:
-    #     all_train_learners |= set(experiments['train'][i])
-    # print(all_learners - all_train_learners)
+    #Validation of kfold splits")
+    print("Validation of kfold splits")
+    all_learners = set(learners)
+    all_test_learners = set()
+    for i in experiments['test']:
+        all_test_learners |= set(experiments['test'][i])
+    print("Learners not considered in Test Data : ", all_learners - all_test_learners)
+    all_train_learners = set()
+    for i in experiments['train']:
+        all_train_learners |= set(experiments['train'][i])
+    print("Learners not considered in Train Data : ",all_learners - all_train_learners)
 
 def main():
     """interface to load and split data into train and test"""
