@@ -14,6 +14,7 @@ class PrecisionRecall():
 
         users_test_sample = eval_items.keys()
         num_users_sample = len(users_test_sample)
+        results['no_of_test_users_considered_for_evaluation'] = len(users_test_sample)
         results['no_of_items_to_recommend'] = dict()
         for no_of_items_to_recommend in no_of_items_to_recommend_list:
             results['no_of_items_to_recommend'][
@@ -42,8 +43,7 @@ class PrecisionRecall():
                 #     input()
                 items_interacted_set = set(items_interacted)
                 items_recommended_set = set(items_recommended)
-                items_not_interacted_set = set(
-                    all_items) - items_interacted_set - set(items_assumed_to_be_interacted)
+                items_not_interacted_set = set(all_items) - items_interacted_set - set(items_assumed_to_be_interacted)
                 true_positive = 0
                 false_positive = 0
                 true_negative = 0

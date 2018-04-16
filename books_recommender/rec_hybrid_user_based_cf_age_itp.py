@@ -193,6 +193,14 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
 
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
+            
+            recommended_items_dict = dict()
+            for i, recs in user_recommendations.iterrows():
+                item_id = recs[self.item_id_col]
+                score = round(recs['score'], 3)
+                rank = recs['rank']
+                recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
+            self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
@@ -217,7 +225,7 @@ class Hybrid_UserBased_CF_AgeItp_Recommender(books_rec_interface.BooksRecommende
 
             precision_recall_intf = PrecisionRecall()
             evaluation_results = precision_recall_intf.compute_precision_recall(
-                no_of_recs_to_eval, self.items_for_evaluation, self.items_train)
+                no_of_recs_to_eval, self.items_for_evaluation, self.items_all)
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed. ",
                                        utilities.convert_sec(end_time - start_time)))
@@ -269,25 +277,34 @@ def main():
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
 
-    no_of_recs = 10
-    hold_out_ratio = 0.5
-    kwargs = {'no_of_recs':no_of_recs,
-              'hold_out_ratio':hold_out_ratio
-             }
+    kwargs = dict()
+    kwargs['no_of_recs'] = 150 # max no_of_books read is 144
+
+    # kwargs['hold_out_strategy'] = 'hold_out_ratio'
+    # kwargs['hold_out_ratio'] = 0.5
+
+    # kwargs['hold_out_strategy'] = 'assume_first_n'
+    # kwargs['first_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+
+    kwargs['hold_out_strategy'] = 'hold_last_n'
+    kwargs['last_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+
+    no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
 
     if args.age_or_itp == 'itp':
         kwargs['age_or_itp'] = 'itp'
         model_dir = os.path.join(current_dir, 'model/user_based_cf_itp')
-    if args.age_or_itp == 'age':
+    elif args.age_or_itp == 'age':
         kwargs['age_or_itp'] = 'age'
         model_dir = os.path.join(current_dir, 'model/user_based_cf_age')
-    if args.age_or_itp == 'age_and_itp':
+    elif args.age_or_itp == 'age_and_itp':
         kwargs['age_or_itp'] = 'age_and_itp'
         model_dir = os.path.join(current_dir, 'model/user_based_cf_age_itp')
+    else:
+        print("Invalid arguments, refer --help")
+        exit(0)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
-
-    no_of_recs_to_eval = [1, 2, 5, 10]
     recommender_obj = Hybrid_UserBased_CF_AgeItp_Recommender
 
     if args.cross_eval and args.kfolds:

@@ -32,78 +32,60 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         self.model_file = os.path.join(self.model_dir,
                                        'content_based_model.pkl')
 
-        self.item_profile_train_dict = dict()
-        self.item_profile_test_dict = dict()
+        self.item_profile_all_dict = dict()
     #######################################
     def derive_stats(self):
         """derive stats"""
         super().derive_stats()
 
-        LOGGER.debug("Train Data       :: Getting Item Profiles")
+        LOGGER.debug("All Data       :: Getting Item Profiles")
+        #fetch items from train dataframe
         for item_id in self.items_train:
-            item_profile = books_rec_interface.get_item_profile(
-                self.train_data, item_id)
+            item_profile = books_rec_interface.get_item_profile(self.train_data, item_id)
             name_tokens_set, author_set, keywords = item_profile
             profile = {'name_tokens': list(name_tokens_set),
                        'author': list(author_set),
                        'keywords': keywords}
-            self.item_profile_train_dict[item_id] = profile
-
-        item_profile_train_file = os.path.join(
-            self.model_dir, 'item_profile_train.json')
-        utilities.dump_json_file(
-            self.item_profile_train_dict, item_profile_train_file)
-
-        LOGGER.debug("Test Data        :: Getting Item Profiles")
-        for item_id in self.items_test:
-            item_profile = books_rec_interface.get_item_profile(
-                self.test_data, item_id)
+            self.item_profile_all_dict[item_id] = profile
+        #fetch remaining items (only in test) from test dataframe
+        missing_items_from_test = set(self.items_all) - set(self.items_train)
+        for item_id in missing_items_from_test:
+            item_profile = books_rec_interface.get_item_profile(self.test_data, item_id)
             name_tokens_set, author_set, keywords = item_profile
             profile = {'name_tokens': list(name_tokens_set),
                        'author': list(author_set),
                        'keywords': keywords}
-            self.item_profile_test_dict[item_id] = profile
+            self.item_profile_all_dict[item_id] = profile
+        
+        # print(len(self.items_all))
+        # print(len(self.item_profile_all_dict))
 
-        item_profile_test_file = os.path.join(
-            self.model_dir, 'item_profile_test.json')
-        utilities.dump_json_file(
-            self.item_profile_test_dict, item_profile_test_file)
+        item_profile_all_file = os.path.join(self.model_dir, 'item_profile_all.json')
+        utilities.dump_json_file(self.item_profile_all_dict, item_profile_all_file)
+
 
     def load_stats(self):
         """load stats"""
         super().load_stats()
+        
+        LOGGER.debug("All Data       :: Loading Item Profiles")
+        item_profile_all_file = os.path.join(self.model_dir, 'item_profile_all.json')
+        self.item_profile_all_dict = utilities.load_json_file(item_profile_all_file)
 
-        LOGGER.debug("Train Data       :: Loading Item Profiles")
-        item_profile_train_file = os.path.join(
-            self.model_dir, 'item_profile_train.json')
-        self.item_profile_train_dict = utilities.load_json_file(
-            item_profile_train_file)
-
-        LOGGER.debug("Test Data        :: Loading Item Profiles")
-        item_profile_test_file = os.path.join(
-            self.model_dir, 'item_profile_test.json')
-        self.item_profile_test_dict = utilities.load_json_file(
-            item_profile_test_file)
     #######################################
     def train(self):
         """train the content based recommender system model"""
         self.derive_stats()
         self.get_test_data_for_evaluation()
     #######################################
-    def __get_item_profile(self, item_id, dataset='train'):
+    def __get_item_profile(self, item_id):
         """private function, return item profile saved for given item_id"""
-        if dataset == "train":
-            if item_id in self.item_profile_train_dict:
-                return self.item_profile_train_dict[item_id]
-            else:
-                return {}
-        else:  # test
-            if item_id in self.item_profile_test_dict:
-                return self.item_profile_test_dict[item_id]
-            else:
-                return {}
+        if item_id in self.item_profile_all_dict:
+            return self.item_profile_all_dict[item_id]
+        else:
+            return {}
 
-    def __get_user_profile(self, user_items, dataset='train'):
+    def __get_user_profile(self, user_items):
         """private function, return user profile by merging item profiles
         for user interacted items"""
         user_profile_name_tokens_set = set()
@@ -111,7 +93,7 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         user_profile_keywords = []
 
         for item_id in user_items:
-            item_profile = self.__get_item_profile(item_id, dataset)
+            item_profile = self.__get_item_profile(item_id)
             '''
             print(item_id)
             print(item_profile)
@@ -151,33 +133,29 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         """compute weighted average defined by columns_weights_dict"""
         data_frame['sim_score'] = 0.0
         for col_name in columns_weights_dict:
-            weighted_col = data_frame[col_name] * \
-                columns_weights_dict[col_name]
+            weighted_col = data_frame[col_name] * columns_weights_dict[col_name]
             data_frame['sim_score'] = data_frame['sim_score'] + weighted_col
             # print(data_frame['sim_score'])
         return data_frame
 
-    def generate_top_recommendations(self, user_id, user_interacted_items, user_dataset='test'):
+    def generate_top_recommendations(self, user_id, user_interacted_items):
         """Get all items from train data and recommend them
         which are most similar to user_profile"""
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
 
-        user_profile = self.__get_user_profile(user_interacted_items,
-                                               user_dataset)
-        #print("User Profile")
+        user_profile = self.__get_user_profile(user_interacted_items)
+        # print("User Profile")
         # print(user_profile)
         # print()
-        items_train = self.get_all_items(dataset='train')
+        items_all = self.get_all_items(dataset='all')
         item_scores = []
-        for item_id in items_train:
-            item_profile = self.__get_item_profile(item_id, dataset='train')
+        for item_id in items_all:
+            item_profile = self.__get_item_profile(item_id)
             #print("\n\t" + item_id)
             # print(item_profile)
-            similarity_scores = self.__get_similarity_score(
-                user_profile, item_profile)
-            (name_tokens_similarity, authors_similarity,
-             keywords_similarity) = similarity_scores
+            similarity_scores = self.__get_similarity_score(user_profile, item_profile)
+            (name_tokens_similarity, authors_similarity, keywords_similarity) = similarity_scores
             item_scores.append({self.item_id_col: item_id,
                                 'name_tokens_similarity': name_tokens_similarity,
                                 'authors_similarity': authors_similarity,
@@ -202,8 +180,7 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
                                 'keywords_similarity_scaled': 0.5
                                }
         # print("weighted_avg...")
-        item_scores_df = self.__weighted_avg(
-            item_scores_df, columns_weights_dict)
+        item_scores_df = self.__weighted_avg(item_scores_df, columns_weights_dict)
 
         # print("sorting...")
         # Sort the items based upon similarity scores
@@ -258,11 +235,18 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
             assume_interacted_items = self.items_for_evaluation[
                 user_id]['assume_interacted_items']
             user_recommendations = self.generate_top_recommendations(user_id,
-                                                                       assume_interacted_items)
+                                                                     assume_interacted_items)
 
             recommended_items = list(user_recommendations[self.item_id_col].values)
-            self.items_for_evaluation[user_id][
-                'items_recommended'] = recommended_items
+            self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
+            
+            recommended_items_dict = dict()
+            for i, recs in user_recommendations.iterrows():
+                item_id = recs[self.item_id_col]
+                score = round(recs['score'], 3)
+                rank = recs['rank']
+                recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
+            self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
@@ -277,7 +261,7 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
 
         precision_recall_intf = PrecisionRecall()
         evaluation_results = precision_recall_intf.compute_precision_recall(
-            no_of_recs_to_eval, self.items_for_evaluation, self.items_train)
+            no_of_recs_to_eval, self.items_for_evaluation, self.items_all)
         end_time = default_timer()
         print("{:50}    {}".format("Evaluation Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
@@ -324,12 +308,19 @@ def main():
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
 
-    no_of_recs = 10
-    hold_out_ratio = 0.5
-    kwargs = {'no_of_recs': no_of_recs,
-              'hold_out_ratio': hold_out_ratio
-             }
-    no_of_recs_to_eval = [1, 2, 5, 10]
+    kwargs = dict()
+    kwargs['no_of_recs'] = 150 # max no_of_books read is 144
+
+    # kwargs['hold_out_strategy'] = 'hold_out_ratio'
+    # kwargs['hold_out_ratio'] = 0.5
+
+    # kwargs['hold_out_strategy'] = 'assume_first_n'
+    # kwargs['first_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+
+    kwargs['hold_out_strategy'] = 'hold_last_n'
+    kwargs['last_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+
+    no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
     recommender_obj = ContentBasedRecommender
 
     if args.cross_eval and args.kfolds:

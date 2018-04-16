@@ -133,11 +133,20 @@ def main():
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
 
-    no_of_recs = 10
-    hold_out_ratio = 0.5
-    kwargs = {'no_of_recs':no_of_recs,
-              'hold_out_ratio':hold_out_ratio
-             }
+    kwargs = dict()
+    kwargs['no_of_recs'] = 150 # max no_of_books read is 144
+
+    # kwargs['hold_out_strategy'] = 'hold_out_ratio'
+    # kwargs['hold_out_ratio'] = 0.5
+
+    # kwargs['hold_out_strategy'] = 'assume_first_n'
+    # kwargs['first_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+
+    kwargs['hold_out_strategy'] = 'hold_last_n'
+    kwargs['last_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+
+    no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
+    
     if args.age_or_itp == 'itp':
         kwargs['age_or_itp'] = 'itp'
         model_dir = os.path.join(current_dir, 'model/user_based_itp')
@@ -150,7 +159,6 @@ def main():
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
-    no_of_recs_to_eval = [1, 2, 5, 10]
     recommender_obj = UserBasedAgeItpRecommender
 
     if args.cross_eval and args.kfolds:

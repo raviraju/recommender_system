@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 from timeit import default_timer
+from pprint import pprint
 
 import joblib
 import numpy as np
@@ -59,6 +60,12 @@ class UserBasedCFRecommender(Recommender):
         uim_df = pd.get_dummies(train_test_data[self.item_id_col])\
                    .groupby(train_test_data[self.user_id_col])\
                    .apply(max)
+        print(uim_df.shape)
+        missing_items_from_test = set(self.items_all) - set(self.items_train)
+        for item in missing_items_from_test:
+            uim_df[item] = 0
+        print(uim_df.shape)
+
         end_time = default_timer()
         print("{:50}    {}".format("Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
@@ -93,6 +100,7 @@ class UserBasedCFRecommender(Recommender):
         no_of_users = len(users)
         print("No of Items : ", no_of_items)
         print("No of Users : ", no_of_users)
+
         #Compute User-User Similarity Matrix with intersection of items interacted
         print()
         print("Computing User-User Similarity Matrix with intersection of items interacted...")
@@ -135,10 +143,11 @@ class UserBasedCFRecommender(Recommender):
         print()
         print("Computing User-User Similarity Matrix with Jaccard Similarity of items interacted...")
         start_time = default_timer()
-        jaccard = intersection/union
-        jaccard_df = pd.DataFrame(jaccard,
-                                  columns=users,
-                                  index=users)
+        # jaccard = intersection/union
+        # jaccard_df = pd.DataFrame(jaccard,
+        #                           columns=items,
+        #                           index=items)
+        jaccard_df = intersection_df.div(union_df)
         jaccard_df_fname = os.path.join(self.model_dir,
                                         'jaccard.csv')
         jaccard_df.to_csv(jaccard_df_fname, index=False)
@@ -251,9 +260,16 @@ class UserBasedCFRecommender(Recommender):
             assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
             user_recommendations = self.__generate_top_recommendations(user_id,
                                                                        assume_interacted_items)
-
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
+
+            recommended_items_dict = dict()
+            for i, recs in user_recommendations.iterrows():
+                item_id = recs[self.item_id_col]
+                score = round(recs['score'], 3)
+                rank = recs['rank']
+                recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
+            self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
@@ -273,7 +289,7 @@ class UserBasedCFRecommender(Recommender):
 
             precision_recall_intf = PrecisionRecall()
             evaluation_results = precision_recall_intf.compute_precision_recall(
-                no_of_recs_to_eval, self.items_for_evaluation, self.items_train)
+                no_of_recs_to_eval, self.items_for_evaluation, self.items_all)
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed. ",
                                        utilities.convert_sec(end_time - start_time)))

@@ -4,7 +4,9 @@ import sys
 import logging
 
 from collections import defaultdict
-from math import log10
+from collections import Counter
+import math
+
 
 import re
 import nltk
@@ -97,7 +99,7 @@ class BooksRecommender(generic_rec_interface.Recommender):
 
 def preprocess_token(token):
     """preprocess token while filtering stop words"""
-    preprocessed_token = re.sub('[^a-zA-Z]', '', token)
+    preprocessed_token = re.sub('[^a-zA-Z0-9]', '', token)
     preprocessed_token = preprocessed_token.lower()
     if preprocessed_token not in ENGLISH_STOPWORDS:
         return preprocessed_token
@@ -179,11 +181,11 @@ def get_jaccard_similarity(set_a, set_b):
 def get_log_freq_weight(term_frequency):
     """log term_frequency weight"""
     if term_frequency > 0:
-        return 1+log10(term_frequency)
+        return 1 + math.log10(term_frequency)
     else:
         return 0
 
-def get_term_freq_similarity(word_list_a, word_list_b):
+def get_term_freq_similarity1(word_list_a, word_list_b):
     """term frequency similarity"""
     tf_a = defaultdict(int)
     tf_b = defaultdict(int)
@@ -212,6 +214,25 @@ def get_term_freq_similarity(word_list_a, word_list_b):
         '''
         score = score + log_freq_weight_avg
     return score
+
+def counter_cosine_similarity(c1, c2):
+    terms = set(c1).union(c2)
+    dotprod = sum(c1.get(k, 0) * c2.get(k, 0) for k in terms)
+    magA = math.sqrt(sum(c1.get(k, 0)**2 for k in terms))
+    magB = math.sqrt(sum(c2.get(k, 0)**2 for k in terms))
+    return round(dotprod / (magA * magB), 2)
+
+def length_similarity(lenc1, lenc2):
+    return min(lenc1, lenc2) / float(max(lenc1, lenc2))
+
+def get_term_freq_similarity(l1, l2):
+    """term frequency similarity"""
+    len1 = len(l1)
+    len2 = len(l2)
+    if len1 == 0 or len2 == 0:
+        return 0.0
+    c1, c2 = Counter(l1), Counter(l2)
+    return length_similarity(len1, len2) * counter_cosine_similarity(c1, c2)
 
 def get_similarity_score(train_data, test_data, recommended_item, interacted_item):
     """content based similarity score bw recommended and interacted item"""

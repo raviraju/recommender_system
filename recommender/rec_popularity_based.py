@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 from timeit import default_timer
+from pprint import pprint
 
 import joblib
 import pandas as pd
@@ -137,9 +138,16 @@ class PopularityBasedRecommender(Recommender):
             assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
             user_recommendations = self.__generate_top_recommendations(user_id,
                                                                        assume_interacted_items)
-
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
+
+            recommended_items_dict = dict()
+            for i, recs in user_recommendations.iterrows():
+                item_id = recs[self.item_id_col]
+                score = round(recs['score'], 3)
+                rank = recs['rank']
+                recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
+            self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
@@ -157,7 +165,7 @@ class PopularityBasedRecommender(Recommender):
 
             precision_recall_intf = PrecisionRecall()
             evaluation_results = precision_recall_intf.compute_precision_recall(
-                no_of_recs_to_eval, self.items_for_evaluation, self.items_train)
+                no_of_recs_to_eval, self.items_for_evaluation, self.items_all)
             end_time = default_timer()
             print("{:50}    {}".format("Evaluation Completed. ",
                                        utilities.convert_sec(end_time - start_time)))

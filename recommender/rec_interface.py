@@ -34,10 +34,35 @@ class Recommender(metaclass=ABCMeta):
             'users_train' : self.users_train,
             'items_train' : self.items_train
         }
-        #pprint(users_items_train_dict)
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         utilities.dump_json_file(users_items_train_dict, users_items_train_file)
 
+        LOGGER.debug("Test Data  :: Deriving Stats...")
+        self.users_test = [str(user_id) for user_id in self.test_data[self.user_id_col].unique()]
+        LOGGER.debug("Test Data  :: No. of users : " + str(len(self.users_test)))
+        self.items_test = [str(item_id) for item_id in self.test_data[self.item_id_col].unique()]
+        LOGGER.debug("Test Data  :: No. of items : " + str(len(self.items_test)))
+
+        users_items_test_dict = {
+            'users_test' : self.users_test,
+            'items_test' : self.items_test
+        }
+        users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
+        utilities.dump_json_file(users_items_test_dict, users_items_test_file)
+
+        LOGGER.debug("All Data :: Deriving Stats...")
+        self.users_all = list(set(self.users_train) | set(self.users_test))
+        LOGGER.debug("All Data :: No. of users : " + str(len(self.users_all)))
+
+        self.items_all = list(set(self.items_train) | set(self.items_test))
+        LOGGER.debug("All Data :: No. of items : " + str(len(self.items_all)))
+        users_items_all_dict = {
+            'users_all' : self.users_all,
+            'items_all' : self.items_all
+        }
+        users_items_all_file = os.path.join(self.model_dir, 'users_items_all.json')
+        utilities.dump_json_file(users_items_all_dict, users_items_all_file)
+        #############################################################################################
         LOGGER.debug("Train Data :: Getting Distinct Users for each Item")
         item_users_train_df = self.train_data.groupby([self.item_id_col])\
                                              .agg({
@@ -66,19 +91,6 @@ class Recommender(metaclass=ABCMeta):
         user_items_train_file = os.path.join(self.model_dir, 'user_items_train.json')
         utilities.dump_json_file(self.user_items_train_dict, user_items_train_file)
         ########################################################################
-        LOGGER.debug("Test Data  :: Deriving Stats...")
-        self.users_test = [str(user_id) for user_id in self.test_data[self.user_id_col].unique()]
-        LOGGER.debug("Test Data  :: No. of users : " + str(len(self.users_test)))
-        self.items_test = [str(item_id) for item_id in self.test_data[self.item_id_col].unique()]
-        LOGGER.debug("Test Data  :: No. of items : " + str(len(self.items_test)))
-
-        users_items_test_dict = {
-            'users_test' : self.users_test,
-            'items_test' : self.items_test
-        }
-        users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
-        utilities.dump_json_file(users_items_test_dict, users_items_test_file)
-
         LOGGER.debug("Test Data  :: Getting Distinct Users for each Item")
         item_users_test_df = self.test_data.groupby([self.item_id_col])\
                                              .agg({
@@ -110,6 +122,14 @@ class Recommender(metaclass=ABCMeta):
 
     def load_stats(self):
         """load stats"""
+        LOGGER.debug("All Data :: Loading Stats...")
+        users_items_all_file = os.path.join(self.model_dir, 'users_items_all.json')
+        users_items_all_dict = utilities.load_json_file(users_items_all_file)
+        self.users_all = users_items_all_dict['users_all']
+        LOGGER.debug("All Data :: No. of users : " + str(len(self.users_all)))
+        self.items_all = users_items_all_dict['items_all']
+        LOGGER.debug("All Data :: No. of items : " + str(len(self.items_all)))
+
         LOGGER.debug("Train Data :: Loading Stats...")
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         users_items_train_dict = utilities.load_json_file(users_items_train_file)
@@ -154,7 +174,23 @@ class Recommender(metaclass=ABCMeta):
         self.user_id_col = user_id_col
         self.item_id_col = item_id_col
         self.no_of_recs = kwargs['no_of_recs']
-        self.hold_out_ratio = kwargs['hold_out_ratio']
+
+        self.hold_out_strategy = "hold_out_ratio"
+        if 'hold_out_strategy' in kwargs:
+            self.hold_out_strategy = kwargs['hold_out_strategy']
+
+        self.hold_out_ratio = None
+        self.first_n = None
+        self.last_n = None
+        if 'hold_out_ratio' in kwargs:
+            self.hold_out_ratio = kwargs['hold_out_ratio']
+        if 'first_n' in kwargs:
+            self.first_n = kwargs['first_n']
+        if 'last_n' in kwargs:
+            self.last_n = kwargs['last_n']
+
+        self.users_all = None
+        self.items_all = None
 
         self.users_train = None
         self.items_train = None
@@ -173,15 +209,19 @@ class Recommender(metaclass=ABCMeta):
         """Get unique users in the dataset"""
         if dataset == "train":
             return self.users_train
-        else:#test
+        elif dataset == "test":
             return self.users_test
+        else:
+            return self.users_all
 
     def get_all_items(self, dataset='train'):
         """Get unique items in the dataset"""
         if dataset == "train":
             return self.items_train
-        else:#test
+        elif dataset == "test":
             return self.items_test
+        else:
+            return self.items_all
 
     def get_items(self, user_id, dataset='train'):
         """Get unique items for a given user_id in the dataset"""
@@ -210,7 +250,7 @@ class Recommender(metaclass=ABCMeta):
 
     def split_items(self, items_interacted, hold_out_ratio):
         """return assume_interacted_items, hold_out_items"""
-        #print("items_interacted : ", items_interacted)
+        # print("items_interacted : ", items_interacted)
 
         assume_interacted_items = []
         hold_out_items = []
@@ -218,21 +258,44 @@ class Recommender(metaclass=ABCMeta):
         no_of_items_interacted = len(items_interacted)
         no_of_items_to_be_held = int(no_of_items_interacted*hold_out_ratio)
         no_of_items_assumed_interacted = no_of_items_interacted - no_of_items_to_be_held
-        #print("no_of_items_interacted : ", no_of_items_interacted)
-        #print("no_of_items_to_be_held : ", no_of_items_to_be_held)
-        #print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
+        # print("no_of_items_interacted : ", no_of_items_interacted)
+        # print("no_of_items_to_be_held : ", no_of_items_to_be_held)
+        # print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
 
         if no_of_items_assumed_interacted != 0:
             assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
         if no_of_items_to_be_held != 0:
             hold_out_items = items_interacted[-no_of_items_to_be_held:]
 
-        #print("assume_interacted_items : ", assume_interacted_items)
-        #print("hold_out_items : ", hold_out_items)
-        #input()
+        # print("assume_interacted_items : ", assume_interacted_items)
+        # print("hold_out_items : ", hold_out_items)
+        # input()
         return assume_interacted_items, hold_out_items
     
-    def split_items1(self, items_interacted, hold_out_ratio):
+    def split_items_assume_first_n(self, items_interacted, first_n=10):
+        """return assume_interacted_items, hold_out_items"""
+        # print("items_interacted : ", items_interacted)
+
+        assume_interacted_items = []
+        hold_out_items = []
+
+        no_of_items_interacted = len(items_interacted)
+        no_of_items_assumed_interacted = first_n
+        no_of_items_to_be_held = no_of_items_interacted - no_of_items_assumed_interacted
+
+        # print("no_of_items_interacted : ", no_of_items_interacted)
+        # print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
+        # print("no_of_items_to_be_held : ", no_of_items_to_be_held)
+
+        assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
+        hold_out_items = items_interacted[no_of_items_assumed_interacted:]
+
+        # print("assume_interacted_items : ", assume_interacted_items)
+        # print("hold_out_items : ", hold_out_items)
+        # input()
+        return assume_interacted_items, hold_out_items
+
+    def split_items_hold_last_n(self, items_interacted, last_n=10):
         """return assume_interacted_items, hold_out_items"""
         #print("items_interacted : ", items_interacted)
 
@@ -240,14 +303,15 @@ class Recommender(metaclass=ABCMeta):
         hold_out_items = []
 
         no_of_items_interacted = len(items_interacted)
-        no_of_items_to_be_held = 10 #int(no_of_items_interacted*hold_out_ratio)
-        no_of_items_assumed_interacted = 10 #no_of_items_interacted - no_of_items_to_be_held
+        no_of_items_to_be_held = last_n
+        no_of_items_assumed_interacted = no_of_items_interacted - no_of_items_to_be_held
+
         #print("no_of_items_interacted : ", no_of_items_interacted)
         #print("no_of_items_to_be_held : ", no_of_items_to_be_held)
         #print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
 
-        assume_interacted_items = items_interacted[0:no_of_items_assumed_interacted]
-        hold_out_items = items_interacted[no_of_items_assumed_interacted:(no_of_items_to_be_held+no_of_items_assumed_interacted)]
+        assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
+        hold_out_items = items_interacted[no_of_items_assumed_interacted:]
 
         #print("assume_interacted_items : ", assume_interacted_items)
         #print("hold_out_items : ", hold_out_items)
@@ -275,11 +339,30 @@ class Recommender(metaclass=ABCMeta):
         for user_id in users:
             #print(user_id)
             # Get all items with which user has interacted
-            items_interacted = self.get_items(user_id, dataset='test')
+            all_items_interacted = self.get_items(user_id, dataset='test')
+
+            #print(set(all_items_interacted))
             # Filter items which are found in train data
-            items_interacted = self.get_known_items(items_interacted)
-            assume_interacted_items, hold_out_items = self.split_items(items_interacted,
-                                                                       self.hold_out_ratio)
+            #items_interacted_in_train = self.get_known_items(all_items_interacted)
+            #print(set(items_interacted_in_train))
+            #if set(all_items_interacted) != set(items_interacted_in_train):
+            #    continue
+            #items_interacted = items_interacted_in_train
+            items_interacted = all_items_interacted
+
+            if self.hold_out_strategy == "hold_out_ratio":
+                assume_interacted_items, hold_out_items = self.split_items(items_interacted,
+                                                                           self.hold_out_ratio)
+            elif self.hold_out_strategy == "assume_first_n":
+                assume_interacted_items, hold_out_items = self.split_items_assume_first_n(items_interacted,
+                                                                                          self.first_n)
+            elif self.hold_out_strategy == "hold_last_n":
+                assume_interacted_items, hold_out_items = self.split_items_hold_last_n(items_interacted,
+                                                                                       self.last_n)
+            else:
+                print("Invalid hold_out strategy!!!")
+                exit(-1)
+
             if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
                 # print("WARNING !!!. User {} exempted from evaluation".format(user_id))
                 # print("Items Interacted Assumed : ")
@@ -376,10 +459,24 @@ class HybridRecommender():
         self.item_id_col = item_id_col
 
         self.no_of_recs = kwargs['no_of_recs']
-        self.hold_out_ratio = kwargs['hold_out_ratio']
+
+        self.hold_out_strategy = "hold_out_ratio"
+        if 'hold_out_strategy' in kwargs:
+            self.hold_out_strategy = kwargs['hold_out_strategy']
+
+        self.hold_out_ratio = None
+        self.first_n = None
+        self.last_n = None
+        if 'hold_out_ratio' in kwargs:
+            self.hold_out_ratio = kwargs['hold_out_ratio']
+        if 'first_n' in kwargs:
+            self.first_n = kwargs['first_n']
+        if 'last_n' in kwargs:
+            self.last_n = kwargs['last_n']
+
 
         self.recommender_kwargs = dict(kwargs)
-        self.recommender_kwargs['no_of_recs'] = 100
+        #self.recommender_kwargs['no_of_recs'] = 100
 
         self.items_for_evaluation = None
 
@@ -413,12 +510,12 @@ class HybridRecommender():
         eval_items_file = os.path.join(self.model_dir, 'items_for_evaluation.json')
         copyfile(model_eval_items_file, eval_items_file)
 
-        model_users_items_train_file = os.path.join(self.model_dir,
+        model_users_items_all_file = os.path.join(self.model_dir,
                                                     list(self.recommenders.keys())[0].__name__,
-                                                    'users_items_train.json')
-        users_items_train_file = os.path.join(self.model_dir,
-                                              'users_items_train.json')
-        copyfile(model_users_items_train_file, users_items_train_file)
+                                                    'users_items_all.json')
+        users_items_all_file = os.path.join(self.model_dir,
+                                              'users_items_all.json')
+        copyfile(model_users_items_all_file, users_items_all_file)
 
     def recommend_items(self, user_id, user_interacted_items):
         """combine items recommended for user from given set of recommenders"""
@@ -509,14 +606,21 @@ class HybridRecommender():
         self.items_for_evaluation = self.__recommend_items_to_evaluate()
         self.__save_items_for_evaluation()
 
-        users_items_train_file = os.path.join(self.model_dir,
-                                              'users_items_train.json')
+        precision_recall_intf = PrecisionRecall()
+        '''
+        users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
         users_items_train_dict = utilities.load_json_file(users_items_train_file)
         items_train = users_items_train_dict['items_train']
-
-        precision_recall_intf = PrecisionRecall()
-        evaluation_results = precision_recall_intf.compute_precision_recall(
-            no_of_recs_to_eval, self.items_for_evaluation, items_train)
+        evaluation_results = precision_recall_intf.compute_precision_recall(no_of_recs_to_eval,
+                                                                            self.items_for_evaluation,
+                                                                            items_train)
+        '''
+        users_items_all_file = os.path.join(self.model_dir, 'users_items_all.json')
+        users_items_all_dict = utilities.load_json_file(users_items_all_file)
+        items_all = users_items_all_dict['items_all']
+        evaluation_results = precision_recall_intf.compute_precision_recall(no_of_recs_to_eval,
+                                                                            self.items_for_evaluation,
+                                                                            items_all)
         end_time = default_timer()
         print("{:50}    {}".format("Evaluation Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
@@ -553,6 +657,10 @@ def load_train_test(train_data_file, test_data_file, user_id_col, item_id_col):
     print("{:30} : {}".format("Test Data  : No of items  ",
                               len(test_data[item_id_col].unique())))
     print('#' * 40)
+    train_items = set(train_data[item_id_col].unique())
+    test_items = set(test_data[item_id_col].unique())
+    print("train_items-test_items : ", len(train_items - test_items))
+    print("test_items-train_items : ", len(test_items - train_items))
     return train_data, test_data
 
 def train(recommender_obj,
@@ -565,6 +673,7 @@ def train(recommender_obj,
                                             test_data_file,
                                             user_id_col,
                                             item_id_col)
+
     recommender = recommender_obj(results_dir, model_dir,
                                   train_data, test_data,
                                   user_id_col, item_id_col,
@@ -723,7 +832,10 @@ def get_avg_kfold_exp_res(kfold_experiments):
     #pprint(kfold_experiments)
     avg_kfold_exp_res = dict()
     avg_kfold_exp_res['no_of_items_to_recommend'] = dict()
+    avg_kfold_exp_res['total_no_of_test_users_considered_for_evaluation'] = 0
     for _, kfold_exp_res in kfold_experiments.items():
+        no_of_test_users_considered_for_evaluation = kfold_exp_res['no_of_test_users_considered_for_evaluation']
+        avg_kfold_exp_res['total_no_of_test_users_considered_for_evaluation'] += no_of_test_users_considered_for_evaluation
         for no_of_items, score in kfold_exp_res['no_of_items_to_recommend'].items():
             exp_avg_f1_score = score['avg_f1_score']
             exp_avg_mcc_score = score['avg_mcc_score']

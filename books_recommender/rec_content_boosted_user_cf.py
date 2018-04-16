@@ -30,7 +30,7 @@ class ContentBoostedRecommender(ContentBasedRecommender,
         super().__init__(results_dir, model_dir,
                          train_data, test_data,
                          user_id_col, item_id_col, **kwargs)
-        self.threshold_similarity = 0.8
+        self.threshold_similarity = 0.5
         self.model_file = os.path.join(self.model_dir,
                                        'content_boosted_user_cf_model.pkl')
     #######################################
@@ -38,35 +38,41 @@ class ContentBoostedRecommender(ContentBasedRecommender,
         """compute psedo uim by using similar items from content based recommendations"""
         print("Computing User Item Matrix...")
         uim_df = super().compute_uim()
+        non_zero_count_before = np.count_nonzero(uim_df.as_matrix())
         # self.save_uim(uim_df)
 
-        print("Computing Pseudo User Item Matrix...")
-        pseudo_uim_df = pd.DataFrame(uim_df)
+        print("Computing Pseudo User Item Matrix...")        
+        pseudo_uim_df = uim_df.copy()
         for user_id, items in uim_df.iterrows():
             #print(user_id)
             #print(items)
             interacted_items = list(items.iloc[items.nonzero()[0]].index)
-            #print(interacted_items)
             user_content_based_recs = super().generate_top_recommendations(user_id,
-                                                                           interacted_items,
-                                                                           user_dataset='train')
+                                                                           interacted_items)
             user_content_based_recs = user_content_based_recs[
                 user_content_based_recs['score'] > self.threshold_similarity]
             if not user_content_based_recs.empty:
                 #print(user_content_based_recs)
                 similar_items = list(user_content_based_recs[self.item_id_col])
                 #print(similar_items)
-                for similar_item_id in similar_items:
-                    pseudo_uim_df.loc[user_id][similar_item_id] = 1
-            #pseudo_interacted_items = pseudo_uim_df.loc[user_id]
-            #pseudo_interacted_items = list(pseudo_interacted_items.iloc[pseudo_interacted_items.nonzero()[0]].index)
-            #print(interacted_items)
-            #print(pseudo_interacted_items)
+                for similar_item_id in similar_items:                    
+                    pseudo_uim_df.loc[user_id, similar_item_id] = 1
+            # pseudo_interacted_items = pseudo_uim_df.loc[user_id]
+            # pseudo_interacted_items = list(pseudo_interacted_items.iloc[pseudo_interacted_items.nonzero()[0]].index)
+            # new_items = set(pseudo_interacted_items) - set(interacted_items)
+            # if(len(new_items) > 0):
+            #     print(new_items)
+            #     input()
         pseudo_uim = pseudo_uim_df.as_matrix()
-        non_zero_count = np.count_nonzero(pseudo_uim)
+        non_zero_count_after = np.count_nonzero(pseudo_uim)
+        gain = non_zero_count_after - non_zero_count_before
+        print("non_zero_count_before : {} non_zero_count_after : {} gain : {}".format(non_zero_count_before,
+                                                                                      non_zero_count_after,
+                                                                                      gain))
         count = pseudo_uim.size
-        density = non_zero_count / count
+        density = non_zero_count_after / count
         print("Density of Pseudo User Item Matrix : ", density)
+        #input()
         return pseudo_uim_df
 
     def train(self):
@@ -117,12 +123,19 @@ def main():
     user_id_col = 'learner_id'
     item_id_col = 'book_code'
 
-    no_of_recs = 10
-    hold_out_ratio = 0.5
-    kwargs = {'no_of_recs': no_of_recs,
-              'hold_out_ratio': hold_out_ratio
-             }
-    no_of_recs_to_eval = [1, 2, 5, 10]
+    kwargs = dict()
+    kwargs['no_of_recs'] = 150 # max no_of_books read is 144
+
+    # kwargs['hold_out_strategy'] = 'hold_out_ratio'
+    # kwargs['hold_out_ratio'] = 0.5
+
+    # kwargs['hold_out_strategy'] = 'assume_first_n'
+    # kwargs['first_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+
+    kwargs['hold_out_strategy'] = 'hold_last_n'
+    kwargs['last_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+
+    no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
     recommender_obj = ContentBoostedRecommender
 
     if args.cross_eval and args.kfolds:
