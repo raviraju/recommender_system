@@ -32,6 +32,7 @@ def plot_roc(recommender, results, plot_results_dir='results'):
             if model not in avg_fpr_models_dict:
                 avg_fpr_models_dict[model] = []
     #print(no_of_items_to_recommend)
+    #no_of_items_to_recommend = [5, 10]
     for no_of_items in no_of_items_to_recommend:
         for model in avg_tpr_models_dict.keys():
             avg_tpr_val = float(results[str(no_of_items)][model]['avg_tpr'])

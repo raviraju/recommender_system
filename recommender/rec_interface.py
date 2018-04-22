@@ -480,6 +480,8 @@ class HybridRecommender():
 
         self.items_for_evaluation = None
 
+        self.aggregation_all_df = pd.DataFrame()
+
         self.recommenders = recommenders
         self.recommender_objs = []
         for recommender in self.recommenders:
@@ -524,7 +526,8 @@ class HybridRecommender():
         recommendations = dict()
         # get recommendations from each recommender
         for recommender_obj in self.recommender_objs:
-            print("Recommending using : ", type(recommender_obj).__name__)
+            recommender_type = type(recommender_obj).__name__
+            print("Recommending using : ", recommender_type)
             user_recommendations = recommender_obj.recommend_items(user_id)
             for _, row in user_recommendations.iterrows():
                 item_id = row[self.item_id_col]
@@ -533,30 +536,45 @@ class HybridRecommender():
                     recommendations[item_id] = dict()
                     for rec_obj in self.recommender_objs:
                         recommendations[item_id][type(rec_obj).__name__] = 0.0
-                recommendations[item_id][type(recommender_obj).__name__] = score
+                recommendations[item_id][recommender_type] = score
 
         # get weighted avg of recommendation scores for each item
         aggregation_items = []
         for item_id in recommendations:
             record = dict()
+            record['user_id'] = user_id
             record['item_id'] = item_id
+            scores = []
             for rec_obj in self.recommender_objs:
-                record[type(rec_obj).__name__] = recommendations[item_id][type(rec_obj).__name__]
+                recommender_type = type(rec_obj).__name__
+                score = recommendations[item_id][recommender_type]
+                record[recommender_type] = score
+                scores.append(score)
+            if sum(scores) == 0:#skip recommendations where score for each recommender is 0
+                #print("skipping record")
+                #pprint(record)
+                #input()
+                continue
             aggregation_items.append(record)
         aggregation_df = pd.DataFrame(aggregation_items)
         #print(aggregation_df.head())
+
         column_weights_dict = dict()
         for rec, weight in self.recommenders.items():
             column_weights_dict[rec.__name__] = weight
-        aggregate_file = os.path.join(self.model_dir, 'scores_aggregation.csv')
-        res_aggregator = Aggregator(aggregation_df, aggregate_file)
+
+        res_aggregator = Aggregator(aggregation_df)
         aggregation_results = res_aggregator.weighted_avg(column_weights_dict)
         #print(aggregation_results.head())
+        self.aggregation_all_df = self.aggregation_all_df.append(aggregation_results)
+
         if aggregation_results is not None:
             rank = 1
             for _, res in aggregation_results.iterrows():
                 item_id = res['item_id']
-                if item_id in user_interacted_items:#to avoid items which user has already aware
+                user_id = res['user_id']
+                score = res['weighted_avg']
+                if item_id in user_interacted_items:#to avoid items which user has already aware, ideally these items already would be avoided by individual recommenders
                     continue
                 if rank > self.no_of_recs:#limit no of recommendations
                     break
@@ -587,6 +605,31 @@ class HybridRecommender():
         items_for_evaluation_file = os.path.join(self.model_dir, 'items_for_evaluation.json')
         self.items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
 
+    def __get_item_viewed_status(self):
+        """item viewed or not status for user"""
+        users = self.aggregation_all_df['user_id'].unique()
+        #print(len(users))
+        self.aggregation_all_df['watched'] = 0
+        #print(self.aggregation_all_df.head())
+        for user_id in users:
+            #print(user_id)
+            items = self.aggregation_all_df[self.aggregation_all_df['user_id'] == user_id]['item_id'].unique()
+            #print(len(items))
+            all_items_interacted = self.recommender_objs[0].get_items(user_id, dataset='test')
+            #print(len(all_items_interacted))
+
+            filter_condition = (self.aggregation_all_df['user_id'] == user_id) & \
+                               (self.aggregation_all_df['item_id'].isin(all_items_interacted))
+            self.aggregation_all_df.loc[filter_condition, 'watched'] = 1
+            #print(self.aggregation_all_df[(self.aggregation_all_df['user_id'] == user_id) & \
+            #                              (self.aggregation_all_df['watched'] == 1)])
+            #input()
+        #print(self.aggregation_all_df.head())
+        aggregate_file = os.path.join(self.model_dir, 'scores_aggregation.csv')
+        #print(aggregate_file)
+        #input()
+        self.aggregation_all_df.to_csv(aggregate_file, index=False)
+
     def __recommend_items_to_evaluate(self):
         """recommend items for all users from test dataset"""
         self.__load_items_for_evaluation()
@@ -597,6 +640,22 @@ class HybridRecommender():
 
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
+
+            items_interacted_set = set(self.items_for_evaluation[user_id]['items_interacted'])
+            items_recommended_set = set(recommended_items)
+            correct_recommendations = items_interacted_set & items_recommended_set
+            no_of_correct_recommendations = len(correct_recommendations)
+            self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
+            self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)
+
+            recommended_items_dict = dict()
+            for i, recs in user_recommendations.iterrows():
+                item_id = recs[self.item_id_col]
+                score = recs['score']
+                rank = recs['rank']
+                recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
+            self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
+        self.__get_item_viewed_status()
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
@@ -986,6 +1045,7 @@ def hybrid_kfold_evaluation(recommenders,
                             no_of_recs_to_eval, **kwargs):
     """train and evaluation for kfolds of data"""
     kfold_experiments = dict()
+    scores_aggregation_df_list = []
     for kfold in range(kfolds):
         kfold_exp = kfold+1
         train_data_file = os.path.join(train_data_dir, str(kfold_exp) + '_train_data.csv')
@@ -1013,6 +1073,15 @@ def hybrid_kfold_evaluation(recommenders,
                                              no_of_recs_to_eval,
                                              eval_res_file=kfold_eval_file, **kwargs)
         kfold_experiments[kfold_exp] = evaluation_results
+
+        scores_aggregation_df = pd.read_csv(os.path.join(kfold_model_dir,
+                                                         'scores_aggregation.csv'))
+        scores_aggregation_df_list.append(scores_aggregation_df)
+
+    all_scores_aggregation_df = pd.concat(scores_aggregation_df_list, axis=0)
+    print(len(all_scores_aggregation_df['user_id'].unique()))
+    all_scores_aggregation_file = os.path.join(model_dir, 'kfold_experiments', 'all_scores_aggregation.csv')
+    all_scores_aggregation_df.to_csv(all_scores_aggregation_file)
 
     avg_kfold_exp_res = get_avg_kfold_exp_res(kfold_experiments)
     print('average of kfold evaluation results')

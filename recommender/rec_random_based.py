@@ -95,6 +95,13 @@ class RandomBasedRecommender(Recommender):
                 rank = recs['rank']
                 recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
             self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
+
+            items_interacted_set = set(self.items_for_evaluation[user_id]['items_interacted'])
+            items_recommended_set = set(recommended_items)
+            correct_recommendations = items_interacted_set & items_recommended_set
+            no_of_correct_recommendations = len(correct_recommendations)
+            self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
+            self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):

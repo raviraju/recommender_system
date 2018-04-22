@@ -2,7 +2,7 @@
 
 class Aggregator:
     """Aggregate scores from different algorithms"""
-    def __init__(self, data_frame, results_file_name):
+    def __init__(self, data_frame, results_file_name=None):
         self.data_frame = data_frame
         self.results_file_name = results_file_name
         self.df_column_names = set(self.data_frame.columns.values)
@@ -52,9 +52,10 @@ class Aggregator:
                                             ascending=False, inplace=True)
             #aggregation_results['rank'] = range(1, len(aggregation_results)+1)
 
-            aggregation_results.to_csv(self.results_file_name)
-            print("{:50}    {}".format("Aggregation results are found in : ",
-                                       self.results_file_name))
+            if self.results_file_name:
+                aggregation_results.to_csv(self.results_file_name)
+                print("{:50}    {}".format("Aggregation results are found in : ",
+                                           self.results_file_name))
             #print(aggregation_results.head())
             return aggregation_results
         else:

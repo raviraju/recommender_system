@@ -148,6 +148,8 @@ class ItemBasedCFRecommender(Recommender):
         #                           columns=items,
         #                           index=items)
         jaccard_df = intersection_df.div(union_df)
+        jaccard_df.values[[np.arange(jaccard_df.shape[0])]*2] = 0.0
+        jaccard_df.fillna(value=0, inplace=True) #handle Nan values filled due to 0/0
         jaccard_df_fname = os.path.join(self.model_dir,
                                         'jaccard.csv')
         jaccard_df.to_csv(jaccard_df_fname, index=False)
@@ -247,6 +249,13 @@ class ItemBasedCFRecommender(Recommender):
                 rank = recs['rank']
                 recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
             self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
+
+            items_interacted_set = set(self.items_for_evaluation[user_id]['items_interacted'])
+            items_recommended_set = set(recommended_items)
+            correct_recommendations = items_interacted_set & items_recommended_set
+            no_of_correct_recommendations = len(correct_recommendations)
+            self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
+            self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
