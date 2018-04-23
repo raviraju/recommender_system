@@ -527,7 +527,7 @@ class HybridRecommender():
         # get recommendations from each recommender
         for recommender_obj in self.recommender_objs:
             recommender_type = type(recommender_obj).__name__
-            print("Recommending using : ", recommender_type)
+            #print("Recommending using : ", recommender_type)
             user_recommendations = recommender_obj.recommend_items(user_id)
             for _, row in user_recommendations.iterrows():
                 item_id = row[self.item_id_col]
@@ -544,17 +544,17 @@ class HybridRecommender():
             record = dict()
             record['user_id'] = user_id
             record['item_id'] = item_id
-            scores = []
+#             scores = []
             for rec_obj in self.recommender_objs:
                 recommender_type = type(rec_obj).__name__
                 score = recommendations[item_id][recommender_type]
                 record[recommender_type] = score
-                scores.append(score)
-            if sum(scores) == 0:#skip recommendations where score for each recommender is 0
-                #print("skipping record")
-                #pprint(record)
-                #input()
-                continue
+#                 scores.append(score)
+#             if sum(scores) == 0:#skip recommendations where score for each recommender is 0
+#                 #print("skipping record")
+#                 #pprint(record)
+#                 #input()
+#                 continue
             aggregation_items.append(record)
         aggregation_df = pd.DataFrame(aggregation_items)
         #print(aggregation_df.head())
@@ -1076,10 +1076,12 @@ def hybrid_kfold_evaluation(recommenders,
 
         scores_aggregation_df = pd.read_csv(os.path.join(kfold_model_dir,
                                                          'scores_aggregation.csv'))
+        #print(len(scores_aggregation_df['user_id'].unique()))
         scores_aggregation_df_list.append(scores_aggregation_df)
 
     all_scores_aggregation_df = pd.concat(scores_aggregation_df_list, axis=0)
-    print(len(all_scores_aggregation_df['user_id'].unique()))
+    #print(len(all_scores_aggregation_df['user_id'].unique()))
+    #input()
     all_scores_aggregation_file = os.path.join(model_dir, 'kfold_experiments', 'all_scores_aggregation.csv')
     all_scores_aggregation_df.to_csv(all_scores_aggregation_file)
 

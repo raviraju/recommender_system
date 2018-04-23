@@ -4,7 +4,7 @@ import sys
 import argparse
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -63,66 +63,82 @@ def main():
 
     no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
 
+    configs = [
+        {
+            'model_dir_name' : 'model/hybrid_item_cf_user_cf',
+            'recommenders' : {
+                books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
+                books_rec_user_based_cf.UserBasedCFRecommender : 0.5}
+        },
+        {
+            'model_dir_name' : 'model/hybrid_item_cf_content',
+            'recommenders' : {
+                books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
+                ContentBasedRecommender : 0.5}
+        },
+        {
+            'model_dir_name' : 'model/hybrid_user_cf_content',
+            'recommenders' : {
+                books_rec_user_based_cf.UserBasedCFRecommender : 0.5,
+                ContentBasedRecommender : 0.5}
+        },
+        {
+            'model_dir_name' : 'model/hybrid_item_cf_user_age',
+            'recommenders' : {
+                books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
+                Hybrid_UserBased_CF_AgeItp_Recommender : 0.5}
+        },
+        {
+            'model_dir_name' : 'model/hybrid_item_cf_content_user_age',
+            'recommenders' : {
+                books_rec_item_based_cf.ItemBasedCFRecommender : 0.35,
+                ContentBasedRecommender : 0.35,
+                Hybrid_UserBased_CF_AgeItp_Recommender : 0.3}
+        }
+    ]
+    kwargs['age_or_itp'] = 'age'
     
-    model_dir = os.path.join(current_dir, 'model/hybrid_item_user_cf')
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-    recommenders = {books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
-                    books_rec_user_based_cf.UserBasedCFRecommender : 0.5}
+    for config in configs:
+        model_dir = os.path.join(current_dir, config['model_dir_name'])
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
+        recommenders = config['recommenders']
+
     
-    
-    '''
-    model_dir = os.path.join(current_dir, 'model/hybrid_item_user_age_itp_cf')
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-    recommenders = {books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
-                    Hybrid_UserBased_CF_AgeItp_Recommender : 0.5}
-    kwargs['age_or_itp'] = 'age_and_itp'
-    '''
-    
-    '''
-    model_dir = os.path.join(current_dir, 'model/hybrid_item_cf_content')
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-    recommenders = {books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
-                    ContentBasedRecommender : 0.5}
-    '''
-    
-    
-    if args.cross_eval and args.kfolds:
-        generic_rec_interface.hybrid_kfold_evaluation(recommenders,
-                                                      args.kfolds,
-                                                      results_dir, model_dir,
-                                                      args.train_data, args.test_data,
-                                                      user_id_col, item_id_col,
-                                                      no_of_recs_to_eval, **kwargs)
-        return
-    if args.train:
-        generic_rec_interface.hybrid_train(recommenders,
-                                           results_dir, model_dir,
-                                           args.train_data, args.test_data,
-                                           user_id_col, item_id_col,
-                                           **kwargs)
-    elif args.eval:
-        generic_rec_interface.hybrid_evaluate(recommenders,
-                                              results_dir, model_dir,
-                                              args.train_data, args.test_data,
-                                              user_id_col, item_id_col,
-                                              no_of_recs_to_eval,
-                                              eval_res_file='evaluation_results.json',
-                                              **kwargs)
-    elif args.recommend and args.user_id:
-        generic_rec_interface.hybrid_recommend(recommenders,
-                                               results_dir, model_dir,
-                                               args.train_data, args.test_data,
-                                               user_id_col, item_id_col,
-                                               args.user_id, **kwargs)
-    else:
-        generic_rec_interface.hybrid_train_eval_recommend(recommenders,
+        if args.cross_eval and args.kfolds:
+            generic_rec_interface.hybrid_kfold_evaluation(recommenders,
+                                                          args.kfolds,
                                                           results_dir, model_dir,
                                                           args.train_data, args.test_data,
                                                           user_id_col, item_id_col,
                                                           no_of_recs_to_eval, **kwargs)
+            continue
+        if args.train:
+            generic_rec_interface.hybrid_train(recommenders,
+                                               results_dir, model_dir,
+                                               args.train_data, args.test_data,
+                                               user_id_col, item_id_col,
+                                               **kwargs)
+        elif args.eval:
+            generic_rec_interface.hybrid_evaluate(recommenders,
+                                                  results_dir, model_dir,
+                                                  args.train_data, args.test_data,
+                                                  user_id_col, item_id_col,
+                                                  no_of_recs_to_eval,
+                                                  eval_res_file='evaluation_results.json',
+                                                  **kwargs)
+        elif args.recommend and args.user_id:
+            generic_rec_interface.hybrid_recommend(recommenders,
+                                                   results_dir, model_dir,
+                                                   args.train_data, args.test_data,
+                                                   user_id_col, item_id_col,
+                                                   args.user_id, **kwargs)
+        else:
+            generic_rec_interface.hybrid_train_eval_recommend(recommenders,
+                                                              results_dir, model_dir,
+                                                              args.train_data, args.test_data,
+                                                              user_id_col, item_id_col,
+                                                              no_of_recs_to_eval, **kwargs)
 
 if __name__ == '__main__':
     main()

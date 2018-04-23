@@ -225,8 +225,8 @@ class ItemBasedCFRecommender(Recommender):
                                                                        assume_interacted_items)
             recommended_items = list(user_recommendations[self.item_id_col].values)
             end_time = default_timer()
-            print("{:50}    {}".format("Recommendations generated. ",
-                                       utilities.convert_sec(end_time - start_time)))
+            #print("{:50}    {}".format("Recommendations generated. ",
+            #                           utilities.convert_sec(end_time - start_time)))
             return user_recommendations
         else:
             print("Trained Model not found !!!. Failed to recommend")
