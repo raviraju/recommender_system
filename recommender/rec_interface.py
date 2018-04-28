@@ -1052,6 +1052,7 @@ def hybrid_kfold_evaluation(recommenders,
                             no_of_recs_to_eval, **kwargs):
     """train and evaluation for kfolds of data"""
     kfold_experiments = dict()
+    all_items_for_evaluation = dict()
     scores_aggregation_df_list = []
     for kfold in range(kfolds):
         kfold_exp = kfold+1
@@ -1086,11 +1087,18 @@ def hybrid_kfold_evaluation(recommenders,
         #print(len(scores_aggregation_df['user_id'].unique()))
         scores_aggregation_df_list.append(scores_aggregation_df)
 
+        items_for_evaluation = utilities.load_json_file(os.path.join(kfold_model_dir,
+                                                                     'items_for_evaluation.json'))
+        all_items_for_evaluation.update(items_for_evaluation)
+
     all_scores_aggregation_df = pd.concat(scores_aggregation_df_list, axis=0)
     #print(len(all_scores_aggregation_df['user_id'].unique()))
-    #input()
     all_scores_aggregation_file = os.path.join(model_dir, 'kfold_experiments', 'all_scores_aggregation.csv')
     all_scores_aggregation_df.to_csv(all_scores_aggregation_file)
+
+    all_items_for_evaluation_file = os.path.join(model_dir, 'kfold_experiments', 'all_items_for_evaluation.json')
+    #print(len(all_items_for_evaluation.keys()))
+    utilities.dump_json_file(all_items_for_evaluation, all_items_for_evaluation_file)
 
     avg_kfold_exp_res = get_avg_kfold_exp_res(kfold_experiments)
     print('average of kfold evaluation results')
