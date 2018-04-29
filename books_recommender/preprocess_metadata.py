@@ -126,6 +126,14 @@ def extract_learner_books(bookclub_events, demographics, meta_data_file):
                                           left_on='book_code',
                                           right_on='BOOK_CODE')
 
+    #adding book event name
+    book_event_name_df = dataframe.groupby('book_code')\
+                                  .agg({'event_name' : (lambda x: x.unique())})\
+                                  .reset_index()
+    learner_books_info_meta_df = pd.merge(learner_books_info_meta_df, book_event_name_df,
+                                          how='inner',
+                                          on='book_code')
+
     current_dir = os.path.dirname(os.path.abspath(__file__))
     preprocessed_data_dir = os.path.join(current_dir, 'preprocessed_metadata')
     if not os.path.exists(preprocessed_data_dir):

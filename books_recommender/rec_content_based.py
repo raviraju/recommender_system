@@ -33,6 +33,7 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
                                        'content_based_model.pkl')
 
         self.item_profile_all_dict = dict()
+        self.user_profiles_dict = dict()
     #######################################
     def derive_stats(self):
         """derive stats"""
@@ -42,23 +43,12 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         #fetch items from train dataframe
         for item_id in self.items_train:
             item_profile = books_rec_interface.get_item_profile(self.train_data, item_id)
-            name_tokens_set, author_set, keywords = item_profile
-            profile = {'name_tokens': list(name_tokens_set),
-                       'author': list(author_set),
-                       'keywords': keywords}
-            self.item_profile_all_dict[item_id] = profile
+            self.item_profile_all_dict[item_id] = item_profile
         #fetch remaining items (only in test) from test dataframe
         missing_items_from_test = set(self.items_all) - set(self.items_train)
         for item_id in missing_items_from_test:
             item_profile = books_rec_interface.get_item_profile(self.test_data, item_id)
-            name_tokens_set, author_set, keywords = item_profile
-            profile = {'name_tokens': list(name_tokens_set),
-                       'author': list(author_set),
-                       'keywords': keywords}
-            self.item_profile_all_dict[item_id] = profile
-        
-        # print(len(self.items_all))
-        # print(len(self.item_profile_all_dict))
+            self.item_profile_all_dict[item_id] = item_profile
 
         item_profile_all_file = os.path.join(self.model_dir, 'item_profile_all.json')
         utilities.dump_json_file(self.item_profile_all_dict, item_profile_all_file)
@@ -114,21 +104,6 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
                   }
         return profile
 
-    def __get_similarity_score(self, user_profile, item_profile):
-        """similarity scores bw user and item profile"""
-        name_tokens_similarity = books_rec_interface.get_jaccard_similarity(set(user_profile['name_tokens']),
-                                                                            set(item_profile['name_tokens']))
-        authors_similarity = books_rec_interface.get_jaccard_similarity(set(user_profile['author']),
-                                                                        set(item_profile['author']))
-        keywords_similarity = books_rec_interface.get_term_freq_similarity(user_profile['keywords'],
-                                                                           item_profile['keywords'])
-        '''
-        print("\tname : {}, author : {}, keywords : {}, score : {} ".format(name_tokens_similarity,
-                                                                            authors_similarity,
-                                                                            keywords_similarity))
-        '''
-        return (name_tokens_similarity, authors_similarity, keywords_similarity)
-
     def __weighted_avg(self, data_frame, columns_weights_dict):
         """compute weighted average defined by columns_weights_dict"""
         data_frame['sim_score'] = 0.0
@@ -142,19 +117,22 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         """Get all items from train data and recommend them
         which are most similar to user_profile"""
         items_to_recommend = []
-        columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
-
+        columns = [self.user_id_col, self.item_id_col,
+                   'name_tokens_similarity', 'authors_similarity', 'keywords_similarity',
+                   'score', 'rank']
         user_profile = self.__get_user_profile(user_interacted_items)
+        self.user_profiles_dict[user_id] = user_profile
         # print("User Profile")
         # print(user_profile)
-        # print()
+
         items_all = self.get_all_items(dataset='all')
         item_scores = []
         for item_id in items_all:
             item_profile = self.__get_item_profile(item_id)
-            #print("\n\t" + item_id)
+            # print("\n\t" + item_id)
             # print(item_profile)
-            similarity_scores = self.__get_similarity_score(user_profile, item_profile)
+            similarity_scores = books_rec_interface.get_profile_similarity_score(user_profile, item_profile)
+            # print(similarity_scores)
             (name_tokens_similarity, authors_similarity, keywords_similarity) = similarity_scores
             item_scores.append({self.item_id_col: item_id,
                                 'name_tokens_similarity': name_tokens_similarity,
@@ -163,6 +141,7 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         item_scores_df = pd.DataFrame(item_scores)
 
         # print("scaling...")
+        '''
         values = item_scores_df[['name_tokens_similarity']].as_matrix()
         scaled_values = minmax_scale(values)
         item_scores_df['name_tokens_similarity_scaled'] = scaled_values
@@ -178,6 +157,11 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
         columns_weights_dict = {'name_tokens_similarity_scaled': 0.25,
                                 'authors_similarity_scaled': 0.25,
                                 'keywords_similarity_scaled': 0.5
+                               }
+        '''
+        columns_weights_dict = {'name_tokens_similarity': 0.25,
+                                'authors_similarity': 0.25,
+                                'keywords_similarity': 0.5
                                }
         # print("weighted_avg...")
         item_scores_df = self.__weighted_avg(item_scores_df, columns_weights_dict)
@@ -200,6 +184,9 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
             item_dict = {
                 self.user_id_col: user_id,
                 self.item_id_col: item_id,
+                'name_tokens_similarity': item_score['name_tokens_similarity'],
+                'authors_similarity': item_score['authors_similarity'],
+                'keywords_similarity': item_score['keywords_similarity'],
                 'score': item_score['sim_score'],
                 'rank': rank
             }
@@ -231,12 +218,13 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
     #######################################
     def __recommend_items_to_evaluate(self):
         """recommend items for all users from test dataset"""
+        all_user_recommendations_list = []
         for user_id in self.items_for_evaluation:
             assume_interacted_items = self.items_for_evaluation[
                 user_id]['assume_interacted_items']
             user_recommendations = self.generate_top_recommendations(user_id,
                                                                      assume_interacted_items)
-
+            all_user_recommendations_list.append(user_recommendations)
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
             
@@ -254,6 +242,15 @@ class ContentBasedRecommender(books_rec_interface.BooksRecommender):
             no_of_correct_recommendations = len(correct_recommendations)
             self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
             self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)
+
+        all_user_recommendations_df = pd.concat(all_user_recommendations_list, axis=0)
+        #print(len(all_user_recommendations_df[self.user_id_col].unique()))
+        all_user_recommendations_file = os.path.join(self.model_dir, 'all_user_recommendation_details.csv')
+        all_user_recommendations_df.to_csv(all_user_recommendations_file, index=False)
+
+        user_profiles_file = os.path.join(self.model_dir, 'user_profiles.json')
+        utilities.dump_json_file(self.user_profiles_dict, user_profiles_file)
+
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):

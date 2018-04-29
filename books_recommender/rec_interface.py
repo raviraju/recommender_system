@@ -7,6 +7,7 @@ from collections import defaultdict
 from collections import Counter
 import math
 
+from pprint import pprint
 
 import re
 import nltk
@@ -167,7 +168,40 @@ def get_item_profile(dataframe, book_code):
     item_author_set = set()
     if isinstance(author, str):
         item_author_set.add(author)
-    return item_name_tokens_set, item_author_set, item_keywords
+    item_profile = {'name_tokens': list(item_name_tokens_set),
+                    'author': list(item_author_set),
+                    'keywords': item_keywords}
+    return item_profile
+
+def get_user_profile(dataframe, user_items):
+    """return user profile by merging item profiles
+    for user interacted items"""
+    user_profile_name_tokens_set = set()
+    user_profile_authors_set = set()
+    user_profile_keywords = []
+
+    for item_id in user_items:
+        item_profile = get_item_profile(dataframe, item_id)
+
+        # print(item_id)
+        # print(item_profile)
+        # print('%'*5)
+
+        name_tokens_set = set(item_profile['name_tokens'])
+        user_profile_name_tokens_set |= name_tokens_set
+
+        author_set = set(item_profile['author'])
+        user_profile_authors_set |= author_set
+
+        keywords = item_profile['keywords']
+        user_profile_keywords.extend(keywords)
+
+    user_profile = {'name_tokens': list(user_profile_name_tokens_set),
+                    'author': list(user_profile_authors_set),
+                    'keywords': user_profile_keywords
+                   }
+    #print(user_profile)
+    return user_profile
 
 def get_jaccard_similarity(set_a, set_b):
     """jaccard similarity"""
@@ -233,6 +267,49 @@ def get_term_freq_similarity(l1, l2):
         return 0.0
     c1, c2 = Counter(l1), Counter(l2)
     return length_similarity(len1, len2) * counter_cosine_similarity(c1, c2)
+
+def get_subset_similarity(child_set, parent_set):
+    """subset similarity"""
+    return int(child_set.issubset(parent_set))
+
+def get_sublist_similarity(child_list, parent_list):
+    """term frequency similarity if child_list is contained in parent_list"""
+    parent_list_len = len(parent_list)
+    child_list_len = len(child_list)
+    if child_list_len == 0:#empty lists
+        return 1
+    parent_counter = Counter(parent_list)
+    child_counter = Counter(child_list)
+
+    no_of_contained_terms = 0
+    for term in child_counter:
+        tf_child = child_counter[term]
+        if term in parent_counter:
+            tf_parent = parent_counter[term]
+            #print(term, tf_child, tf_parent)
+            if tf_child <= tf_parent:
+                no_of_contained_terms += 1
+    if no_of_contained_terms == len(child_counter):
+        return 1
+    else:
+        return 0
+
+def get_profile_similarity_score(user_profile, item_profile):
+    """similarity scores bw user and item profile"""
+    name_tokens_similarity = get_subset_similarity(set(item_profile['name_tokens']),
+                                                   set(user_profile['name_tokens']))
+    authors_similarity = get_subset_similarity(set(item_profile['author']),
+                                               set(user_profile['author']))
+#     keywords_similarity = get_sublist_similarity(item_profile['keywords'],
+#                                                  user_profile['keywords'])
+    keywords_similarity = get_subset_similarity(set(item_profile['keywords']),
+                                                set(user_profile['keywords']))
+    '''
+    print("\tname : {}, author : {}, keywords : {}, score : {} ".format(name_tokens_similarity,
+                                                                        authors_similarity,
+                                                                        keywords_similarity))
+    '''
+    return (name_tokens_similarity, authors_similarity, keywords_similarity)
 
 def get_similarity_score(train_data, test_data, recommended_item, interacted_item):
     """content based similarity score bw recommended and interacted item"""
