@@ -21,9 +21,10 @@ class Aggregator:
         """private function,
         return if weights specified in columns_weights_dict add to 1"""
         try:
-            total_weight = sum(columns_weights_dict.values())
-            if total_weight != 1:
+            total_weight = round(sum(columns_weights_dict.values()), 2)
+            if total_weight != 1.00:
                 print("Total Weight of columns = {} do not add to 1".format(total_weight))
+                exit(-1)
                 return False
             return True
         except TypeError:
