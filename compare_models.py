@@ -27,8 +27,8 @@ def plot_roc(recommender, results, plot_results_dir='results'):
     for no_of_items in results:
         no_of_items_to_recommend.append(int(no_of_items))
         for model in results[no_of_items]:
-            if 'pop_based' in model:
-                continue
+            #if 'hybrid' not in model:
+            #    continue
             if model not in avg_tpr_models_dict:
                 avg_tpr_models_dict[model] = []
             if model not in avg_fpr_models_dict:

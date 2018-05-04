@@ -175,20 +175,17 @@ class Recommender(metaclass=ABCMeta):
         self.item_id_col = item_id_col
         self.no_of_recs = kwargs['no_of_recs']
 
-        self.hold_out_strategy = "hold_out_ratio"
+        self.hold_out_strategy = "assume_ratio"
         if 'hold_out_strategy' in kwargs:
             self.hold_out_strategy = kwargs['hold_out_strategy']
 
-        self.hold_out_ratio = None
         self.first_n = None
-        self.next_n = None
+        self.assume_ratio = None
         self.last_n = None
-        if 'hold_out_ratio' in kwargs:
-            self.hold_out_ratio = kwargs['hold_out_ratio']
         if 'first_n' in kwargs:
             self.first_n = kwargs['first_n']
-        if 'next_n' in kwargs:
-            self.next_n = kwargs['next_n']
+        if 'assume_ratio' in kwargs:
+            self.assume_ratio = kwargs['assume_ratio']
         if 'last_n' in kwargs:
             self.last_n = kwargs['last_n']
 
@@ -251,7 +248,7 @@ class Recommender(metaclass=ABCMeta):
                 known_items_interacted.append(item)
         return known_items_interacted
 
-    def split_items(self, items_interacted, hold_out_ratio):
+    def split_items(self, items_interacted, assume_ratio):
         """return assume_interacted_items, hold_out_items"""
         # print("items_interacted : ", items_interacted)
 
@@ -259,7 +256,7 @@ class Recommender(metaclass=ABCMeta):
         hold_out_items = []
 
         no_of_items_interacted = len(items_interacted)
-        no_of_items_assumed_interacted = int(no_of_items_interacted*hold_out_ratio)
+        no_of_items_assumed_interacted = int(no_of_items_interacted*assume_ratio)
         no_of_items_to_be_held = 5
         # print("no_of_items_interacted : ", no_of_items_interacted)
         # print("no_of_items_to_be_held : ", no_of_items_to_be_held)
@@ -275,7 +272,7 @@ class Recommender(metaclass=ABCMeta):
         # input()
         return assume_interacted_items, hold_out_items
     
-    def split_items_assume_first_n_hold_next_n(self, items_interacted, first_n = 10, next_n=10):
+    def split_items_assume_first_n(self, items_interacted, first_n = 10):
         """return assume_interacted_items, hold_out_items"""
         # print("items_interacted : ", items_interacted)
 
@@ -284,7 +281,7 @@ class Recommender(metaclass=ABCMeta):
 
         no_of_items_interacted = len(items_interacted)
         no_of_items_assumed_interacted = first_n
-        no_of_items_to_be_held = next_n
+        no_of_items_to_be_held = 5
 
         # print("no_of_items_interacted : ", no_of_items_interacted)
         # print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
@@ -353,13 +350,12 @@ class Recommender(metaclass=ABCMeta):
             #items_interacted = items_interacted_in_train
             items_interacted = all_items_interacted
 
-            if self.hold_out_strategy == "hold_out_ratio":
+            if self.hold_out_strategy == "assume_ratio":
                 assume_interacted_items, hold_out_items = self.split_items(items_interacted,
-                                                                           self.hold_out_ratio)
-            elif self.hold_out_strategy == "assume_first_n_hold_next_n":
-                assume_interacted_items, hold_out_items = self.split_items_assume_first_n_hold_next_n(items_interacted,
-                                                                                                      self.first_n,
-                                                                                                      self.next_n)
+                                                                           self.assume_ratio)
+            elif self.hold_out_strategy == "assume_first_n":
+                assume_interacted_items, hold_out_items = self.split_items_assume_first_n(items_interacted,
+                                                                                          self.first_n)
             elif self.hold_out_strategy == "hold_last_n":
                 assume_interacted_items, hold_out_items = self.split_items_hold_last_n(items_interacted,
                                                                                        self.last_n)
@@ -464,16 +460,16 @@ class HybridRecommender():
 
         self.no_of_recs = kwargs['no_of_recs']
 
-        self.hold_out_strategy = "hold_out_ratio"
+        self.hold_out_strategy = "assume_ratio"
         if 'hold_out_strategy' in kwargs:
             self.hold_out_strategy = kwargs['hold_out_strategy']
 
-        self.hold_out_ratio = None
+        self.assume_ratio = None
         self.first_n = None
         self.next_n = None
         self.last_n = None
-        if 'hold_out_ratio' in kwargs:
-            self.hold_out_ratio = kwargs['hold_out_ratio']
+        if 'assume_ratio' in kwargs:
+            self.assume_ratio = kwargs['assume_ratio']
         if 'first_n' in kwargs:
             self.first_n = kwargs['first_n']
         if 'next_n' in kwargs:

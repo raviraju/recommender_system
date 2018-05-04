@@ -274,6 +274,10 @@ def main():
                         help="Train Data")
     parser.add_argument("test_data",
                         help="Test Data")
+    parser.add_argument("hold_out_strategy",
+                        help="assume_ratio/assume_first_n/hold_last_n")
+    parser.add_argument("hold_out_value",
+                        help="assume_ratio=0.5/assume_first_n=5/hold_last_n=5")
     parser.add_argument("--age_or_itp",
                         help="select age or item_type preference")
     args = parser.parse_args()
@@ -287,26 +291,29 @@ def main():
     kwargs = dict()
     kwargs['no_of_recs'] = 150 # max no_of_books read is 144
 
-    # kwargs['hold_out_strategy'] = 'hold_out_ratio'
-    # kwargs['hold_out_ratio'] = 0.5
-
-    # kwargs['hold_out_strategy'] = 'assume_first_n'
-    # kwargs['first_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
-
-    kwargs['hold_out_strategy'] = 'hold_last_n'
-    kwargs['last_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+    kwargs['hold_out_strategy'] = args.hold_out_strategy
+    if kwargs['hold_out_strategy'] == 'assume_ratio':
+        kwargs['assume_ratio'] = float(args.hold_out_value)
+    elif kwargs['hold_out_strategy'] == 'assume_first_n':
+        kwargs['first_n'] = int(args.hold_out_value)
+    elif kwargs['hold_out_strategy'] == 'hold_last_n':
+        kwargs['last_n'] = int(args.hold_out_value)
+    else:
+        print("Invalid hold_out_strategy {} chosen".format(args.hold_out_strategy))
+        exit(-1)
 
     no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
-
+    
+    model_name_prefix = 'model/' + kwargs['hold_out_strategy']
     if args.age_or_itp == 'itp':
         kwargs['age_or_itp'] = 'itp'
-        model_dir = os.path.join(current_dir, 'model/user_based_cf_itp')
+        model_dir = os.path.join(current_dir, model_name_prefix + '_user_based_cf_itp')
     elif args.age_or_itp == 'age':
         kwargs['age_or_itp'] = 'age'
-        model_dir = os.path.join(current_dir, 'model/user_based_cf_age')
+        model_dir = os.path.join(current_dir, model_name_prefix + '_user_based_cf_age')
     elif args.age_or_itp == 'age_and_itp':
         kwargs['age_or_itp'] = 'age_and_itp'
-        model_dir = os.path.join(current_dir, 'model/user_based_cf_age_itp')
+        model_dir = os.path.join(current_dir, model_name_prefix + '_user_based_cf_age_itp')
     else:
         print("Invalid arguments, refer --help")
         exit(0)

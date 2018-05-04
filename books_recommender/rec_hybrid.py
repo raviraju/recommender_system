@@ -16,6 +16,7 @@ from recommender import rec_interface as generic_rec_interface
 from books_recommender import rec_item_based_cf as books_rec_item_based_cf
 from books_recommender import rec_user_based_cf as books_rec_user_based_cf
 from books_recommender import rec_popularity_based as books_rec_popularity_based
+from rec_user_based_age_itp import UserBasedAgeItpRecommender
 from rec_hybrid_user_based_cf_age_itp import Hybrid_UserBased_CF_AgeItp_Recommender
 from rec_content_based import ContentBasedRecommender
 import rec_interface as books_rec_interface
@@ -136,10 +137,14 @@ def main():
                         help="Train Data")
     parser.add_argument("test_data",
                         help="Test Data")
-    parser.add_argument("all_data",
-                        help="All Data")
-    parser.add_argument("learner_pref",
-                        help="User Preferences")
+    parser.add_argument("hold_out_strategy",
+                        help="assume_ratio/assume_first_n/hold_last_n")
+    parser.add_argument("hold_out_value",
+                        help="assume_ratio=0.5/assume_first_n=5/hold_last_n=5")
+#     parser.add_argument("all_data",
+#                         help="All Data")
+#     parser.add_argument("learner_pref",
+#                         help="User Preferences")
     args = parser.parse_args()
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -151,52 +156,124 @@ def main():
     kwargs = dict()
     kwargs['no_of_recs'] = 150 # max no_of_books read is 144
 
-    # kwargs['hold_out_strategy'] = 'hold_out_ratio'
-    # kwargs['hold_out_ratio'] = 0.5
-
-    # kwargs['hold_out_strategy'] = 'assume_first_n'
-    # kwargs['first_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
-
-    kwargs['hold_out_strategy'] = 'hold_last_n'
-    kwargs['last_n'] = 5 #each user has atleast 10 items interacted, so there shall be equal split if no_of_items = 10
+    kwargs['hold_out_strategy'] = args.hold_out_strategy
+    if kwargs['hold_out_strategy'] == 'assume_ratio':
+        kwargs['assume_ratio'] = float(args.hold_out_value)
+    elif kwargs['hold_out_strategy'] == 'assume_first_n':
+        kwargs['first_n'] = int(args.hold_out_value)
+    elif kwargs['hold_out_strategy'] == 'hold_last_n':
+        kwargs['last_n'] = int(args.hold_out_value)
+    else:
+        print("Invalid hold_out_strategy {} chosen".format(args.hold_out_strategy))
+        exit(-1)
 
     no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
 
+    model_name_prefix = 'model/' + kwargs['hold_out_strategy']
     configs = [
         {
-            'model_dir_name' : 'model/hybrid_item_cf_user_cf',
+            'model_dir_name' : model_name_prefix + '_hybrid_item_cf_user_cf_equal',
             'recommenders' : {
                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
                 books_rec_user_based_cf.UserBasedCFRecommender : 0.5}
         },
+#         {
+#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_user_cf_logit',
+#             'recommenders' : {
+#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.55,
+#                 books_rec_user_based_cf.UserBasedCFRecommender : 0.45}
+#         },
+        ##########################################################################
         {
-            'model_dir_name' : 'model/hybrid_item_cf_content',
+            'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_equal',
             'recommenders' : {
                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
                 ContentBasedRecommender : 0.5}
         },
+#         {
+#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_logit',
+#             'recommenders' : {
+#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.94,
+#                 ContentBasedRecommender : 0.06}
+#         },
+        ##########################################################################
         {
-            'model_dir_name' : 'model/hybrid_user_cf_content',
+            'model_dir_name' : model_name_prefix + '_hybrid_user_cf_content_equal',
             'recommenders' : {
                 books_rec_user_based_cf.UserBasedCFRecommender : 0.5,
                 ContentBasedRecommender : 0.5}
         },
+#         {
+#             'model_dir_name' : model_name_prefix + '_hybrid_user_cf_content_logit',
+#             'recommenders' : {
+#                 books_rec_user_based_cf.UserBasedCFRecommender : 0.99,
+#                 ContentBasedRecommender : 0.01}
+#         },
+        ##########################################################################
         {
-            'model_dir_name' : 'model/hybrid_item_cf_user_age',
+            'model_dir_name' : model_name_prefix + '_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_equal',
             'recommenders' : {
                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.5}
         },
+#         {
+#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_logit',
+#             'recommenders' : {
+#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.48,
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.52}
+#         },
+        ##########################################################################
         {
-            'model_dir_name' : 'model/hybrid_item_cf_content_user_age',
+            'model_dir_name' : model_name_prefix + '_hybrid_item_cf_user_cf_jaccard_cosine_equal',
             'recommenders' : {
-                books_rec_item_based_cf.ItemBasedCFRecommender : 0.35,
-                ContentBasedRecommender : 0.35,
-                Hybrid_UserBased_CF_AgeItp_Recommender : 0.3}
-        }
+                books_rec_item_based_cf.ItemBasedCFRecommender : 0.34,
+                books_rec_user_based_cf.UserBasedCFRecommender : 0.33,
+                UserBasedAgeItpRecommender : 0.33}
+        },
+#         {
+#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_user_cf_jaccard_cosine_logit',
+#             'recommenders' : {
+#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.72,
+#                 books_rec_user_based_cf.UserBasedCFRecommender : 0.88,
+#                 UserBasedAgeItpRecommender : -0.6}
+#         },
+        ##########################################################################
+        {
+            'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_equal',
+            'recommenders' : {
+                books_rec_item_based_cf.ItemBasedCFRecommender : 0.34,
+                ContentBasedRecommender : 0.33,
+                Hybrid_UserBased_CF_AgeItp_Recommender : 0.33}
+        },
+#         {
+#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_logit',
+#             'recommenders' : {
+#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.46,
+#                 ContentBasedRecommender : 0.04,
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.5}
+#         },
+        ##########################################################################
+        {
+            'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_user_cf_jaccard_cosine_equal',
+            'recommenders' : {
+                books_rec_item_based_cf.ItemBasedCFRecommender : 0.25,
+                ContentBasedRecommender : 0.25,
+                books_rec_user_based_cf.UserBasedCFRecommender : 0.25,
+                UserBasedAgeItpRecommender : 0.25
+            }
+        },
+#         {
+#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_user_cf_jaccard_cosine_logit',
+#             'recommenders' : {
+#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.68,
+#                 ContentBasedRecommender : 0.05,
+#                 books_rec_user_based_cf.UserBasedCFRecommender : 0.73,
+#                 UserBasedAgeItpRecommender : -0.46
+#             }
+#         },
     ]
     kwargs['age_or_itp'] = 'age'
-    
+
     for config in configs:
         model_dir = os.path.join(current_dir, config['model_dir_name'])
         if not os.path.exists(model_dir):
@@ -204,18 +281,13 @@ def main():
         recommenders = config['recommenders']
 
         if args.cross_eval and args.kfolds:
-            '''
-            get_user_item_meta_info(model_dir, user_id_col, item_id_col, args.all_data, args.learner_pref)
-            print("remove this line")
-            return
-            '''
             generic_rec_interface.hybrid_kfold_evaluation(recommenders,
                                                           args.kfolds,
                                                           results_dir, model_dir,
                                                           args.train_data, args.test_data,
                                                           user_id_col, item_id_col,
                                                           no_of_recs_to_eval, **kwargs)
-            get_user_item_meta_info(model_dir, user_id_col, item_id_col, args.all_data, args.learner_pref)
+            #get_user_item_meta_info(model_dir, user_id_col, item_id_col, args.all_data, args.learner_pref)
         elif args.train:
             generic_rec_interface.hybrid_train(recommenders,
                                                results_dir, model_dir,
