@@ -13,13 +13,24 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib import utilities
 from recommender import rec_interface as generic_rec_interface
-from books_recommender import rec_item_based_cf as books_rec_item_based_cf
-from books_recommender import rec_user_based_cf as books_rec_user_based_cf
-from books_recommender import rec_popularity_based as books_rec_popularity_based
-from rec_user_based_age_itp import UserBasedAgeItpRecommender
-from rec_hybrid_user_based_cf_age_itp import Hybrid_UserBased_CF_AgeItp_Recommender
+
+from rec_random_based import RandomBasedRecommender
+from rec_popularity_based import PopularityBasedRecommender
+
+from rec_item_based_cf import ItemBasedCFRecommender
+from rec_user_based_cf import UserBasedCFRecommender
+
 from rec_content_based import ContentBasedRecommender
+from rec_user_based_age_itp import UserBasedAgeItpRecommender
+
+from rec_content_boosted_item_cf import ContentBoostedItemCFRecommender
+from rec_content_boosted_user_cf import ContentBoostedUserCFRecommender
+
+from rec_hybrid_user_based_cf_age_itp import Hybrid_UserBased_CF_AgeItp_Recommender
+
 import rec_interface as books_rec_interface
+
+from pprint import pprint
 
 def get_user_item_meta_info(model_dir, user_id_col, item_id_col, all_data_file, learner_pref_file):
     """derive user and item info"""
@@ -113,6 +124,18 @@ def get_user_item_meta_info(model_dir, user_id_col, item_id_col, all_data_file, 
     all_aggregation_df.to_csv(aggregate_file, index=False)
     print("Updated :", aggregate_file)
 
+def get_filtered_configs(configs, hold_out_strategy):
+    """filter configs which adhere to hold_out_strategy"""
+    print("Total no of configs : ", len(configs))
+    print("Filtering configs which adhere to : ", hold_out_strategy)
+    filtered_configs = []
+    for config in configs:
+        if hold_out_strategy in config['model_dir_name']:
+            filtered_configs.append(config)
+    print("Filtered no of configs : ", len(filtered_configs))
+    pprint(filtered_configs)
+    return filtered_configs
+
 def main():
     """Hybrid of Songs Recommenders interface"""
     parser = argparse.ArgumentParser(description="Hybrid of Songs Recommender")
@@ -174,105 +197,329 @@ def main():
         {
             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_user_cf_equal',
             'recommenders' : {
-                books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
-                books_rec_user_based_cf.UserBasedCFRecommender : 0.5}
+                ItemBasedCFRecommender : 0.5,
+                UserBasedCFRecommender : 0.5}
         },
-#         {
-#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_user_cf_logit',
-#             'recommenders' : {
-#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.55,
-#                 books_rec_user_based_cf.UserBasedCFRecommender : 0.45}
-#         },
         ##########################################################################
         {
             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_equal',
             'recommenders' : {
-                books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
+                ItemBasedCFRecommender : 0.5,
                 ContentBasedRecommender : 0.5}
         },
-#         {
-#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_logit',
-#             'recommenders' : {
-#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.94,
-#                 ContentBasedRecommender : 0.06}
-#         },
         ##########################################################################
         {
             'model_dir_name' : model_name_prefix + '_hybrid_user_cf_content_equal',
             'recommenders' : {
-                books_rec_user_based_cf.UserBasedCFRecommender : 0.5,
+                UserBasedCFRecommender : 0.5,
                 ContentBasedRecommender : 0.5}
         },
-#         {
-#             'model_dir_name' : model_name_prefix + '_hybrid_user_cf_content_logit',
-#             'recommenders' : {
-#                 books_rec_user_based_cf.UserBasedCFRecommender : 0.99,
-#                 ContentBasedRecommender : 0.01}
-#         },
         ##########################################################################
         {
             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_equal',
             'recommenders' : {
-                books_rec_item_based_cf.ItemBasedCFRecommender : 0.5,
+                ItemBasedCFRecommender : 0.5,
                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.5}
         },
-#         {
-#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_logit',
-#             'recommenders' : {
-#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.48,
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.52}
-#         },
         ##########################################################################
         {
             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_user_cf_jaccard_cosine_equal',
             'recommenders' : {
-                books_rec_item_based_cf.ItemBasedCFRecommender : 0.34,
-                books_rec_user_based_cf.UserBasedCFRecommender : 0.33,
+                ItemBasedCFRecommender : 0.34,
+                UserBasedCFRecommender : 0.33,
                 UserBasedAgeItpRecommender : 0.33}
         },
-#         {
-#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_user_cf_jaccard_cosine_logit',
-#             'recommenders' : {
-#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.72,
-#                 books_rec_user_based_cf.UserBasedCFRecommender : 0.88,
-#                 UserBasedAgeItpRecommender : -0.6}
-#         },
         ##########################################################################
         {
             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_equal',
             'recommenders' : {
-                books_rec_item_based_cf.ItemBasedCFRecommender : 0.34,
+                ItemBasedCFRecommender : 0.34,
                 ContentBasedRecommender : 0.33,
                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.33}
         },
-#         {
-#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_logit',
-#             'recommenders' : {
-#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.46,
-#                 ContentBasedRecommender : 0.04,
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.5}
-#         },
         ##########################################################################
         {
             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_user_cf_jaccard_cosine_equal',
             'recommenders' : {
-                books_rec_item_based_cf.ItemBasedCFRecommender : 0.25,
+                ItemBasedCFRecommender : 0.25,
                 ContentBasedRecommender : 0.25,
-                books_rec_user_based_cf.UserBasedCFRecommender : 0.25,
+                UserBasedCFRecommender : 0.25,
                 UserBasedAgeItpRecommender : 0.25
             }
         },
+        ##########################################################################
+        {
+            'model_dir_name' : model_name_prefix + '_hybrid_all_recommenders_equal',
+            'recommenders' : {
+                RandomBasedRecommender : 0.125,
+                PopularityBasedRecommender : 0.125,
+
+                ItemBasedCFRecommender : 0.125,
+                UserBasedCFRecommender : 0.125,
+
+                ContentBasedRecommender : 0.125,
+                UserBasedAgeItpRecommender : 0.125,
+
+                ContentBoostedItemCFRecommender : 0.125,
+                ContentBoostedUserCFRecommender : 0.125
+            }
+        },
+        {
+            'model_dir_name' : model_name_prefix + '_hybrid_all_recommenders_sub_hybrid_equal',
+            'recommenders' : {
+                RandomBasedRecommender : 0.143,
+                PopularityBasedRecommender : 0.143,
+
+                ItemBasedCFRecommender : 0.143,
+                ContentBasedRecommender : 0.142,
+
+                Hybrid_UserBased_CF_AgeItp_Recommender : 0.143,
+
+                ContentBoostedItemCFRecommender : 0.143,
+                ContentBoostedUserCFRecommender : 0.143
+            }
+        },
+    ]
+#     configs = [
 #         {
-#             'model_dir_name' : model_name_prefix + '_hybrid_item_cf_content_user_cf_jaccard_cosine_logit',
-#             'recommenders' : {
-#                 books_rec_item_based_cf.ItemBasedCFRecommender : 0.68,
-#                 ContentBasedRecommender : 0.05,
-#                 books_rec_user_based_cf.UserBasedCFRecommender : 0.73,
-#                 UserBasedAgeItpRecommender : -0.46
+#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ItemBasedCFRecommender : 0.33,
+#                 UserBasedAgeItpRecommender : -0.06,
+#                 UserBasedCFRecommender : 0.73
 #             }
 #         },
-    ]
+#         {
+#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.01,
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.7,
+#                 ItemBasedCFRecommender : 0.29
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_user_cf_content_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.01,
+#                 UserBasedCFRecommender : 0.99
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_all_recommenders_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.04,
+#                 ContentBoostedItemCFRecommender : 0.29,
+#                 ContentBoostedUserCFRecommender : -0.14,
+#                 ItemBasedCFRecommender : 0.18,
+#                 PopularityBasedRecommender : 0.13,
+#                 RandomBasedRecommender : -0.04,
+#                 UserBasedAgeItpRecommender : 0.06,
+#                 UserBasedCFRecommender : 0.48
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_user_cf_logit",
+#             "recommenders": {
+#                 ItemBasedCFRecommender : 0.55,
+#                 UserBasedCFRecommender : 0.45
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.69,
+#                 ItemBasedCFRecommender : 0.31
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_ratio_hybrid_all_recommenders_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.04,
+#                 ContentBoostedItemCFRecommender : 0.21,
+#                 ContentBoostedUserCFRecommender : -0.13,
+#                 ItemBasedCFRecommender : 0.15,
+#                 PopularityBasedRecommender : 0.02,
+#                 RandomBasedRecommender : -0.07,
+#                 UserBasedAgeItpRecommender : 0.07,
+#                 UserBasedCFRecommender : 0.71
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.52,
+#                 ItemBasedCFRecommender : 0.48
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.55,
+#                 ItemBasedCFRecommender : 0.45
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_content_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.05,
+#                 ItemBasedCFRecommender : 0.67,
+#                 UserBasedAgeItpRecommender : -0.43,
+#                 UserBasedCFRecommender : 0.71
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_content_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.01,
+#                 ItemBasedCFRecommender : 0.99
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.04,
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.5,
+#                 ItemBasedCFRecommender : 0.46
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_all_recommenders_sub_hybrid_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.05,
+#                 ContentBoostedItemCFRecommender : 0.34,
+#                 ContentBoostedUserCFRecommender : -0.17,
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.59,
+#                 ItemBasedCFRecommender : 0.09,
+#                 PopularityBasedRecommender : 0.17,
+#                 RandomBasedRecommender : -0.07
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_user_cf_logit",
+#             "recommenders": {
+#                 ItemBasedCFRecommender : 0.32,
+#                 UserBasedCFRecommender : 0.68
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_user_cf_logit",
+#             "recommenders": {
+#                 ItemBasedCFRecommender : 0.53,
+#                 UserBasedCFRecommender : 0.47
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ItemBasedCFRecommender : 0.47,
+#                 UserBasedAgeItpRecommender : 0.07,
+#                 UserBasedCFRecommender : 0.46
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ItemBasedCFRecommender : 0.71,
+#                 UserBasedAgeItpRecommender : -0.56,
+#                 UserBasedCFRecommender : 0.85
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_content_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.02,
+#                 ItemBasedCFRecommender : 0.32,
+#                 UserBasedAgeItpRecommender : 0.01,
+#                 UserBasedCFRecommender : 0.65
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_content_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : -0.02,
+#                 ItemBasedCFRecommender : 1.02
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_content_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.01,
+#                 ItemBasedCFRecommender : 0.44,
+#                 UserBasedAgeItpRecommender : 0.11,
+#                 UserBasedCFRecommender : 0.44
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_user_cf_content_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : -0.03,
+#                 UserBasedCFRecommender : 1.03
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_all_recommenders_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.12,
+#                 ContentBoostedItemCFRecommender : 0.54,
+#                 ContentBoostedUserCFRecommender : -0.42,
+#                 ItemBasedCFRecommender : 0.47,
+#                 PopularityBasedRecommender : -0.28,
+#                 RandomBasedRecommender : -0.15,
+#                 UserBasedAgeItpRecommender : -0.28,
+#                 UserBasedCFRecommender : 1.0
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_all_recommenders_sub_hybrid_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.3,
+#                 ContentBoostedItemCFRecommender : 1.23,
+#                 ContentBoostedUserCFRecommender : -1.03,
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 2.95,
+#                 ItemBasedCFRecommender : 0.49,
+#                 PopularityBasedRecommender : -2.13,
+#                 RandomBasedRecommender : -0.81
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_ratio_hybrid_user_cf_content_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : -0.01,
+#                 UserBasedCFRecommender : 1.01
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.01,
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.59,
+#                 ItemBasedCFRecommender : 0.4
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_content_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.06,
+#                 ItemBasedCFRecommender : 0.94
+#             }
+#         },
+#         {
+#             "model_dir_name": "model/assume_ratio_hybrid_all_recommenders_sub_hybrid_logit",
+#             "recommenders": {
+#                 ContentBasedRecommender : 0.06,
+#                 ContentBoostedItemCFRecommender : 0.32,
+#                 ContentBoostedUserCFRecommender : -0.21,
+#                 Hybrid_UserBased_CF_AgeItp_Recommender : 1.01,
+#                 ItemBasedCFRecommender : 0.05,
+#                 PopularityBasedRecommender : -0.11,
+#                 RandomBasedRecommender : -0.12
+#             }
+#         }
+#     ]
+
     kwargs['age_or_itp'] = 'age'
+    kwargs['user_features'] = []
+    configs = get_filtered_configs(configs, kwargs['hold_out_strategy'])
 
     for config in configs:
         model_dir = os.path.join(current_dir, config['model_dir_name'])

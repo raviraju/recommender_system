@@ -1,4 +1,5 @@
 """Module to aggregate scores of an ensemble of algorithms"""
+from pprint import pprint
 
 class Aggregator:
     """Aggregate scores from different algorithms"""
@@ -23,6 +24,7 @@ class Aggregator:
         try:
             total_weight = round(sum(columns_weights_dict.values()), 2)
             if total_weight != 1.00:
+                pprint(columns_weights_dict)
                 print("Total Weight of columns = {} do not add to 1".format(total_weight))
                 exit(-1)
                 return False

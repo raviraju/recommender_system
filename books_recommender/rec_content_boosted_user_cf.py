@@ -19,7 +19,7 @@ from recommender import rec_interface as generic_rec_interface
 import rec_interface as books_rec_interface
 
 
-class ContentBoostedRecommender(ContentBasedRecommender,
+class ContentBoostedUserCFRecommender(ContentBasedRecommender,
                                 UserBasedCFRecommender):
     """Content boosted User based cf recommender system model for Books"""
 
@@ -143,7 +143,7 @@ def main():
         os.makedirs(model_dir)
 
     no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
-    recommender_obj = ContentBoostedRecommender
+    recommender_obj = ContentBoostedUserCFRecommender
 
     if args.cross_eval and args.kfolds:
         generic_rec_interface.kfold_evaluation(recommender_obj,
