@@ -164,8 +164,8 @@ def main():
                         help="assume_ratio/assume_first_n/hold_last_n")
     parser.add_argument("hold_out_value",
                         help="assume_ratio=0.5/assume_first_n=5/hold_last_n=5")
-#     parser.add_argument("all_data",
-#                         help="All Data")
+    parser.add_argument("all_data",
+                        help="All Data")
 #     parser.add_argument("learner_pref",
 #                         help="User Preferences")
     args = parser.parse_args()
@@ -280,247 +280,13 @@ def main():
             }
         },
     ]
-#     configs = [
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ItemBasedCFRecommender : 0.33,
-#                 UserBasedAgeItpRecommender : -0.06,
-#                 UserBasedCFRecommender : 0.73
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.01,
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.7,
-#                 ItemBasedCFRecommender : 0.29
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_user_cf_content_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.01,
-#                 UserBasedCFRecommender : 0.99
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_all_recommenders_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.04,
-#                 ContentBoostedItemCFRecommender : 0.29,
-#                 ContentBoostedUserCFRecommender : -0.14,
-#                 ItemBasedCFRecommender : 0.18,
-#                 PopularityBasedRecommender : 0.13,
-#                 RandomBasedRecommender : -0.04,
-#                 UserBasedAgeItpRecommender : 0.06,
-#                 UserBasedCFRecommender : 0.48
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_user_cf_logit",
-#             "recommenders": {
-#                 ItemBasedCFRecommender : 0.55,
-#                 UserBasedCFRecommender : 0.45
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.69,
-#                 ItemBasedCFRecommender : 0.31
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_all_recommenders_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.04,
-#                 ContentBoostedItemCFRecommender : 0.21,
-#                 ContentBoostedUserCFRecommender : -0.13,
-#                 ItemBasedCFRecommender : 0.15,
-#                 PopularityBasedRecommender : 0.02,
-#                 RandomBasedRecommender : -0.07,
-#                 UserBasedAgeItpRecommender : 0.07,
-#                 UserBasedCFRecommender : 0.71
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.52,
-#                 ItemBasedCFRecommender : 0.48
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_sub_hybrid_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.55,
-#                 ItemBasedCFRecommender : 0.45
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_content_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.05,
-#                 ItemBasedCFRecommender : 0.67,
-#                 UserBasedAgeItpRecommender : -0.43,
-#                 UserBasedCFRecommender : 0.71
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_content_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.01,
-#                 ItemBasedCFRecommender : 0.99
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.04,
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.5,
-#                 ItemBasedCFRecommender : 0.46
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_all_recommenders_sub_hybrid_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.05,
-#                 ContentBoostedItemCFRecommender : 0.34,
-#                 ContentBoostedUserCFRecommender : -0.17,
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.59,
-#                 ItemBasedCFRecommender : 0.09,
-#                 PopularityBasedRecommender : 0.17,
-#                 RandomBasedRecommender : -0.07
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_user_cf_logit",
-#             "recommenders": {
-#                 ItemBasedCFRecommender : 0.32,
-#                 UserBasedCFRecommender : 0.68
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_user_cf_logit",
-#             "recommenders": {
-#                 ItemBasedCFRecommender : 0.53,
-#                 UserBasedCFRecommender : 0.47
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ItemBasedCFRecommender : 0.47,
-#                 UserBasedAgeItpRecommender : 0.07,
-#                 UserBasedCFRecommender : 0.46
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ItemBasedCFRecommender : 0.71,
-#                 UserBasedAgeItpRecommender : -0.56,
-#                 UserBasedCFRecommender : 0.85
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_item_cf_content_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.02,
-#                 ItemBasedCFRecommender : 0.32,
-#                 UserBasedAgeItpRecommender : 0.01,
-#                 UserBasedCFRecommender : 0.65
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_content_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : -0.02,
-#                 ItemBasedCFRecommender : 1.02
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_content_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.01,
-#                 ItemBasedCFRecommender : 0.44,
-#                 UserBasedAgeItpRecommender : 0.11,
-#                 UserBasedCFRecommender : 0.44
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_user_cf_content_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : -0.03,
-#                 UserBasedCFRecommender : 1.03
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_all_recommenders_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.12,
-#                 ContentBoostedItemCFRecommender : 0.54,
-#                 ContentBoostedUserCFRecommender : -0.42,
-#                 ItemBasedCFRecommender : 0.47,
-#                 PopularityBasedRecommender : -0.28,
-#                 RandomBasedRecommender : -0.15,
-#                 UserBasedAgeItpRecommender : -0.28,
-#                 UserBasedCFRecommender : 1.0
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_all_recommenders_sub_hybrid_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.3,
-#                 ContentBoostedItemCFRecommender : 1.23,
-#                 ContentBoostedUserCFRecommender : -1.03,
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 2.95,
-#                 ItemBasedCFRecommender : 0.49,
-#                 PopularityBasedRecommender : -2.13,
-#                 RandomBasedRecommender : -0.81
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_user_cf_content_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : -0.01,
-#                 UserBasedCFRecommender : 1.01
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_first_n_hybrid_item_cf_content_sub_hybrid_user_cf_jaccard_cosine_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.01,
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 0.59,
-#                 ItemBasedCFRecommender : 0.4
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/hold_last_n_hybrid_item_cf_content_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.06,
-#                 ItemBasedCFRecommender : 0.94
-#             }
-#         },
-#         {
-#             "model_dir_name": "model/assume_ratio_hybrid_all_recommenders_sub_hybrid_logit",
-#             "recommenders": {
-#                 ContentBasedRecommender : 0.06,
-#                 ContentBoostedItemCFRecommender : 0.32,
-#                 ContentBoostedUserCFRecommender : -0.21,
-#                 Hybrid_UserBased_CF_AgeItp_Recommender : 1.01,
-#                 ItemBasedCFRecommender : 0.05,
-#                 PopularityBasedRecommender : -0.11,
-#                 RandomBasedRecommender : -0.12
-#             }
-#         }
-#     ]
 
     kwargs['age_or_itp'] = 'age'
     kwargs['user_features'] = []
     configs = get_filtered_configs(configs, kwargs['hold_out_strategy'])
 
+    data = pd.read_csv(args.all_data)
+    all_items = set(data[item_id_col].unique())
     for config in configs:
         model_dir = os.path.join(current_dir, config['model_dir_name'])
         if not os.path.exists(model_dir):
@@ -534,6 +300,11 @@ def main():
                                                           args.train_data, args.test_data,
                                                           user_id_col, item_id_col,
                                                           no_of_recs_to_eval, **kwargs)
+            generic_rec_interface.hybrid_kfold_evaluation_using_auto_weights(model_dir,
+                                                                             all_items,
+                                                                             item_id_col,
+                                                                             kwargs['no_of_recs'],
+                                                                             no_of_recs_to_eval)
             #get_user_item_meta_info(model_dir, user_id_col, item_id_col, args.all_data, args.learner_pref)
         elif args.train:
             generic_rec_interface.hybrid_train(recommenders,
