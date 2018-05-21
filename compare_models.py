@@ -15,14 +15,14 @@ import matplotlib.pyplot as plt
 from lib import utilities
 from pprint import pprint
 
-HOLD_OUT_STRATERGIES = ['assume_first_n', 'assume_ratio', 'hold_last_n']
+HOLD_OUT_STRATEGIES = ['assume_first_n', 'assume_ratio', 'hold_last_n']
 
 def get_cmap(index, name='tab20b_r'):
     '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
     RGB color; the keyword argument name must be a standard mpl colormap name.'''
     return plt.cm.get_cmap(name, index)
 
-def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_only=False, hold_out_stratergy=''):
+def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_only=False, hold_out_strategy=''):
     """plot roc(tpr vs fpr)"""
     no_of_items_to_recommend = []
     avg_tpr_models_dict = OrderedDict()
@@ -31,8 +31,8 @@ def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_onl
         no_of_items_to_recommend.append(int(no_of_items))
         for model in results[no_of_items]:
             if hybrid_models_only and 'hybrid' in model:
-                if hold_out_stratergy in model:
-                    model_name = model.split(hold_out_stratergy+'_')[1]
+                if hold_out_strategy in model:
+                    model_name = model.split(hold_out_strategy+'_')[1]
                     if model_name not in avg_tpr_models_dict:
                         avg_tpr_models_dict[model_name] = []
                     if model_name not in avg_fpr_models_dict:
@@ -41,16 +41,16 @@ def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_onl
     #no_of_items_to_recommend = [5, 10]
     for no_of_items in no_of_items_to_recommend:
         for model_name in avg_tpr_models_dict.keys():
-            model = hold_out_stratergy + '_' + model_name
+            model = hold_out_strategy + '_' + model_name
             avg_tpr_val = float(results[str(no_of_items)][model]['avg_tpr'])
             avg_tpr_models_dict[model_name].append(avg_tpr_val)
 
         for model_name in avg_fpr_models_dict.keys():
-            model = hold_out_stratergy + '_' + model_name
+            model = hold_out_strategy + '_' + model_name
             avg_fpr_val = float(results[str(no_of_items)][model]['avg_fpr'])
             avg_fpr_models_dict[model_name].append(avg_fpr_val)
-    #pprint(avg_tpr_models_dict)
-    #pprint(avg_fpr_models_dict)
+    if not avg_tpr_models_dict or not avg_fpr_models_dict:
+        return
 
     fig = plt.figure(figsize=(15, 5))
     axis = fig.add_subplot(121)
@@ -70,8 +70,8 @@ def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_onl
         #print(i, color, model)
         axis.plot(x_fprs, y_tprs, label=model, color=color, marker='o')
         i = i+1
-    if len(hold_out_stratergy) > 1:
-        plt.title('hold_out_stratergy = ' + hold_out_stratergy)
+    if len(hold_out_strategy) > 1:
+        plt.title('hold_out_strategy = ' + hold_out_strategy)
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
 
@@ -82,8 +82,8 @@ def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_onl
     axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
     axis.grid('on')
-    if len(hold_out_stratergy) > 1:
-        img_name = hold_out_stratergy + '_'
+    if len(hold_out_strategy) > 1:
+        img_name = hold_out_strategy + '_'
     else:
         img_name = ''
     img_name += 'results_roc.png'
@@ -97,7 +97,7 @@ def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_onl
     #plt.show()
     plt.close(fig)
 
-def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid_models_only=False, hold_out_stratergy=''):
+def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid_models_only=False, hold_out_strategy=''):
     """plot precision recall and f1-score"""
     #pprint(results)
 
@@ -111,17 +111,19 @@ def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid
         for model in results[no_of_items]:
             if model not in models_dict:
                 if hybrid_models_only and 'hybrid' in model:
-                    if hold_out_stratergy in model:
-                        model_name = model.split(hold_out_stratergy+'_')[1]
+                    if hold_out_strategy in model:
+                        model_name = model.split(hold_out_strategy+'_')[1]
                         models_dict[model_name] = []
     #print(no_of_items_to_recommend)
     for no_of_items in no_of_items_to_recommend:
         for model_name in models_dict.keys():
-            model = hold_out_stratergy + '_' + model_name
+            model = hold_out_strategy + '_' + model_name
             #print(no_of_items, model, results[str(no_of_items)][model][measure])
             val = float(results[str(no_of_items)][model][measure])
             models_dict[model_name].append(val)
     #pprint(models_dict)
+    if not models_dict:
+        return
     x_no_of_items_to_recommend = np.array(no_of_items_to_recommend)
     y_param = np.row_stack(tuple(models_dict.values()))
     #print(x_no_of_items_to_recommend)
@@ -144,8 +146,8 @@ def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid
     plt.suptitle('*Points represent no_of_items being recommended ' + str(no_of_items_to_recommend),
                  fontsize=10, ha='left')
     plt.xticks(x_no_of_items_to_recommend)
-    if len(hold_out_stratergy) > 1:
-        plt.title('hold_out_stratergy = ' + hold_out_stratergy)
+    if len(hold_out_strategy) > 1:
+        plt.title('hold_out_strategy = ' + hold_out_strategy)
     plt.ylabel(measure)
     plt.xlabel('no_of_items_to_recommend')
 
@@ -156,8 +158,8 @@ def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid
     axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
     axis.grid('on')
-    if len(hold_out_stratergy) > 1:
-        img_name = hold_out_stratergy + '_'
+    if len(hold_out_strategy) > 1:
+        img_name = hold_out_strategy + '_'
     else:
         img_name = ''
     img_name += 'results_' + measure + '.png'
@@ -170,7 +172,7 @@ def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid
     #plt.show()
     plt.close(fig)
 
-def plot_hold_out_stratergies(recommender, results,
+def plot_hold_out_strategies(recommender, results,
                               measure, plot_results_dir,
                               no_of_items_recommended, hybrid_models_only=False):
     """plot measure"""
@@ -222,7 +224,7 @@ def plot_hold_out_stratergies(recommender, results,
     axis.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
     axis.grid('on')
-    img_name = no_of_items_recommended + '_compare_hold_out_stratergy_results_' + measure + '.png'
+    img_name = no_of_items_recommended + '_compare_hold_out_strategy_results_' + measure + '.png'
     results_dir = os.path.join(recommender, plot_results_dir)
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -232,26 +234,32 @@ def plot_hold_out_stratergies(recommender, results,
     #plt.show()
     plt.close(fig)
 
-def analyse_hold_out_stratergies(recommender, results, measure, plot_results_dir='results', hybrid_models_only=False):
+def analyse_hold_out_strategies(recommender, results, measure, plot_results_dir='results', hybrid_models_only=False):
     list_of_items_recommended = results.keys()
     for no_of_items_recommended in list_of_items_recommended:
-        results_hold_out_stratergies = dict()
-        for hold_out_stratergy in HOLD_OUT_STRATERGIES:
-            results_hold_out_stratergies[hold_out_stratergy] = dict()
+        results_hold_out_strategies = dict()
+        for hold_out_strategy in HOLD_OUT_STRATEGIES:
+            results_hold_out_strategies[hold_out_strategy] = dict()
 
         results_recommended = results[no_of_items_recommended]
         #pprint(results_recommended)
-        for stratergy_model in results_recommended:
-            for hold_out_stratergy in HOLD_OUT_STRATERGIES:
-                #print(hold_out_stratergy)
-                if hold_out_stratergy in stratergy_model:
-                    #print(hold_out_stratergy, stratergy_model)
-                    model = stratergy_model.split(hold_out_stratergy+'_')[1]
+        for strategy_model in results_recommended:
+            for hold_out_strategy in HOLD_OUT_STRATEGIES:
+                #print(hold_out_strategy)
+                if hold_out_strategy in strategy_model:
+                    #print(hold_out_strategy, strategy_model)
+                    model = strategy_model.split(hold_out_strategy+'_')[1]
                     #print(model)
-                    results_hold_out_stratergies[hold_out_stratergy][model] = results_recommended[stratergy_model]
-        #pprint(results_hold_out_stratergies)
-        plot_hold_out_stratergies(recommender,
-                                  results_hold_out_stratergies,
+                    results_hold_out_strategies[hold_out_strategy][model] = results_recommended[strategy_model]
+        
+        #pprint(results_hold_out_strategies)
+        for hold_out_strategy in HOLD_OUT_STRATEGIES:
+            if not results_hold_out_strategies[hold_out_strategy]:
+                del results_hold_out_strategies[hold_out_strategy]
+        #pprint(results_hold_out_strategies)
+
+        plot_hold_out_strategies(recommender,
+                                  results_hold_out_strategies,
                                   measure,
                                   plot_results_dir,
                                   no_of_items_recommended, hybrid_models_only)
@@ -289,13 +297,13 @@ def analyse(recommender):
     dump_scores(recommender, results, score_results_dir='score_results')
     hybrid_models_only = True
     plot_results_dir='plot_results'
-    #analyse_hold_out_stratergies(recommender, results, 'avg_tpr', plot_results_dir, hybrid_models_only)
-    for hold_out_stratergy in HOLD_OUT_STRATERGIES:
-        plot_graph(recommender, results, 'avg_f1_score', plot_results_dir, hybrid_models_only, hold_out_stratergy)
-        plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir, hybrid_models_only, hold_out_stratergy)
-        plot_graph(recommender, results, 'avg_precision', plot_results_dir, hybrid_models_only, hold_out_stratergy)
-        plot_graph(recommender, results, 'avg_recall', plot_results_dir, hybrid_models_only, hold_out_stratergy)
-        plot_roc(recommender, results, plot_results_dir, hybrid_models_only, hold_out_stratergy)
+    analyse_hold_out_strategies(recommender, results, 'avg_tpr', plot_results_dir, hybrid_models_only)
+    for hold_out_strategy in HOLD_OUT_STRATEGIES:
+        plot_graph(recommender, results, 'avg_f1_score', plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_graph(recommender, results, 'avg_precision', plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_graph(recommender, results, 'avg_recall', plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_roc(recommender, results, plot_results_dir, hybrid_models_only, hold_out_strategy)
 
 def analyse_kfold(recommender):
     """analyse kfold summary for recommender using kfold_evaluation.json"""
@@ -317,13 +325,13 @@ def analyse_kfold(recommender):
 
     hybrid_models_only = True
     plot_results_dir='plot_kfold_results'
-    analyse_hold_out_stratergies(recommender, results, 'avg_tpr', plot_results_dir, hybrid_models_only)
-    for hold_out_stratergy in HOLD_OUT_STRATERGIES:
-        plot_graph(recommender, results, 'avg_f1_score', plot_results_dir, hybrid_models_only, hold_out_stratergy)
-        plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir, hybrid_models_only, hold_out_stratergy)
-        plot_graph(recommender, results, 'avg_precision', plot_results_dir, hybrid_models_only, hold_out_stratergy)
-        plot_graph(recommender, results, 'avg_recall', plot_results_dir, hybrid_models_only, hold_out_stratergy)
-        plot_roc(recommender, results, plot_results_dir, hybrid_models_only, hold_out_stratergy)
+    analyse_hold_out_strategies(recommender, results, 'avg_tpr', plot_results_dir, hybrid_models_only)
+    for hold_out_strategy in HOLD_OUT_STRATEGIES:
+        plot_graph(recommender, results, 'avg_f1_score', plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_graph(recommender, results, 'avg_precision', plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_graph(recommender, results, 'avg_recall', plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_roc(recommender, results, plot_results_dir, hybrid_models_only, hold_out_strategy)
 
 def main():
     """analyse results of recommenders"""

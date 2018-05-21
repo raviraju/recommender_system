@@ -51,6 +51,7 @@ class Aggregator:
                     no_of_cols = 1
                 self.data_frame.loc[index, 'weighted_avg'] = total/no_of_cols
             '''
+            '''
             total = 0.0
             no_of_cols = 0
             for col_name in columns_weights_dict:
@@ -59,6 +60,10 @@ class Aggregator:
             if no_of_cols == 0:#To avoid divide by zero
                 no_of_cols = 1
             self.data_frame['weighted_avg'] = total/no_of_cols
+            '''
+            self.data_frame['weighted_avg'] = 0.0
+            for col_name in columns_weights_dict:
+                self.data_frame['weighted_avg'] += self.data_frame[col_name]*columns_weights_dict[col_name]
             #print(self.data_frame.head())
             aggregation_results = self.data_frame
             aggregation_results.sort_values('weighted_avg',

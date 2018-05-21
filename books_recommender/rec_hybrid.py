@@ -332,6 +332,11 @@ def main():
                                                               args.train_data, args.test_data,
                                                               user_id_col, item_id_col,
                                                               no_of_recs_to_eval, **kwargs)
+            generic_rec_interface.hybrid_evaluation_using_auto_weights(model_dir,
+                                                                       all_items,
+                                                                       item_id_col,
+                                                                       kwargs['no_of_recs'],
+                                                                       no_of_recs_to_eval)
 
 if __name__ == '__main__':
     main()
