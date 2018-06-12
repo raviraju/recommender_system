@@ -1,0 +1,5 @@
+train_test_data
+preprocessed_data
+hyper_param_search_experiments
+model*
+*pickle
