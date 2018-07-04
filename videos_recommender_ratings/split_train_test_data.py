@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
+from collections import defaultdict
 
 def split_items(items_interacted, hold_last_n=5):
     """return assume_interacted_items, hold_out_items"""
@@ -92,10 +93,10 @@ def generate_users_split(data, user_id_col, item_id_col,
     no_of_items_list = [dist['min'], dist['25%'], dist['50%'], dist['75%'], dist['max']]
     print("Distribution of item_counts (min, 25%, 50%, 75%, max)")
     for no_of_items in no_of_items_list:
-        no_of_users = len(user_items_df[user_items_df['no_of_items'] == no_of_items])
+        no_of_users = len(user_items_df[user_items_df['no_of_items'] <= no_of_items])
         print("{:15} : {:5} {:15} : {:5}".format("No of items", no_of_items, " No of users", no_of_users))
     print()
-
+    input()
     user_min_items_df = user_items_df[user_items_df['no_of_items'] >= min_no_of_items]        
     filtered_events_df = pd.merge(user_min_items_df, events_df, how='inner', on=user_id_col)
     print()
@@ -292,11 +293,11 @@ def generate_users_split(data, user_id_col, item_id_col,
     testing_all[user_item_rating].to_csv(testing_all_uir_file, index=False)
     print("Train and Test Data are in ", train_test_dir)
 
-def generate_kfolds_split(data, user_id_col, item_id_col,
+def generate_kfolds_split(data, user_id_col, item_id_col, rating_col,
                           validation_size = 0.2, no_of_kfolds=10, min_no_of_items=1):
     """Loads data and returns training and test sets by kfolds selection of users"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    train_test_dir = os.path.join(current_dir, 'train_test_data/kfolds_split')
+    train_test_dir = os.path.join(current_dir, 'train_test_data_all/kfolds_split')
     if not os.path.exists(train_test_dir):
         os.makedirs(train_test_dir)
 
@@ -320,7 +321,7 @@ def generate_kfolds_split(data, user_id_col, item_id_col,
     no_of_items_list = [dist['min'], dist['25%'], dist['50%'], dist['75%'], dist['max']]
     print("Distribution of item_counts (min, 25%, 50%, 75%, max)")
     for no_of_items in no_of_items_list:
-        no_of_users = len(user_items_df[user_items_df['no_of_items'] == no_of_items])
+        no_of_users = len(user_items_df[user_items_df['no_of_items'] >= no_of_items])
         print("No of items : ", no_of_items, " No of users : ", no_of_users)
     print()
 
@@ -430,23 +431,58 @@ def generate_kfolds_split(data, user_id_col, item_id_col,
         training_data_for_validation, validating_data = apply_hold_out_strategy(train_data, 
                                                                                 validation_data, 
                                                                                 user_id_col, item_id_col)
-        common_users = set(training_data_for_validation[user_id_col].unique()) & set(validating_data[user_id_col].unique())
-        common_items = set(training_data_for_validation[item_id_col].unique()) & set(validating_data[item_id_col].unique())
+        training_data_for_validation_users = set(training_data_for_validation[user_id_col].unique())
+        training_data_for_validation_items = set(training_data_for_validation[item_id_col].unique())
+        
+        validating_data_users = set(validating_data[user_id_col].unique())
+        validating_data_items = set(validating_data[item_id_col].unique())
+        
+        common_users = training_data_for_validation_users & validating_data_users
+        common_items = training_data_for_validation_items & validating_data_items
 
         print("{:30} : {:20} : {}".format("Training Data For Validation", "No of records", len(training_data_for_validation)))
         print("{:30} : {:20} : {}".format("Training Data For Validation", "No of users",
-                                          len(training_data_for_validation[user_id_col].unique())))
+                                          len(training_data_for_validation_users)))
         print("{:30} : {:20} : {}".format("Training Data For Validation", "No of items",
-                                          len(training_data_for_validation[item_id_col].unique())))
+                                          len(training_data_for_validation_items)))
         print()
         print("{:30} : {:20} : {}".format("Validating Data", "No of records", len(validating_data)))
         print("{:30} : {:20} : {}".format("Validating Data", "No of users",
-                                          len(validating_data[user_id_col].unique())))
+                                          len(validating_data_users)))
         print("{:30} : {:20} : {}".format("Validating Data", "No of items",
-                                          len(validating_data[item_id_col].unique())))
+                                          len(validating_data_items)))
         print()
         print("{:30} : {:20} : {}".format("Common ", "No of users", len(common_users)))
         print("{:30} : {:20} : {}".format("Common ", "No of items", len(common_items)))
+        
+        '''
+        known_train_data = dict()
+        for _, row in training_data_for_validation.iterrows():
+            #print(row[user_id_col], row[item_id_col], row[rating_col])
+            known_train_data[(row[user_id_col], row[item_id_col])] = row[rating_col]
+            
+        known_validating_data = defaultdict(int)
+        for i, row in validating_data.iterrows():
+            #print(row[user_id_col], row[item_id_col], row[rating_col])
+            known_validating_data[(row[user_id_col], row[item_id_col])] = row[rating_col]
+        
+        all_items = training_data_for_validation_items | validating_data_items
+        validating_data_triplets = []
+        for user_id in validating_data_users:
+            for item_id in all_items:
+                if (user_id, item_id) in known_train_data:
+                    continue
+                else:
+                    rating = known_validating_data[(user_id, item_id)]
+                    validating_data_triplet = {
+                        user_id_col : user_id,
+                        item_id_col : item_id,
+                        rating_col : rating
+                    }
+                    validating_data_triplets.append(validating_data_triplet)
+        validating_data_triplets_df = pd.DataFrame(validating_data_triplets)
+        print(validating_data_triplets_df.head())
+        '''
 
         '''
         training_data_for_validation_file = os.path.join(train_test_dir, str(i) + '_training_data_for_validation.csv')    
@@ -460,6 +496,9 @@ def generate_kfolds_split(data, user_id_col, item_id_col,
         training_data_for_validation[user_item_rating].to_csv(training_for_validation_uir_file, index=False)
         validating_data_uir_file = os.path.join(train_test_dir, str(i) + '_validation_uir_data.csv')
         validating_data[user_item_rating].to_csv(validating_data_uir_file, index=False)
+        
+        #all_validating_data_uir_file = os.path.join(train_test_dir, str(i) + '_all_validation_uir_data.csv')
+        #validating_data_triplets_df[user_item_rating].to_csv(all_validating_data_uir_file, index=False)
         #######################################################################################################    
         print('*'*80)
         print("Preparing Train and Test Data...")
@@ -571,18 +610,19 @@ def main():
     parser.add_argument("data", help="data used to split into train and test")
     parser.add_argument("user_id_col", help="user_id column name")
     parser.add_argument("item_id_col", help="item_id column name")
+    parser.add_argument("rating_col",  help="rating column name")
     args = parser.parse_args()
-
-    if not args.min_no_of_items:
+    
+    if args.min_no_of_items is None:
         min_no_of_items = 15
     else:
         min_no_of_items = args.min_no_of_items     
 
     if args.users_split and args.validation_size and args.test_size and args.data:
-        generate_users_split(args.data, args.user_id_col, args.item_id_col, 
+        generate_users_split(args.data, args.user_id_col, args.item_id_col, args.rating_col,
                              args.validation_size, args.test_size, min_no_of_items)
     elif args.kfolds_split and args.validation_size and args.no_of_kfolds and args.data:
-        generate_kfolds_split(args.data, args.user_id_col, args.item_id_col, 
+        generate_kfolds_split(args.data, args.user_id_col, args.item_id_col, args.rating_col,
                               args.validation_size, args.no_of_kfolds, min_no_of_items)
     else:
         print("Invalid option")
