@@ -48,7 +48,7 @@ def get_testset_stats(testset):
     """Collect Stats for testset"""
     test_users = []
     test_items = []
-    test_ratings = []
+    test_ratings = []    
     for (user_id, item_id, rating) in testset:
         #print((user_id, item_id, rating))
         test_users.append(user_id)
@@ -109,6 +109,18 @@ def main():
     testset = trainset.build_anti_testset()
     testset_n_users, testset_n_items, testset_n_ratings = get_testset_stats(testset)
     print("testset  n_users : {}, n_users : {}, n_ratings : {}".format(testset_n_users, testset_n_items, testset_n_ratings))
+       
+    user_item_ratings = []
+    for (user_id, item_id, rating) in testset:
+        user_item_rating = dict()
+        user_item_rating[user_id_col] = user_id
+        user_item_rating[item_id_col] = item_id
+        user_item_rating[rating_col] = float("{0:.4f}".format(rating))
+        user_item_ratings.append(user_item_rating)
+        #print((user_id, item_id, rating))
+    anti_test_set_df = pd.DataFrame(user_item_ratings)    
+    
+    
     end_time = default_timer()
     time_taken = convert_sec(end_time - start_time)
     print("Built Anti Testset.", time_taken)
@@ -118,6 +130,8 @@ def main():
     results_dir = os.path.join(current_dir, 'top_n_recs')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
+        
+    anti_test_set_df.to_csv(os.path.join(results_dir, 'anti_test_set.csv'), index=False)
    
     start_time = default_timer()
     for config in configs:
@@ -147,6 +161,8 @@ def main():
         result_file = os.path.join(results_dir, algo_name + '_top_n_recs.csv')
         top_recommendations_df[[user_id_col, item_id_col, rating_col]].to_csv(result_file, index=False)
         print("Recommendations Generated")
+        print()
+
     end_time = default_timer()
     time_taken = convert_sec(end_time - start_time)
     print("All Recommendations Generated.", time_taken)
