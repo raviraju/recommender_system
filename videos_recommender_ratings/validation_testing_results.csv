@@ -1,8 +1,8 @@
 algo_name,mean_rmse_all_predictions_validation,mean_rmse_all_predictions_testing
-Knn_UserBased_Baseline_SGD_Tuned,0.6948,0.6946
-BaselineOnly_SGD_Tuned,0.7014,0.6974
-Knn_ItemBased_Baseline_SGD_Tuned,0.7014,0.6974
-SVD_biased_Tuned,0.7019,0.701
-SVDpp_biased_Tuned,0.7116,0.7118
-Knn_UserBased_ZScore_MSD_Tuned,0.7181,0.7192
-Knn_ItemBased_ZScore_MSD_Tuned,0.7459,0.7458
+Knn_UserBased_Baseline_SGD_Tuned,0.6956,0.6946
+BaselineOnly_SGD_Tuned,0.7007,0.6974
+Knn_ItemBased_Baseline_SGD_Tuned,0.7007,0.6974
+SVD_biased_Tuned,0.7034,0.7021
+SVDpp_biased_Tuned,0.7131,0.7118
+Knn_UserBased_ZScore_MSD_Tuned,0.7192,0.7192
+Knn_ItemBased_ZScore_MSD_Tuned,0.7365,0.7337

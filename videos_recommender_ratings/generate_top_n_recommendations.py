@@ -1,4 +1,5 @@
 import os
+import pickle
 import argparse
 import pandas as pd
 
@@ -6,10 +7,6 @@ from collections import defaultdict
 
 from surprise import Dataset
 from surprise import Reader
-
-#from configs.default_configs import default_configs
-#from configs.tuned_configs import tuned_configs
-from configs.tuned_configs_new import tuned_configs
 
 from timeit import default_timer
 def convert_sec(no_of_secs):
@@ -68,7 +65,11 @@ def get_testset_stats(testset):
 def main():
     parser = argparse.ArgumentParser(description="Generate Top N Recommendations")
     parser.add_argument("data", help="data used to generate recommendations")
+    parser.add_argument("configs", help="config of algorithms used to generate recommendations")
     args = parser.parse_args()
+    
+    pickle_in = open(args.configs, "rb")
+    configs = pickle.load(pickle_in)
     
     user_id_col = 'learner_id'
     item_id_col = 'media_id'
@@ -77,7 +78,7 @@ def main():
     top_n = 50
     
     print("Loading Data...")    
-    events_df = pd.read_csv(args.data)#, nrows=1000)    
+    events_df = pd.read_csv(args.data) 
     print("{:30} : {:20} : {}".format("Data", "No of records", len(events_df)))
     print("{:30} : {:20} : {}".format("Data", "No of users", len(events_df[user_id_col].unique())))
     print("{:30} : {:20} : {}".format("Data", "No of items", len(events_df[item_id_col].unique())))    
@@ -97,7 +98,6 @@ def main():
     print("{:30} : {:20} : {}".format("Filtered Data", "No of items", len(filtered_events_df[item_id_col].unique())))    
     
     user_item_rating_df = filtered_events_df[[user_id_col, item_id_col, rating_col]]
-    #print(user_item_rating_df.head())
     
     print('*'*80)
     reader = Reader(rating_scale=(1, 3))
@@ -118,19 +118,9 @@ def main():
     results_dir = os.path.join(current_dir, 'top_n_recs')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
-    
-    all_configs = []
-    #for config in default_configs:
-    #    all_configs.append(config)
-    for config in tuned_configs:
-        all_configs.append(config)
-        
-    #print("No of default configs : ", len(default_configs))
-    #print("No of tuned configs : ",   len(tuned_configs))
-    print("No of all configs : ",     len(all_configs))
-    
+   
     start_time = default_timer()
-    for config in all_configs:
+    for config in configs:
         algo_name = config['name']
         print("Training using {}".format(algo_name))
         algo = config['algo']        
@@ -160,5 +150,6 @@ def main():
     end_time = default_timer()
     time_taken = convert_sec(end_time - start_time)
     print("All Recommendations Generated.", time_taken)
+    
 if __name__ == '__main__':
     main()

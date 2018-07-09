@@ -16,8 +16,6 @@ from surprise.model_selection import PredefinedKFold
 from surprise.model_selection import GridSearchCV
 from surprise import dump
 
-from params_search.experiments import experiments
-
 import mlflow
 
 def convert_sec(no_of_secs):
@@ -34,12 +32,11 @@ def main():
     
     
     parser = argparse.ArgumentParser(description="Hyper Parameters Search Experiments")
-    '''
     parser.add_argument("experiments", help="experiment of algorithms used to search for hyper params")
     args = parser.parse_args()    
     pickle_in = open(args.experiments,"rb")
     experiments = pickle.load(pickle_in)
-    '''
+
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
     files_dir = os.path.expanduser('train_test_data/kfolds_split/')    

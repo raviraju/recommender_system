@@ -17,6 +17,8 @@ def generate_data(configs, data_dir, result_dir):
         
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
+        
+    all_dfs = pd.DataFrame()
     for kfold in range(1, no_of_kfolds+1):
         #print(kfold)
         recommender_dfs = dict()
@@ -35,6 +37,8 @@ def generate_data(configs, data_dir, result_dir):
         kfold_file = os.path.join(result_dir, 'combined_predictions_' + str(kfold) + '.csv')
         print(kfold_file)
         combined_df.to_csv(kfold_file, index=False)
+        all_dfs = all_dfs.append(combined_df)
+    all_dfs.to_csv(os.path.join(result_dir, 'all_combined_predictions.csv'), index=False)
         
 def main():
     parser = argparse.ArgumentParser(description="Hybrid Recommender")

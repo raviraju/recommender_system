@@ -8,7 +8,7 @@ from surprise import SVDpp
 
 tuned_configs = [
     {
-        "name": "BaselineOnly_SGD_Tuned",#0.7014
+        "name": "BaselineOnly_SGD_Tuned",#0.70070116268
         "algo": BaselineOnly(
           bsl_options = {
             "method": "sgd",
@@ -19,9 +19,9 @@ tuned_configs = [
     },     
     ######################################################################
     {
-        "name": "Knn_UserBased_ZScore_MSD_Tuned",#0.7180
+        "name": "Knn_UserBased_ZScore_MSD_Tuned",#0.719219724908
         "algo": KNNWithZScore(
-            k = 500,
+            k = 100,
             min_k = 15,
             sim_options = {
                 "name": "msd",
@@ -30,10 +30,10 @@ tuned_configs = [
             })
     },
     {
-        "name": "Knn_ItemBased_ZScore_MSD_Tuned",#0.746
+        "name": "Knn_ItemBased_ZScore_MSD_Tuned",#0.7365081822837258
         "algo": KNNWithZScore(
-            k = 10,
-            min_k = 5,
+            k = 100,
+            min_k = 1,
             sim_options = {
                 "name": "msd",
                 "min_support": 1,
@@ -42,10 +42,10 @@ tuned_configs = [
     },
     ######################################################################
     {
-        "name": "Knn_UserBased_Baseline_SGD_Tuned",#0.6948
+        "name": "Knn_UserBased_Baseline_SGD_Tuned",#0.695556842098
         "algo": KNNBaseline(
-            k = 800,
-            min_k = 25,
+            k = 1000,
+            min_k = 50,
             sim_options = {
                 "name": "pearson_baseline",
                 "shrinkage": 0,
@@ -60,10 +60,10 @@ tuned_configs = [
             })
     },    
     {
-        "name": "Knn_ItemBased_Baseline_SGD_Tuned",#0.7014
+        "name": "Knn_ItemBased_Baseline_SGD_Tuned",#0.70070116268
         "algo": KNNBaseline(
-            k = 2,
-            min_k = 15,
+            k = 10,
+            min_k = 20,
             sim_options = {
                 "name": "pearson_baseline",
                 "shrinkage": 0,
@@ -79,14 +79,14 @@ tuned_configs = [
     },
     ######################################################################
     {
-        "name": "SVD_biased_Tuned",#0.7021
+        "name": "SVD_biased_Tuned",#0.703201233354
         "algo": SVD(
-            n_factors=500, n_epochs=10, biased=True,
+            n_factors=150, n_epochs=10, biased=True,
             lr_all=0.1, reg_all=0.1,                
             random_state=123)
     },
     {
-        "name": "SVDpp_biased_Tuned",#0.7115
+        "name": "SVDpp_biased_Tuned",#0.712759271293
         "algo": SVDpp(
             n_factors=10, n_epochs=10,
             lr_all=0.01, reg_all=0.01,
