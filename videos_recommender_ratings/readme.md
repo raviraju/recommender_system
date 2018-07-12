@@ -32,15 +32,19 @@ Use `merge validation and testing recommendations.ipynb` to generate `validation
 
 # Hybrid Recommenders
 
-## Generate training and test data for hybrid recommender
+## Generate data for hybrid recommender
 
-`python hybrid_recommender.py configs/tuned_configs_new.pickle model_validation/ model_testing/`
+`python hybrid_recommender_generate_data.py configs/tuned_configs_new.pickle model_testing/`
 
 
 ## Search for hyper parameters of hybrid recommender
 
 `python hybrid_recommender_search.py`
 
-## Use best parameters of hybrid recommender to generate hybrid recommendations for validation and test data
+## Use best parameters of hybrid recommender to generate hybrid recommendations
 
-Use `hybrid recommender regression.ipynb`
+`python hybrid_recommender_generate_recommendations.py`
+
+## Generate top N recommendations using hybrid recommenders
+
+`python hybrid_recommender_generate_top_n_recs.py configs/tuned_configs_new.pickle top_n_recs/`

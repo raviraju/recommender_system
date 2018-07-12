@@ -44,6 +44,7 @@ def get_top_n(predictions, n=10):
 
     return top_n
 
+       
 def get_testset_stats(testset):
     """Collect Stats for testset"""
     test_users = []
@@ -131,7 +132,8 @@ def main():
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
         
-    anti_test_set_df.to_csv(os.path.join(results_dir, 'anti_test_set.csv'), index=False)
+    anti_test_set_df[[user_id_col, item_id_col, rating_col]].to_csv(os.path.join(results_dir, 'anti_test_set.csv'),
+                                                                    index=False)
    
     start_time = default_timer()
     for config in configs:
@@ -142,6 +144,17 @@ def main():
 
         # Predict ratings for all pairs (u, i) that are NOT in the training set.
         predictions = algo.test(testset)
+        prediction_file = os.path.join(results_dir, algo_name + '_predictions.csv')
+        uir_predictions = []
+        for uid, iid, true_r, est, _ in predictions:
+            uir_prediction = dict()
+            uir_prediction[user_id_col] = uid
+            uir_prediction[item_id_col] = iid
+            uir_prediction[rating_col] = est
+            uir_predictions.append(uir_prediction)
+        uir_prediction_df = pd.DataFrame(uir_predictions)
+        uir_prediction_df[[user_id_col, item_id_col, rating_col]].to_csv(prediction_file, index=False)
+            
         top_n_recs = get_top_n(predictions, n=top_n)
 
         # Collect the TOP N recommended items for each user

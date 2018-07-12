@@ -5,7 +5,7 @@ from functools import reduce
 
 import pandas as pd
 
-def generate_data(configs, data_dir, result_dir):    
+def generate_data(configs, data_dir, result_dir, user_id_col, item_id_col, rating_col):    
     no_of_kfolds = 10    
     
     recommenders = []
@@ -34,16 +34,19 @@ def generate_data(configs, data_dir, result_dir):
             recommender_dfs[recommender] = predictions_df[['uid', 'iid', 'r_ui', 'est']].rename(columns={'est': recommender + '_est'})
         combined_df = reduce(lambda x, y: pd.merge(x, y, on=['uid', 'iid', 'r_ui']), recommender_dfs.values())
         #print(combined_df.head())
-        kfold_file = os.path.join(result_dir, 'combined_predictions_' + str(kfold) + '.csv')
+        kfold_file = os.path.join(result_dir, 'combined_predictions_' + str(kfold) + '.csv')        
         print(kfold_file)
+        combined_df.rename(columns={'uid' : user_id_col, 'iid' : item_id_col, 'r_ui' : rating_col}, inplace=True)
         combined_df.to_csv(kfold_file, index=False)
         all_dfs = all_dfs.append(combined_df)
-    all_dfs.to_csv(os.path.join(result_dir, 'all_combined_predictions.csv'), index=False)
+    all_combined_predictions_file = os.path.join(result_dir, 'all_combined_predictions.csv')
+    all_dfs.to_csv(all_combined_predictions_file, index=False)
+    print(all_combined_predictions_file)
         
 def main():
     parser = argparse.ArgumentParser(description="Hybrid Recommender")
     parser.add_argument("configs", help="config of algorithms used to generate recommendations")        
-    parser.add_argument("validation_data", help="path of generated recommendations for validation data")
+    #parser.add_argument("validation_data", help="path of generated recommendations for validation data")
     parser.add_argument("testing_data", help="path of generated recommendations for testing data")
     args = parser.parse_args()
 
@@ -55,12 +58,16 @@ def main():
     pickle_in = open(args.configs,"rb")
     configs = pickle.load(pickle_in)
     
+    user_id_col = 'learner_id'
+    item_id_col = 'media_id'
+    rating_col = 'like_rating'
     
-    training_data_dir = os.path.join(results_dir, 'training_data')
-    generate_data(configs, args.validation_data, training_data_dir)
+    #training_data_dir = os.path.join(results_dir, 'training_data')
+    #generate_data(configs, args.validation_data, training_data_dir)
     
-    testing_data_dir = os.path.join(results_dir, 'testing_data')
-    generate_data(configs, args.testing_data, testing_data_dir)
+    #testing_data_dir = os.path.join(results_dir, 'testing_data')
+    #generate_data(configs, args.testing_data, testing_data_dir)
+    generate_data(configs, args.testing_data, results_dir, user_id_col, item_id_col, rating_col)
         
             
     

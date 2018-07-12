@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from sklearn.model_selection import GridSearchCV
 import math
@@ -30,9 +31,9 @@ def main():
                 'Knn_ItemBased_Baseline_SGD_Tuned_est', 
                 'SVD_biased_Tuned_est',
                 'SVDpp_biased_Tuned_est']
-    target = 'r_ui'
+    target = 'like_rating'
     
-    df = pd.read_csv('hybrid_recommender/training_data/all_combined_predictions.csv')
+    df = pd.read_csv('hybrid_recommender/all_combined_predictions.csv')
     
     estimators = [
         {
@@ -67,18 +68,9 @@ def main():
         {
             'algo' : RandomForestRegressor,
             'param_grid' : {
-                'n_estimators' : [10, 100, 150],
-                'max_depth' : [1, 7, 10, 15],
-                'bootstrap' : [True, False]
-            }
-        }
-    ]
-    estimators = [
-        {
-            'algo' : RandomForestRegressor,
-            'param_grid' : {
                 'n_estimators' : [10, 150, 200, 500],
-                'max_depth' : [1, 15, 20]                
+                'max_depth' : [1, 15, 20],
+                'bootstrap' : [True, False]
             }
         },
         {
@@ -90,8 +82,13 @@ def main():
             }
         }
     ]
-    
-    experiment_name = 'hybrid_recommenders'
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(current_dir, 'hybrid_recommender_search')
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+        
+    experiment_name = 'hybrid_recommenders1'
     exp_id = mlflow.tracking.get_experiment_id_by_name(experiment_name)
     if exp_id is None:
         exp_id = mlflow.create_experiment(experiment_name)
@@ -100,6 +97,10 @@ def main():
         mlflow.start_run(experiment_id=exp_id)
         algo = estimator['algo']
         algo_name = algo.__name__
+        algo_results_dir = os.path.join(results_dir, algo_name)
+        if not os.path.exists(algo_results_dir):
+            os.makedirs(algo_results_dir)
+        
         param_grid = estimator['param_grid']
         
         start_time = default_timer()        
@@ -124,11 +125,15 @@ def main():
         mlflow.log_metric('best_rmse', best_rmse)
         
         results_df = pd.DataFrame.from_dict(grid_search.cv_results_)
+        results_df.to_csv(os.path.join(algo_results_dir, 'cv_results.csv'), index=False)
+        
         no_of_experiments = len(results_df)
         mlflow.log_param('no_of_experiments', no_of_experiments)
         time_taken_per_exp = time_taken / no_of_experiments
         time_taken_per_exp_str = convert_sec(time_taken_per_exp)
         mlflow.log_param('time_taken_per_exp', time_taken_per_exp_str)
+        
+        mlflow.log_artifacts(algo_results_dir)
         
         mlflow.end_run()
         print(algo)
