@@ -25,8 +25,6 @@ def main():
     mlflow.set_tracking_uri("mlruns")
     
     features = ['BaselineOnly_SGD_Tuned_est',
-                'Knn_UserBased_ZScore_MSD_Tuned_est',
-                'Knn_ItemBased_ZScore_MSD_Tuned_est',
                 'Knn_UserBased_Baseline_SGD_Tuned_est',
                 'Knn_ItemBased_Baseline_SGD_Tuned_est', 
                 'SVD_biased_Tuned_est',
@@ -39,20 +37,21 @@ def main():
         {
             'algo' : Ridge,
             'param_grid' : {
-                'alpha' : [0.01, 0.1, 1, 10, 100]                
+                'alpha' : [0.01, 1, 6, 12, 75, 100]                
             }
         },
         {
             'algo' : Lasso,
             'param_grid' : {
-                'alpha' : [0.0001, 0.001, 0.01, 0.1, 1, 10, 100]                
+                'alpha' : [0.0001, 0.005, 0.001, 0.01, 0.1]                
             }
         },
         {
             'algo' : ElasticNet,
             'param_grid' : {
-                'alpha' : [0.01, 0.1, 1, 10, 100],
-                'l1_ratio' : [0.2, 0.4, 0.6, 0.8]
+                'alpha' : [0.0001, 0.001, 0.01, 0.1],
+                'l1_ratio' : [0.1, 0.2, 0.3, 0.4, 0.5, 0.8],
+                'max_iter' : [10000]
             }
         },
         {
@@ -62,21 +61,22 @@ def main():
                 'penalty' : ['l1', 'l2', 'elasticnet'],
                 'alpha' : [0.0001, 0.001, 0.01, 0.1, 1, 10, 100],
                 'l1_ratio' : [0.1, 0.15, 0.2, 0.6, 0.8],
-                'tol' : [1e-4]
+                'tol' : [1e-4, 1e-6]
             }
         },
+#    ]
+#    estimators1 = [
         {
             'algo' : RandomForestRegressor,
             'param_grid' : {
-                'n_estimators' : [10, 150, 200, 500],
-                'max_depth' : [1, 15, 20],
-                'bootstrap' : [True, False]
+                'n_estimators' : [150, 250, 500],
+                'max_depth' : [1, 7, 10, 15]
             }
         },
         {
             'algo' : GradientBoostingRegressor,
             'param_grid' : {
-                'learning_rate' : [0.0001, 0.001, 0.01, 0.1],
+                'learning_rate' : [0.001, 0.01, 0.1],
                 'n_estimators' : [10, 100, 150],
                 'max_depth' : [1, 7, 10, 15]              
             }
@@ -88,7 +88,7 @@ def main():
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
         
-    experiment_name = 'hybrid_recommenders1'
+    experiment_name = 'hybrid_recommenders'
     exp_id = mlflow.tracking.get_experiment_id_by_name(experiment_name)
     if exp_id is None:
         exp_id = mlflow.create_experiment(experiment_name)

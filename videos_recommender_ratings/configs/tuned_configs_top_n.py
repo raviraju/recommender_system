@@ -17,39 +17,39 @@ tuned_configs = [
             "learning_rate": 0.1
         })
     },
-    {
-        "name": "BaselineOnly_ALS_Tuned",
-        "algo": BaselineOnly(
-          bsl_options = {
-            "method": "als",
-            "n_epochs": 10,
-            "reg_u": 5,
-            "reg_i": 30
-        })
-    },
+    # {
+        # "name": "BaselineOnly_ALS_Tuned",
+        # "algo": BaselineOnly(
+          # bsl_options = {
+            # "method": "als",
+            # "n_epochs": 10,
+            # "reg_u": 5,
+            # "reg_i": 30
+        # })
+    # },
     ######################################################################
-    {
-        "name": "Knn_UserBased_ZScore_MSD_Tuned",
-        "algo": KNNWithZScore(
-            k = 500,
-            min_k = 15,
-            sim_options = {
-                "name": "msd",
-                "min_support": 1,
-                "user_based": True #compute similarities between users
-            })
-    },
-    {
-        "name": "Knn_ItemBased_ZScore_MSD_Tuned",
-        "algo": KNNWithZScore(
-            k = 100,
-            min_k = 1,
-            sim_options = {
-                "name": "msd",
-                "min_support": 1,
-                "user_based": False #compute similarities between items
-            })
-    },
+    # {
+        # "name": "Knn_UserBased_ZScore_MSD_Tuned",
+        # "algo": KNNWithZScore(
+            # k = 500,
+            # min_k = 15,
+            # sim_options = {
+                # "name": "msd",
+                # "min_support": 1,
+                # "user_based": True #compute similarities between users
+            # })
+    # },
+    # {
+        # "name": "Knn_ItemBased_ZScore_MSD_Tuned",
+        # "algo": KNNWithZScore(
+            # k = 100,
+            # min_k = 1,
+            # sim_options = {
+                # "name": "msd",
+                # "min_support": 1,
+                # "user_based": False #compute similarities between items
+            # })
+    # },
     ######################################################################
     {
         "name": "Knn_UserBased_Baseline_SGD_Tuned",
@@ -69,24 +69,24 @@ tuned_configs = [
                 "learning_rate": 0.1
             })
     },
-    {
-        "name": "Knn_UserBased_Baseline_ALS_Tuned",
-        "algo": KNNBaseline(
-            k = 1000,
-            min_k = 50,
-            sim_options = {
-                "name": "pearson_baseline",
-                "shrinkage": 0,
-                "min_support": 1,
-                "user_based": True #compute similarities between users
-            },
-            bsl_options = {
-                "method": "als",
-                "n_epochs": 10,
-                "reg_u": 5,
-                "reg_i": 30
-            })
-    },
+    # {
+        # "name": "Knn_UserBased_Baseline_ALS_Tuned",
+        # "algo": KNNBaseline(
+            # k = 1000,
+            # min_k = 50,
+            # sim_options = {
+                # "name": "pearson_baseline",
+                # "shrinkage": 0,
+                # "min_support": 1,
+                # "user_based": True #compute similarities between users
+            # },
+            # bsl_options = {
+                # "method": "als",
+                # "n_epochs": 10,
+                # "reg_u": 5,
+                # "reg_i": 30
+            # })
+    # },
     {
         "name": "Knn_ItemBased_Baseline_SGD_Tuned",
         "algo": KNNBaseline(
@@ -105,34 +105,32 @@ tuned_configs = [
                 "learning_rate": 0.1
             })
     },
-    {
-        "name": "Knn_ItemBased_Baseline_ALS_Tuned",
-        "algo": KNNBaseline(
-            k = 100,
-            min_k = 50,
-            sim_options = {
-                "name": "pearson_baseline",
-                "shrinkage": 100000,
-                "min_support": 5,
-                "user_based": False #compute similarities between items
-            },
-            bsl_options = {
-                "method": "als",
-                "n_epochs": 10,
-                "reg_u": 5,
-                "reg_i": 30
-            })
-    },
+    # {
+        # "name": "Knn_ItemBased_Baseline_ALS_Tuned",
+        # "algo": KNNBaseline(
+            # k = 100,
+            # min_k = 50,
+            # sim_options = {
+                # "name": "pearson_baseline",
+                # "shrinkage": 100000,
+                # "min_support": 5,
+                # "user_based": False #compute similarities between items
+            # },
+            # bsl_options = {
+                # "method": "als",
+                # "n_epochs": 10,
+                # "reg_u": 5,
+                # "reg_i": 30
+            # })
+    # },
     ######################################################################
-    {
-        "name": "SVD_unbiased_Tuned",
-        "algo": SVD(
-            n_factors=10, n_epochs=50, biased=False,
-            lr_all=0.01, reg_all=0.01,                
-            random_state=123)
-    },
-    
-    
+    # {
+        # "name": "SVD_unbiased_Tuned",
+        # "algo": SVD(
+            # n_factors=10, n_epochs=50, biased=False,
+            # lr_all=0.01, reg_all=0.01,                
+            # random_state=123)
+    # },
     {
         "name": "SVD_biased_Tuned",
         "algo": SVD(
