@@ -91,7 +91,6 @@ def load_anti_test_set(trainset, user_id_col, item_id_col, rating_col):
     end_time = default_timer()
     time_taken = convert_sec(end_time - start_time)
     print("Built Anti Testset.", time_taken)
-    print('*'*80)
     return anti_test_set_df
     
 def main():
@@ -99,7 +98,6 @@ def main():
     parser.add_argument("configs", help="config of recommendors")
     parser.add_argument("--train", help="data used to train recommendor")
     parser.add_argument("--predict", help="generate predictions for anti-testset", action='store_true')
-    parser.add_argument("--top_n", help="generate top_N predictions for anti-testset", action='store_true')
     args = parser.parse_args()
     
     pickle_in = open(args.configs, "rb")
@@ -113,9 +111,13 @@ def main():
     n = 50
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(current_dir, 'top_n_recs')
+    results_dir = os.path.join(current_dir, 'results')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
+
+    models_dir = os.path.join(results_dir, 'models')
+    if not os.path.exists(models_dir):
+        os.makedirs(models_dir)
     
     if args.train:
         trainset = load_training_data(args.train,
@@ -127,17 +129,25 @@ def main():
         start_time = default_timer()
         for config in configs:
             algo_name = config['name']
-
             algo = config['algo']
-            model_file = os.path.join(results_dir, algo_name+'.pickle')
+            model_file = os.path.join(models_dir, algo_name+'.pickle')
 
             print("Training {}".format(algo_name))
+
+            algo_start_time = default_timer()
+
             algo.fit(trainset)                
-            dump(model_file, algo=algo, verbose=1)
+            dump(model_file, algo=algo)
+
+            algo_end_time = default_timer()
+            algo_time_taken = convert_sec(algo_end_time - algo_start_time)
+            print("Trained {}. {}".format(algo_name, algo_time_taken))
+
         end_time = default_timer()
         time_taken = convert_sec(end_time - start_time)
         print("Trained All Recommenders.", time_taken)
-        
+        ##############################################################################################################
+        start_time = default_timer()
         print("Preparing Anti TestSet...")
         anti_test_set_df = load_anti_test_set(trainset, user_id_col, item_id_col, rating_col)
         anti_test_set_file = os.path.join(results_dir, 'anti_test_set.csv')
@@ -145,7 +155,12 @@ def main():
         anti_test_set_df[[user_id_col, item_id_col, rating_col]].to_csv(anti_test_set_file,
                                                                         chunksize=10000,
                                                                         index=False)
-        print("Generated Anti TestSet : ", anti_test_set_file)
+        print(anti_test_set_file)
+        end_time = default_timer()
+        time_taken = convert_sec(end_time - start_time)
+        print("Generated Anti TestSet.", time_taken)
+        print('*'*80)
+        ##############################################################################################################
         
     if args.predict:
         anti_test_set_file = os.path.join(results_dir, 'anti_test_set.csv')
@@ -156,7 +171,7 @@ def main():
             algo_name = config['name']
 
             algo = config['algo']
-            model_file = os.path.join(results_dir, algo_name+'.pickle')
+            model_file = os.path.join(models_dir, algo_name+'.pickle')
                         
             print("Loading {}".format(algo_name))
             _, model = load(model_file)
@@ -167,6 +182,7 @@ def main():
         if os.path.exists(anti_test_set_prediction_file):
             os.remove(anti_test_set_prediction_file)
         
+        start_time = default_timer()
         reader = pd.read_csv(anti_test_set_file,
                              dtype={user_id_col: object, item_id_col: object},
                              chunksize=100000)
@@ -197,8 +213,14 @@ def main():
                 first_set = False
             else:
                 anti_test_predictions_df.to_csv(anti_test_set_prediction_file, mode='a', header=False, index=False)
-        print("Anti Test Set Predictions : ", anti_test_set_prediction_file)
+        print(anti_test_set_prediction_file)
+
+        end_time = default_timer()
+        time_taken = convert_sec(end_time - start_time)
+        print("Generated Anti TestSet Predictions.", time_taken)
         
+        ##############################################################################################################
+        start_time = default_timer()
         for config in configs:
             algo_name = config['name']
             algo_prediction_col = algo_name + '_est'
@@ -212,20 +234,17 @@ def main():
             algo_predictions_file = os.path.join(results_dir, algo_name + '_predictions.csv')            
             print("Extracting predictions into : ", algo_predictions_file)
             algo_predictions_df[[user_id_col, item_id_col, rating_col]].to_csv(algo_predictions_file, index=False)
-    
-    if args.top_n:
-        for config in configs:
-            algo_name = config['name']
-            algo_predictions_file = os.path.join(results_dir, algo_name + '_predictions.csv')
-            print("Loading {} ...".format(algo_predictions_file))
-            algo_predictions_df = pd.read_csv(algo_predictions_file,
-                                              dtype={user_id_col: object, item_id_col: object})            
+
             print("Collect the TOP N recommended items for each user...")
             top_recommendations_df = get_top_n(algo_predictions_df, user_id_col, item_id_col, rating_col, n)            
             print(top_recommendations_df.head())
             algo_top_n_predictions_file = os.path.join(results_dir, algo_name + '_top_n_recs.csv')
             print("Capturing TOP_N predictions into : ", algo_top_n_predictions_file)
             top_recommendations_df[[user_id_col, item_id_col, rating_col]].to_csv(algo_top_n_predictions_file, index=False)
+
+        end_time = default_timer()
+        time_taken = convert_sec(end_time - start_time)
+        print("Captured Recommender Predictions and Top N recommendations.", time_taken)
 
 if __name__ == '__main__':
     main()

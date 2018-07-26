@@ -28,7 +28,7 @@ def convert_sec(no_of_secs):
         return "{:05.2f}    hr".format(no_of_secs/3600)
 
 def main():
-    mlflow.set_tracking_uri("mlruns1")
+    mlflow.set_tracking_uri("mlruns")
     
     
     parser = argparse.ArgumentParser(description="Hyper Parameters Search Experiments")

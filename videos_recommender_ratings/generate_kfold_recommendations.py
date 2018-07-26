@@ -84,7 +84,7 @@ def get_no_of_users_rated_item(iid, trainset):
         return 0
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate Recommendations")
+    parser = argparse.ArgumentParser(description="Generate Kfold Recommendations")
     parser.add_argument("configs", help="config of algorithms used to generate recommendations")
     parser.add_argument("--validation", help="generate recommendations for validation dataset", action='store_true')
     parser.add_argument("--testing", help="generate recommendations for testing dataset", action='store_true')

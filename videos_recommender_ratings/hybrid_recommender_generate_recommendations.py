@@ -4,6 +4,17 @@ import pickle
 import pandas as pd
 from functools import reduce
 from collections import defaultdict
+from sklearn.externals import joblib
+
+from timeit import default_timer
+def convert_sec(no_of_secs):
+    """return no_of_secs to min or hrs string"""
+    if no_of_secs < 60:
+        return "Time Taken : {:06.4f}    sec".format(no_of_secs)
+    elif no_of_secs < 3600:
+        return "Time Taken : {:06.4f}    min".format(no_of_secs/60)
+    else:
+        return "Time Taken : {:06.4f}    hr".format(no_of_secs/3600)
 
 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, SGDRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -14,17 +25,26 @@ def get_top_n(predictions_df, user_id_col, item_id_col, rating_col, n=10):
                           .reset_index()[[user_id_col, item_id_col, rating_col]]
     return top_n
     
-def main():    
+def main():
+    parser = argparse.ArgumentParser(description="Hybrid Recommendor Generate Recommendations")    
+    parser.add_argument("configs", help="config of recommendors")
+    args = parser.parse_args()
+    
+    pickle_file = open(args.configs, "rb")    
+    selected_recommenders = pickle.load(pickle_file)
+    features = []
+    for config in selected_recommenders:
+        selected_recommenders_prediction = config['name'] + '_est'
+        features.append(selected_recommenders_prediction)
+    print("The following recommenders predictions are used as features for hybrid recommender")
+    for feature in features:
+        print(feature)
+    
     user_id_col = 'learner_id'
     item_id_col = 'media_id'
     rating_col = 'like_rating'
     top_n = 50
     
-    features = ['BaselineOnly_SGD_Tuned_est',
-                'Knn_UserBased_Baseline_SGD_Tuned_est',
-                'Knn_ItemBased_Baseline_SGD_Tuned_est', 
-                'SVD_biased_Tuned_est',
-                'SVDpp_biased_Tuned_est']
     target = rating_col
         
     tuned_models = [
@@ -33,10 +53,11 @@ def main():
     ]
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(current_dir, 'top_n_recs')
+    results_dir = os.path.join(current_dir, 'results')
+    models_dir = os.path.join(results_dir, 'models')
     
     train_file = 'hybrid_recommender/all_combined_predictions.csv'    
-    anti_test_set_file = 'top_n_recs/anti_test_set_predictions.csv'
+    anti_test_set_file = 'results/anti_test_set_predictions.csv'
     
     print("Loading Train Data {}...".format(train_file))
     train_df = pd.read_csv(train_file)    
@@ -50,9 +71,17 @@ def main():
 
     for estimator in tuned_models:
         model_name = type(estimator).__name__
+        algo_start_time = default_timer()
+
         model = estimator.fit(train_X, train_y)
+        joblib.dump(model, os.path.join(models_dir, 'Hybrid_' + model_name + '.pickle'))
         predicted_test_y = model.predict(test_X)
         
+        algo_end_time = default_timer()
+        algo_time_taken = convert_sec(algo_end_time - algo_start_time)
+        print("Trained and Predicted {}. {}".format(model_name, algo_time_taken))
+
+        start_time = default_timer()
         prediction_df = pd.DataFrame(test_df[[user_id_col, item_id_col]],
                                      dtype=object)
         prediction_df.loc[:, rating_col] = predicted_test_y
@@ -68,6 +97,9 @@ def main():
         print("Capturing TOP_N predictions in : {}".format(result_file))
         top_recommendations_df[[user_id_col, item_id_col, rating_col]].to_csv(result_file, index=False)
         print()
+        end_time = default_timer()
+        time_taken = convert_sec(end_time - start_time)
+        print("Captured Recommender Predictions and Top N recommendations.", time_taken)
 
 if __name__ == '__main__':
     main() 

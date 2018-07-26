@@ -40,9 +40,6 @@ experiments = [
             }
         }     
     },
-]
-
-experiments = [
     ###########################################User Based KNN Baseline Rating Models################################
     {
         "results_dir_name" : "hyper_param_search_experiments/user_based_knn_baseline_als",
@@ -163,9 +160,7 @@ experiments = [
                 "user_based": [False]
             }
         }
-    }
-]
-''',
+    },
     ###########################################SVD Rating Models################################
     {
         "results_dir_name" : "hyper_param_search_experiments/svd_unbiased",
@@ -214,7 +209,7 @@ experiments = [
         }
     } 
 ]
-'''
+
 
 
 '''

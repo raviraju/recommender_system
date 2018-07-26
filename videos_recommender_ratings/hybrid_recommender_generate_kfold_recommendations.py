@@ -1,6 +1,7 @@
 import pandas as pd
 import json
-
+import argparse
+import pickle
 from functools import reduce
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from math import sqrt
@@ -77,16 +78,25 @@ def get_avg_metrics(estimator, no_of_kfolds, features, target, kfold_dfs,
     return avg_metrics
 
 def main():
+    parser = argparse.ArgumentParser(description="Hybrid Recommendor Generate Kfold Recommendations")    
+    parser.add_argument("configs", help="config of recommendors")
+    args = parser.parse_args()
+    
+    pickle_file = open(args.configs, "rb")    
+    selected_recommenders = pickle.load(pickle_file)
+    features = []
+    for config in selected_recommenders:
+        selected_recommenders_prediction = config['name'] + '_est'
+        features.append(selected_recommenders_prediction)
+    print("The following recommenders predictions are used as features for hybrid recommender")
+    for feature in features:
+        print(feature)
+        
     user_id_col = 'learner_id'
     item_id_col = 'media_id'
     rating_col = 'like_rating'    
     no_of_kfolds = 10
     
-    features = ['BaselineOnly_SGD_Tuned_est',
-                'Knn_UserBased_Baseline_SGD_Tuned_est',
-                'Knn_ItemBased_Baseline_SGD_Tuned_est', 
-                'SVD_biased_Tuned_est',
-                'SVDpp_biased_Tuned_est']
     target = rating_col
     
     tuned_models = [

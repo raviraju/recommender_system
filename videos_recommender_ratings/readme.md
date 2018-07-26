@@ -1,46 +1,44 @@
-## Convert RDS data to CSV
+## Import RDS data to CSV
 
-Using notebook `load_rds_into_csv.ipynb`
+`Rscript load_rds_to_csv.R`
 
 ## Analyse Data and perform cleaning
 
-Using notebook `preprocessed_data\analyse compass events data.ipynb` to generate `latest_rating.csv`
+Use notebook `notebooks/analyse compass events data.ipynb` to generate `data/latest_rating.csv`
 
 ## Generate Train, Validation and Test Datasets
 
-`python split_train_test_data.py --kfolds_split --no_of_kfolds 10 --min_no_of_items 10 --validation_size 0.2 preprocessed_data/latest_rating.csv learner_id media_id like_rating > preprocessed_data/kfolds_split.txt`
+`python split_train_test_data.py --kfolds_split --no_of_kfolds 10 --min_no_of_items 10 --validation_size 0.2 data/latest_rating.csv learner_id media_id like_rating > data/log_kfolds_split.txt`
 
 ## HyperParam search using Validation Dataset
 
-Configure search parameters in `param_search/experiments.py` and generate a pickle file `experiments.pickle`
-`python hyper_param_search.py param_search/experiments.pickle`
+Configure search parameters in `param_search/experiments.py` and generate a pickle file `experiments.pickle` by running python script <br>
+`python hyper_param_search.py param_search/experiments.pickle` <br>
+Launch mlflow web server using `mlflow ui` to observe hyper param search results
 
-Configure best hyperparameters in `configs/tuned_configs.py` and generate pickle file `tuned_configs.pickle`
-
+Configure best hyperparameters in `configs/tuned_configs.py` and generate pickle file `tuned_configs.pickle` by running python script
 
 ## Generate recommendations for Validation dataset using best hyperparameters
 
-`python generate_kfold_recommendations.py configs/tuned_configs.pickle --validation`
+`python generate_kfold_recommendations.py configs/tuned_configs.pickle --validation` <br>
 Summary of all recommendations are found in `model_validation/summary_results.json`
-
 
 ## Generate recommendations for Testing dataset using best hyperparameters
 
-`python generate_kfold_recommendations.py configs/tuned_configs.pickle --testing`
+`python generate_kfold_recommendations.py configs/tuned_configs.pickle --testing` <br>
 Summary of all recommendations are found in `model_testing/summary_results.json`
-
 
 ## Compare rmse of validation and testing dataset
 
-Use `merge validation and testing recommendations.ipynb` to generate `validation_testing_results.csv`
+Use `notebooks/merge validation and testing recommendations.ipynb` to generate `validation_testing_results.csv`
 
-## Generate top N recommendations for Anti Testset(Predict ratings for all pairs (u, i) that are NOT in the training)
+## Generate top N recommendations for Anti Testset
+**NOTE** : *Anti Testset [ (User, Item) pairs that are NOT in the training ]*
 
-Choose algorithms  in `configs/tuned_configs_top_n.py` and generate pickle file `tuned_configs_top_n.pickle`
+Choose algorithms  in `configs/selected_recommenders.py` and generate pickle file `selected_recommenders.pickle` by running python script
 
-`python generate_recommendations.py configs/tuned_configs_top_n.pickle --train preprocessed_data/latest_rating.csv`
-`python generate_recommendations.py configs/tuned_configs_top_n.pickle --predict`
-`python generate_recommendations.py configs/tuned_configs_top_n.pickle --top_n`
+`python generate_recommendations.py configs/selected_recommenders.pickle --train data/latest_rating.csv` <br>
+`python generate_recommendations.py configs/selected_recommenders.pickle --predict` <br>
 
 # Hybrid Recommenders
 
@@ -48,15 +46,43 @@ Choose algorithms  in `configs/tuned_configs_top_n.py` and generate pickle file 
 
 `python hybrid_recommender_generate_data.py configs/tuned_configs.pickle model_testing/`
 
-
 ## Search for hyper parameters of hybrid recommender
 
-`python hybrid_recommender_search.py`
+`python hybrid_recommender_hyper_param_search.py configs/selected_recommenders.pickle` <br>
+Launch mlflow web server using `mlflow ui` to observe hyper param search results
 
 ## Use best parameters of hybrid recommender to generate hybrid recommendations for kfold testset
 
-`python hybrid_recommender_generate_kfold_recommendations.py`
+`python hybrid_recommender_generate_kfold_recommendations.py configs/selected_recommenders.pickle`
 
 ## Generate top N recommendations using hybrid recommenders for Anti Testset
+**NOTE** : *Anti Testset [ (User, Item) pairs that are NOT in the training ]*
 
-`python hybrid_recommender_generate_recommendations.py`
+`python hybrid_recommender_generate_recommendations.py configs/selected_recommenders.pickle`
+
+
+# Results
+
+
+|                  Recommender  | Validation RMSE  | Testing RMSE  |
+| ----------------------------  | ---------------: | ------------: |
+|**Knn_UserBased_Baseline_SGD** |          0.6909  |       0.6905  |
+|          **BaselineOnly_SGD** |          0.6944  |       0.6939  |
+|**Knn_ItemBased_Baseline_SGD** |          0.6943  |       0.6940  |
+|    Knn_UserBased_Baseline_ALS |          0.7019  |       0.7018  |
+|              BaselineOnly_ALS |          0.7036  |       0.7036  |
+|    Knn_ItemBased_Baseline_ALS |          0.7035  |       0.7036  |
+|              **SVDpp_biased** |          0.7067  |       0.7066  |
+|                **SVD_biased** |          0.7076  |       0.7075  |
+|      Knn_UserBased_ZScore_MSD |          0.7154  |       0.7148  |
+|      Knn_ItemBased_ZScore_MSD |          0.7284  |       0.7282  |
+|                  SVD_unbiased |          0.7580  |       0.7538  |
+
+
+
+
+|           Hybrid Recommender |   Testing RMSE  |
+| ---------------------------- |   ------------: |
+| GradientBoostingRegressor    |          0.6866 |
+| RandomForestRegressor	       |          0.6870 |
+| ElasticNet	               |          0.6880 |
