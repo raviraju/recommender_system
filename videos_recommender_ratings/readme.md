@@ -1,14 +1,15 @@
 ## Import RDS data to CSV
 
-`Rscript load_rds_to_csv.R`
+`Rscript data_management/load_rds_to_csv.R`
 
 ## Analyse Data and perform cleaning
 
 Use notebook `notebooks/analyse compass events data.ipynb` to generate `data/latest_rating.csv`
 
 ## Generate Train, Validation and Test Datasets
+For usage guide refer : `python data_management/split_train_test_data.py -h`
 
-`python split_train_test_data.py --kfolds_split --no_of_kfolds 10 --min_no_of_items 10 --validation_size 0.2 data/latest_rating.csv learner_id media_id like_rating > data/log_kfolds_split.txt`
+`python data_management/split_train_test_data.py --kfolds_split --no_of_kfolds 10 --min_no_of_items 10 --validation_size 0.2 data/latest_rating.csv learner_id media_id like_rating > data_management/log_kfolds_split.txt`
 
 ## HyperParam search using Validation Dataset
 

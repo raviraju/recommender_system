@@ -70,7 +70,7 @@ def generate_kfolds_split(data, user_id_col, item_id_col, rating_col,
                           validation_size = 0.2, no_of_kfolds=10, min_no_of_items=1):
     """Loads data and returns training and test sets by kfolds selection of users"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    train_test_dir = os.path.join(current_dir, 'train_test_data/kfolds_split')
+    train_test_dir = os.path.join(current_dir, '../train_test_data/kfolds_split')
     if not os.path.exists(train_test_dir):
         os.makedirs(train_test_dir)
 

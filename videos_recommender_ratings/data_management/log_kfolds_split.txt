@@ -1,0 +1,613 @@
+Loading Data...
+Data                           : No of records        : 373364
+Data                           : No of users          : 44661
+Data                           : No of items          : 8150
+********************************************************************************
+Filtering Data...
+Distribution of item_counts (min, 25%, 50%, 75%, max)
+No of items :  1.0  No of users :  44661
+No of items :  1.0  No of users :  44661
+No of items :  3.0  No of users :  25766
+No of items :  8.0  No of users :  12308
+No of items :  929.0  No of users :  1
+
+Min no of items :  10
+
+Filtered Data                  : No of records        : 268877
+Filtered Data                  : No of users          : 10027
+Filtered Data                  : No of items          : 7877
+********************************************************************************
+Generating Training and Test Data by kfolding on users...
+
+1 Train Data                     : No of records        : 196752
+1 Train Data                     : No of users          : 7220
+1 Train Data                     : No of items          : 7460
+
+1 Validation Data                : No of records        : 49426
+1 Validation Data                : No of users          : 1804
+1 Validation Data                : No of items          : 5351
+
+1 Test Data                      : No of records        : 22699
+1 Test Data                      : No of users          : 1003
+1 Test Data                      : No of items          : 3581
+
+1 Common                         : No of users          : 0
+1 Common                         : No of items          : 3046
+
+1 Train and Validation Data      : No of records        : 246178
+1 Train and Validation Data      : No of users          : 9024
+1 Train and Validation Data      : No of items          : 7705
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 237158
+Training Data For Validation   : No of users          : 9024
+Training Data For Validation   : No of items          : 7680
+
+Validating Data                : No of records        : 9020
+Validating Data                : No of users          : 1804
+Validating Data                : No of items          : 2531
+
+Common                         : No of users          : 1804
+Common                         : No of items          : 2506
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 214436
+Training Data For Test         : No of users          : 8223
+Training Data For Test         : No of items          : 7624
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1752
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1724
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263862
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7850
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1752
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1725
+******************************
+
+2 Train Data                     : No of records        : 197899
+2 Train Data                     : No of users          : 7220
+2 Train Data                     : No of items          : 7473
+
+2 Validation Data                : No of records        : 47786
+2 Validation Data                : No of users          : 1804
+2 Validation Data                : No of items          : 5352
+
+2 Test Data                      : No of records        : 23192
+2 Test Data                      : No of users          : 1003
+2 Test Data                      : No of items          : 3222
+
+2 Common                         : No of users          : 0
+2 Common                         : No of items          : 2707
+
+2 Train and Validation Data      : No of records        : 245685
+2 Train and Validation Data      : No of users          : 9024
+2 Train and Validation Data      : No of items          : 7797
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 236665
+Training Data For Validation   : No of users          : 9024
+Training Data For Validation   : No of items          : 7776
+
+Validating Data                : No of records        : 9020
+Validating Data                : No of users          : 1804
+Validating Data                : No of items          : 2499
+
+Common                         : No of users          : 1804
+Common                         : No of items          : 2478
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 216076
+Training Data For Test         : No of users          : 8223
+Training Data For Test         : No of items          : 7561
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1736
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1718
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263862
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7860
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1736
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1719
+******************************
+
+3 Train Data                     : No of records        : 198589
+3 Train Data                     : No of users          : 7220
+3 Train Data                     : No of items          : 7522
+
+3 Validation Data                : No of records        : 49158
+3 Validation Data                : No of users          : 1804
+3 Validation Data                : No of items          : 5378
+
+3 Test Data                      : No of records        : 21130
+3 Test Data                      : No of users          : 1003
+3 Test Data                      : No of items          : 3074
+
+3 Common                         : No of users          : 0
+3 Common                         : No of items          : 2624
+
+3 Train and Validation Data      : No of records        : 247747
+3 Train and Validation Data      : No of users          : 9024
+3 Train and Validation Data      : No of items          : 7815
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 238727
+Training Data For Validation   : No of users          : 9024
+Training Data For Validation   : No of items          : 7778
+
+Validating Data                : No of records        : 9020
+Validating Data                : No of users          : 1804
+Validating Data                : No of items          : 2501
+
+Common                         : No of users          : 1804
+Common                         : No of items          : 2464
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 214704
+Training Data For Test         : No of users          : 8223
+Training Data For Test         : No of items          : 7597
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1763
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1752
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263862
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7868
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1763
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1754
+******************************
+
+4 Train Data                     : No of records        : 198074
+4 Train Data                     : No of users          : 7220
+4 Train Data                     : No of items          : 7349
+
+4 Validation Data                : No of records        : 50570
+4 Validation Data                : No of users          : 1804
+4 Validation Data                : No of items          : 5682
+
+4 Test Data                      : No of records        : 20233
+4 Test Data                      : No of users          : 1003
+4 Test Data                      : No of items          : 3333
+
+4 Common                         : No of users          : 0
+4 Common                         : No of items          : 2837
+
+4 Train and Validation Data      : No of records        : 248644
+4 Train and Validation Data      : No of users          : 9024
+4 Train and Validation Data      : No of items          : 7759
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 239624
+Training Data For Validation   : No of users          : 9024
+Training Data For Validation   : No of items          : 7724
+
+Validating Data                : No of records        : 9020
+Validating Data                : No of users          : 1804
+Validating Data                : No of items          : 2556
+
+Common                         : No of users          : 1804
+Common                         : No of items          : 2521
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 213292
+Training Data For Test         : No of users          : 8223
+Training Data For Test         : No of items          : 7468
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1746
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1723
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263862
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7860
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1746
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1729
+******************************
+
+5 Train Data                     : No of records        : 197783
+5 Train Data                     : No of users          : 7220
+5 Train Data                     : No of items          : 7562
+
+5 Validation Data                : No of records        : 48064
+5 Validation Data                : No of users          : 1804
+5 Validation Data                : No of items          : 4978
+
+5 Test Data                      : No of records        : 23030
+5 Test Data                      : No of users          : 1003
+5 Test Data                      : No of items          : 3799
+
+5 Common                         : No of users          : 0
+5 Common                         : No of items          : 3071
+
+5 Train and Validation Data      : No of records        : 245847
+5 Train and Validation Data      : No of users          : 9024
+5 Train and Validation Data      : No of items          : 7728
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 236827
+Training Data For Validation   : No of users          : 9024
+Training Data For Validation   : No of items          : 7709
+
+Validating Data                : No of records        : 9020
+Validating Data                : No of users          : 1804
+Validating Data                : No of items          : 2449
+
+Common                         : No of users          : 1804
+Common                         : No of items          : 2430
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 215798
+Training Data For Test         : No of users          : 8223
+Training Data For Test         : No of items          : 7720
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1632
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1608
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263862
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7858
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1632
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1613
+******************************
+
+6 Train Data                     : No of records        : 187659
+6 Train Data                     : No of users          : 7220
+6 Train Data                     : No of items          : 7357
+
+6 Validation Data                : No of records        : 47523
+6 Validation Data                : No of users          : 1804
+6 Validation Data                : No of items          : 5195
+
+6 Test Data                      : No of records        : 33695
+6 Test Data                      : No of users          : 1003
+6 Test Data                      : No of items          : 4536
+
+6 Common                         : No of users          : 0
+6 Common                         : No of items          : 3562
+
+6 Train and Validation Data      : No of records        : 235182
+6 Train and Validation Data      : No of users          : 9024
+6 Train and Validation Data      : No of items          : 7627
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 226162
+Training Data For Validation   : No of users          : 9024
+Training Data For Validation   : No of items          : 7587
+
+Validating Data                : No of records        : 9020
+Validating Data                : No of users          : 1804
+Validating Data                : No of items          : 2558
+
+Common                         : No of users          : 1804
+Common                         : No of items          : 2518
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 216339
+Training Data For Test         : No of users          : 8223
+Training Data For Test         : No of items          : 7642
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1657
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1649
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263862
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7872
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1657
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1652
+******************************
+
+7 Train Data                     : No of records        : 192370
+7 Train Data                     : No of users          : 7220
+7 Train Data                     : No of items          : 7545
+
+7 Validation Data                : No of records        : 46373
+7 Validation Data                : No of users          : 1804
+7 Validation Data                : No of items          : 5273
+
+7 Test Data                      : No of records        : 30134
+7 Test Data                      : No of users          : 1003
+7 Test Data                      : No of items          : 4167
+
+7 Common                         : No of users          : 0
+7 Common                         : No of items          : 3526
+
+7 Train and Validation Data      : No of records        : 238743
+7 Train and Validation Data      : No of users          : 9024
+7 Train and Validation Data      : No of items          : 7791
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 229723
+Training Data For Validation   : No of users          : 9024
+Training Data For Validation   : No of items          : 7767
+
+Validating Data                : No of records        : 9020
+Validating Data                : No of users          : 1804
+Validating Data                : No of items          : 2566
+
+Common                         : No of users          : 1804
+Common                         : No of items          : 2542
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 217489
+Training Data For Test         : No of users          : 8223
+Training Data For Test         : No of items          : 7651
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1652
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1648
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263862
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7873
+
+Testing Data                   : No of records        : 5015
+Testing Data                   : No of users          : 1003
+Testing Data                   : No of items          : 1652
+
+Common                         : No of users          : 1003
+Common                         : No of items          : 1648
+******************************
+
+8 Train Data                     : No of records        : 190743
+8 Train Data                     : No of users          : 7220
+8 Train Data                     : No of items          : 7311
+
+8 Validation Data                : No of records        : 49597
+8 Validation Data                : No of users          : 1805
+8 Validation Data                : No of items          : 5573
+
+8 Test Data                      : No of records        : 28537
+8 Test Data                      : No of users          : 1002
+8 Test Data                      : No of items          : 3881
+
+8 Common                         : No of users          : 0
+8 Common                         : No of items          : 3304
+
+8 Train and Validation Data      : No of records        : 240340
+8 Train and Validation Data      : No of users          : 9025
+8 Train and Validation Data      : No of items          : 7752
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 231315
+Training Data For Validation   : No of users          : 9025
+Training Data For Validation   : No of items          : 7727
+
+Validating Data                : No of records        : 9025
+Validating Data                : No of users          : 1805
+Validating Data                : No of items          : 2516
+
+Common                         : No of users          : 1805
+Common                         : No of items          : 2491
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 214270
+Training Data For Test         : No of users          : 8222
+Training Data For Test         : No of items          : 7479
+
+Testing Data                   : No of records        : 5010
+Testing Data                   : No of users          : 1002
+Testing Data                   : No of items          : 1639
+
+Common                         : No of users          : 1002
+Common                         : No of items          : 1622
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263867
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7864
+
+Testing Data                   : No of records        : 5010
+Testing Data                   : No of users          : 1002
+Testing Data                   : No of items          : 1639
+
+Common                         : No of users          : 1002
+Common                         : No of items          : 1626
+******************************
+
+9 Train Data                     : No of records        : 191321
+9 Train Data                     : No of users          : 7220
+9 Train Data                     : No of items          : 7564
+
+9 Validation Data                : No of records        : 47991
+9 Validation Data                : No of users          : 1805
+9 Validation Data                : No of items          : 5288
+
+9 Test Data                      : No of records        : 29565
+9 Test Data                      : No of users          : 1002
+9 Test Data                      : No of items          : 4200
+
+9 Common                         : No of users          : 0
+9 Common                         : No of items          : 3558
+
+9 Train and Validation Data      : No of records        : 239312
+9 Train and Validation Data      : No of users          : 9025
+9 Train and Validation Data      : No of items          : 7784
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 230287
+Training Data For Validation   : No of users          : 9025
+Training Data For Validation   : No of items          : 7753
+
+Validating Data                : No of records        : 9025
+Validating Data                : No of users          : 1805
+Validating Data                : No of items          : 2566
+
+Common                         : No of users          : 1805
+Common                         : No of items          : 2535
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 215876
+Training Data For Test         : No of users          : 8222
+Training Data For Test         : No of items          : 7653
+
+Testing Data                   : No of records        : 5010
+Testing Data                   : No of users          : 1002
+Testing Data                   : No of items          : 1766
+
+Common                         : No of users          : 1002
+Common                         : No of items          : 1744
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263867
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7858
+
+Testing Data                   : No of records        : 5010
+Testing Data                   : No of users          : 1002
+Testing Data                   : No of items          : 1766
+
+Common                         : No of users          : 1002
+Common                         : No of items          : 1747
+******************************
+
+10 Train Data                     : No of records        : 186172
+10 Train Data                     : No of users          : 7220
+10 Train Data                     : No of items          : 7222
+
+10 Validation Data                : No of records        : 46043
+10 Validation Data                : No of users          : 1805
+10 Validation Data                : No of items          : 5080
+
+10 Test Data                      : No of records        : 36662
+10 Test Data                      : No of users          : 1002
+10 Test Data                      : No of items          : 5444
+
+10 Common                         : No of users          : 0
+10 Common                         : No of items          : 4028
+
+10 Train and Validation Data      : No of records        : 232215
+10 Train and Validation Data      : No of users          : 9025
+10 Train and Validation Data      : No of items          : 7490
+********************************************************************************
+Preparing Train and Validation Data...
+Applying hold_out_strategy
+Training Data For Validation   : No of records        : 223190
+Training Data For Validation   : No of users          : 9025
+Training Data For Validation   : No of items          : 7446
+
+Validating Data                : No of records        : 9025
+Validating Data                : No of users          : 1805
+Validating Data                : No of items          : 2515
+
+Common                         : No of users          : 1805
+Common                         : No of items          : 2471
+********************************************************************************
+Preparing Train and Test Data...
+Applying hold_out_strategy
+Training Data For Test         : No of records        : 217824
+Training Data For Test         : No of users          : 8222
+Training Data For Test         : No of items          : 7668
+
+Testing Data                   : No of records        : 5010
+Testing Data                   : No of users          : 1002
+Testing Data                   : No of items          : 1837
+
+Common                         : No of users          : 1002
+Common                         : No of items          : 1819
+********************************************************************************
+Preparing Train+Validation and Test Data...
+Applying hold_out_strategy
+Train n Validation Data For Test : No of records        : 263867
+Train n Validation Data For Test : No of users          : 10027
+Train n Validation Data For Test : No of items          : 7861
+
+Testing Data                   : No of records        : 5010
+Testing Data                   : No of users          : 1002
+Testing Data                   : No of items          : 1837
+
+Common                         : No of users          : 1002
+Common                         : No of items          : 1821
+******************************
+Train and Test Data are in  /home/ravi/recommender_system/videos_recommender_ratings/data_management/train_test_data/kfolds_split
+Users not considered in testing :  set()
+Users not considered in train_n_validation :  set()
