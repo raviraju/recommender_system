@@ -17,7 +17,7 @@ from surprise import NMF
 experiments = [
     ###########################################Baseline Rating Models###########################################
     {
-        "results_dir_name" : "hyper_param_search_experiments/baselineonly_als",
+        "results_dir_name" : "results/hyper_param_search_experiments/baselineonly_als",
         "algos" : [BaselineOnly],
         "param_grid" : {
             "bsl_options": {
@@ -25,11 +25,12 @@ experiments = [
                 "n_epochs": [10, 50, 100, 500],
                 "reg_u": [0.1, 1, 5, 10],
                 "reg_i": [10, 20, 30, 50]
-            }
+            },
+            "verbose" : [False]
         }            
     },
     {
-        "results_dir_name" : "hyper_param_search_experiments/baselineonly_sgd",
+        "results_dir_name" : "results/hyper_param_search_experiments/baselineonly_sgd",
         "algos" : [BaselineOnly],
         "param_grid" : {
             "bsl_options": {
@@ -38,11 +39,12 @@ experiments = [
                 "reg": [0.02, 0.08, 0.1, 0.2, 0.5, 0.8],
                 "learning_rate": [0.001, 0.01, 0.1, 0.5, 1]
             }
-        }     
+        },
+        "verbose" : [False]
     },
     ###########################################User Based KNN Baseline Rating Models################################
     {
-        "results_dir_name" : "hyper_param_search_experiments/user_based_knn_baseline_als",
+        "results_dir_name" : "results/hyper_param_search_experiments/user_based_knn_baseline_als",
         "algos" : [KNNBaseline],
         "param_grid" : {
             #(max) number of neighbors
@@ -59,12 +61,12 @@ experiments = [
                 "method": ["als"],
                 "n_epochs": [10],
                 "reg_u": [5],
-                "reg_i": [30],
+                "reg_i": [50],
             }
         }
     },
     {
-        "results_dir_name" : "hyper_param_search_experiments/user_based_knn_baseline_sgd",
+        "results_dir_name" : "results/hyper_param_search_experiments/user_based_knn_baseline_sgd",
         "algos" : [KNNBaseline],
         "param_grid" : {
             #(max) number of neighbors
@@ -88,7 +90,7 @@ experiments = [
     
     ###########################################Item Based KNN Baseline Rating Models################################
     {
-        "results_dir_name" : "hyper_param_search_experiments/item_based_knn_baseline_als",
+        "results_dir_name" : "results/hyper_param_search_experiments/item_based_knn_baseline_als",
         "algos" : [KNNBaseline],
         "param_grid" : {
             #(max) number of neighbors
@@ -105,12 +107,12 @@ experiments = [
                 "method": ["als"],
                 "n_epochs": [10],
                 "reg_u": [5],
-                "reg_i": [30],
+                "reg_i": [50],
             }
         }
     },
     {
-        "results_dir_name" : "hyper_param_search_experiments/item_based_knn_baseline_sgd",
+        "results_dir_name" : "results/hyper_param_search_experiments/item_based_knn_baseline_sgd",
         "algos" : [KNNBaseline],
         "param_grid" : {
             #(max) number of neighbors
@@ -132,7 +134,7 @@ experiments = [
         }
     },
     {
-        "results_dir_name" : "hyper_param_search_experiments/user_based_knn_zscore",
+        "results_dir_name" : "results/hyper_param_search_experiments/user_based_knn_zscore",
         "algos" : [KNNWithZScore],
         "param_grid" : {
             #(max) number of neighbors
@@ -147,7 +149,7 @@ experiments = [
         }
     },    
     {
-        "results_dir_name" : "hyper_param_search_experiments/item_based_knn_zscore",
+        "results_dir_name" : "results/hyper_param_search_experiments/item_based_knn_zscore",
         "algos" : [KNNWithZScore],
         "param_grid" : {
             #(max) number of neighbors
@@ -163,7 +165,7 @@ experiments = [
     },
     ###########################################SVD Rating Models################################
     {
-        "results_dir_name" : "hyper_param_search_experiments/svd_unbiased",
+        "results_dir_name" : "results/hyper_param_search_experiments/svd_unbiased",
         "algos" : [SVD],
         "param_grid" : {
             #n_factors – The number of factors. Default is 100.
@@ -179,7 +181,7 @@ experiments = [
         }
     },
     {
-        "results_dir_name" : "hyper_param_search_experiments/svd_biased",
+        "results_dir_name" : "results/hyper_param_search_experiments/svd_biased",
         "algos" : [SVD],
         "param_grid" : {
             #n_factors – The number of factors. Default is 100.
@@ -195,7 +197,7 @@ experiments = [
         }
     },
     {
-        "results_dir_name" : "hyper_param_search_experiments/svdpp_biased",
+        "results_dir_name" : "results/hyper_param_search_experiments/svdpp_biased",
         "algos" : [SVDpp],
         "param_grid" : {
             #n_factors – The number of factors. Default is 20.
@@ -216,7 +218,7 @@ experiments = [
 experiments = [
     ###########################################User Based KNN Rating Models################################
     {
-        "results_dir_name" : "hyper_param_search_experiments/user_based_knns",
+        "results_dir_name" : "results/hyper_param_search_experiments/user_based_knns",
         "algos" : [KNNBasic, KNNWithMeans, KNNWithZScore],
         "param_grid" : {
             #(max) number of neighbors
@@ -232,7 +234,7 @@ experiments = [
     },
     ###########################################Item Based KNN Rating Models################################
     {
-        "results_dir_name" : "hyper_param_search_experiments/item_based_knns",
+        "results_dir_name" : "results/hyper_param_search_experiments/item_based_knns",
         "algos" : [KNNBasic, KNNWithMeans, KNNWithZScore],
         "param_grid" : {
             #(max) number of neighbors
@@ -252,7 +254,7 @@ experiments = [
 experiments = [
     ###########################################NMF Rating Models################################
     {
-        "results_dir_name" : "hyper_param_search_experiments/nmf_unbiased_hyper_param_search_results1",
+        "results_dir_name" : "results/hyper_param_search_experiments/nmf_unbiased_hyper_param_search_results1",
         "algos" : [NMF],
         "param_grid" : {                
             # n_factors – The number of factors. Default is 15.
@@ -276,7 +278,7 @@ experiments = [
         }
     },
     {
-        "results_dir_name" : "hyper_param_search_experiments/nmf_biased_hyper_param_search_results1",
+        "results_dir_name" : "results/hyper_param_search_experiments/nmf_biased_hyper_param_search_results1",
         "algos" : [NMF],
         "param_grid" : {                
             # n_factors – The number of factors. Default is 15.
@@ -312,7 +314,7 @@ experiments = [
 
 experiments = [
     {
-        "results_dir_name" : "hyper_param_search_experiments/item_based_knn_zscore",
+        "results_dir_name" : "results/hyper_param_search_experiments/item_based_knn_zscore",
         "algos" : [KNNWithZScore],
         "param_grid" : {
             #(max) number of neighbors

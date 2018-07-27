@@ -53,10 +53,10 @@ def main():
     ]
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(current_dir, 'results')
+    results_dir = os.path.join(current_dir, '../results')
     models_dir = os.path.join(results_dir, 'models')
     
-    train_file = 'hybrid_recommender/all_combined_predictions.csv'    
+    train_file = 'data_hybrid_recommender/all_combined_predictions.csv'    
     anti_test_set_file = 'results/anti_test_set_predictions.csv'
     
     print("Loading Train Data {}...".format(train_file))

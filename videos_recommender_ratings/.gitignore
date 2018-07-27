@@ -1,6 +1,7 @@
 data
 preprocessed_data
 train_test_data
+data_hybrid_recommender/
 
 .ipynb_checkpoints/
 *.pickle

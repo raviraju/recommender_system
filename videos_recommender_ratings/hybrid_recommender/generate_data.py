@@ -51,7 +51,7 @@ def main():
     args = parser.parse_args()
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(current_dir, 'hybrid_recommender')
+    results_dir = os.path.join(current_dir, '../data_hybrid_recommender')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
     

@@ -42,7 +42,7 @@ def main():
     
     target = 'like_rating'
     
-    df = pd.read_csv('hybrid_recommender/all_combined_predictions.csv')
+    df = pd.read_csv('data_hybrid_recommender/all_combined_predictions.csv')
     
     estimators = [
         {
@@ -95,7 +95,7 @@ def main():
     ]
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(current_dir, 'hybrid_recommender_search')
+    results_dir = os.path.join(current_dir, '../results/hybrid_recommender_hyper_param_search_experiments')
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
         

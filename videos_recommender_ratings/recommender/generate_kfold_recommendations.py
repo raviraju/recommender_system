@@ -97,11 +97,11 @@ def main():
     files_dir = os.path.expanduser('train_test_data/kfolds_split/')    
     
     if args.validation:
-        results_dir = os.path.join(current_dir, 'model_validation')
+        results_dir = os.path.join(current_dir, '../results/validation')
         train_file = files_dir + '%d_training_for_validation_uir_data.csv'
         test_file = files_dir + '%d_validation_uir_data.csv'
     elif args.testing:
-        results_dir = os.path.join(current_dir, 'model_testing')
+        results_dir = os.path.join(current_dir, '../results/testing')
         train_file = files_dir + '%d_training_all_uir_data.csv'
         test_file = files_dir + '%d_testing_all_uir_data.csv'
     else:

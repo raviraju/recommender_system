@@ -111,7 +111,7 @@ def main():
     
     kfold_dfs = dict()
     for kfold in range(1, no_of_kfolds+1):
-        df = pd.read_csv('hybrid_recommender/combined_predictions_' + str(kfold) + '.csv',
+        df = pd.read_csv('data_hybrid_recommender/combined_predictions_' + str(kfold) + '.csv',
                          dtype={user_id_col: object, item_id_col: object})
         kfold_dfs[kfold] = df
     summary_results = dict()
@@ -121,7 +121,7 @@ def main():
                                   user_id_col, item_id_col, rating_col)
         print("{:40s} AVG RMSE : {}".format(model_name, results['rmse']))
         summary_results[model_name] = results
-    results_file = 'hybrid_recommender/summary_kfold_results.json'
+    results_file = 'results/hybrid_recommender_summary_kfold_results.json'
     with open(results_file, 'w') as json_file:
         json.dump(summary_results, fp=json_file)
     print(results_file)

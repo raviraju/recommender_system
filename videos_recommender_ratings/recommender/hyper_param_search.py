@@ -16,6 +16,8 @@ from surprise.model_selection import PredefinedKFold
 from surprise.model_selection import GridSearchCV
 from surprise import dump
 
+from pprint import pprint
+
 import mlflow
 
 def convert_sec(no_of_secs):
@@ -58,7 +60,7 @@ def main():
         algos = experiment['algos']
         param_grid = experiment['param_grid']
         
-        results_dir = os.path.join(current_dir, results_dir_name)
+        results_dir = os.path.join(current_dir, '../' + results_dir_name)
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
 
@@ -75,6 +77,7 @@ def main():
                 os.makedirs(algo_results_dir)
 
             print("Performing Grid Search on ", algo_name)
+            pprint(param_grid)
             start_time = default_timer()
             mlflow.log_param('algo', algo_name)
             mlflow.log_param('param_grid', str(param_grid))
