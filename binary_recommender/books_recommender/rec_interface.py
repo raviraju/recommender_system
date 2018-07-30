@@ -314,9 +314,9 @@ def get_profile_similarity_score(user_profile, item_profile):
 def get_similarity_score(train_data, test_data, recommended_item, interacted_item):
     """content based similarity score bw recommended and interacted item"""
     item_profile_a = get_item_profile(train_data, recommended_item)
-    item_name_tokens_set_a, item_author_set_a, item_keywords_a = item_profile_a
+    item_name_tokens_set_a, item_author_set_a, item_keywords_a = set(item_profile_a['name_tokens']), set(item_profile_a['author']), item_profile_a['keywords']
     item_profile_b = get_item_profile(test_data, interacted_item)
-    item_name_tokens_set_b, item_author_set_b, item_keywords_b = item_profile_b
+    item_name_tokens_set_b, item_author_set_b, item_keywords_b = set(item_profile_b['name_tokens']), set(item_profile_b['author']), item_profile_b['keywords']
 
     item_name_tokens_similarity = get_jaccard_similarity(item_name_tokens_set_a,
                                                          item_name_tokens_set_b)
@@ -358,10 +358,9 @@ def recommend(recommender_obj,
             print(item)
             if metadata_fields is not None:
                 item_profile = get_item_profile(test_data, item)
-                item_name_tokens, item_author, item_keywords = item_profile
-                print("\t item_name_tokens : {}".format(item_name_tokens))
-                print("\t item_author : {}".format(item_author))
-                print("\t item_keywords : {}".format(item_keywords))
+                print("\t item_name_tokens : {}".format(item_profile['name_tokens']))
+                print("\t item_author : {}".format(item_profile['author']))
+                print("\t item_keywords : {}".format(item_profile['keywords']))
                 print()
 
                 record = test_data[test_data[item_id_col] == item]
@@ -376,10 +375,9 @@ def recommend(recommender_obj,
             print(item)
             if metadata_fields is not None:
                 item_profile = get_item_profile(test_data, item)
-                item_name_tokens, item_author, item_keywords = item_profile
-                print("\t item_name_tokens : {}".format(item_name_tokens))
-                print("\t item_author : {}".format(item_author))
-                print("\t item_keywords : {}".format(item_keywords))
+                print("\t item_name_tokens : {}".format(item_profile['name_tokens']))
+                print("\t item_author : {}".format(item_profile['author']))
+                print("\t item_keywords : {}".format(item_profile['keywords']))
                 print()
 
                 record = test_data[test_data[item_id_col] == item]
@@ -390,17 +388,17 @@ def recommend(recommender_obj,
 
         print()
         print("Items recommended for a user with user_id : {}".format(user_id))
-        recommended_items = recommender.recommend_items(user_id)
-        print()
-        if recommended_items:
+        recommended_items = list(recommender.recommend_items(user_id)[item_id_col])
+        print()        
+        if len(recommended_items) > 0:
             for recommended_item in recommended_items:
                 print(recommended_item)
+                input()
                 if metadata_fields is not None:
                     item_profile = get_item_profile(train_data, recommended_item)
-                    item_name_tokens, item_author, item_keywords = item_profile
-                    print("\t item_name_tokens : {}".format(item_name_tokens))
-                    print("\t item_author : {}".format(item_author))
-                    print("\t item_keywords : {}".format(item_keywords))
+                    print("\t item_name_tokens : {}".format(item_profile['name_tokens']))
+                    print("\t item_author : {}".format(item_profile['author']))
+                    print("\t item_keywords : {}".format(item_profile['keywords']))
                     print()
 
                     record = train_data[train_data[item_id_col] == recommended_item]
@@ -419,6 +417,7 @@ def recommend(recommender_obj,
                                                                interacted_item,
                                                                score))
                         print()
+
                     print('\t '+ '#'*30)
         else:
             print("No items to recommend")

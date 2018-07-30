@@ -12,17 +12,18 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
-from lib import utilities
+import utilities
 from pprint import pprint
 
 HOLD_OUT_STRATEGIES = ['assume_first_n', 'assume_ratio', 'hold_last_n']
+#HOLD_OUT_STRATEGIES = ['hold_last_n']
 
 def get_cmap(index, name='tab20b_r'):
     '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
     RGB color; the keyword argument name must be a standard mpl colormap name.'''
     return plt.cm.get_cmap(name, index)
 
-def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_only=False, hold_out_strategy=''):
+def plot_roc(recommender, results, plot_results_dir='results', hold_out_strategy=''):
     """plot roc(tpr vs fpr)"""
     no_of_items_to_recommend = []
     avg_tpr_models_dict = OrderedDict()
@@ -30,13 +31,12 @@ def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_onl
     for no_of_items in results:
         no_of_items_to_recommend.append(int(no_of_items))
         for model in results[no_of_items]:
-            if hybrid_models_only and 'hybrid' in model:
-                if hold_out_strategy in model:
-                    model_name = model.split(hold_out_strategy+'_')[1]
-                    if model_name not in avg_tpr_models_dict:
-                        avg_tpr_models_dict[model_name] = []
-                    if model_name not in avg_fpr_models_dict:
-                        avg_fpr_models_dict[model_name] = []
+            if hold_out_strategy in model:
+                model_name = model.split(hold_out_strategy+'_')[1]
+                if model_name not in avg_tpr_models_dict:
+                    avg_tpr_models_dict[model_name] = []
+                if model_name not in avg_fpr_models_dict:
+                    avg_fpr_models_dict[model_name] = []
     #print(no_of_items_to_recommend)
     #no_of_items_to_recommend = [5, 10]
     for no_of_items in no_of_items_to_recommend:
@@ -97,7 +97,7 @@ def plot_roc(recommender, results, plot_results_dir='results', hybrid_models_onl
     #plt.show()
     plt.close(fig)
 
-def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid_models_only=False, hold_out_strategy=''):
+def plot_graph(recommender, results, measure, plot_results_dir='results', hold_out_strategy=''):
     """plot precision recall and f1-score"""
     #pprint(results)
 
@@ -110,10 +110,9 @@ def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid
         no_of_items_to_recommend.append(int(no_of_items))
         for model in results[no_of_items]:
             if model not in models_dict:
-                if hybrid_models_only and 'hybrid' in model:
-                    if hold_out_strategy in model:
-                        model_name = model.split(hold_out_strategy+'_')[1]
-                        models_dict[model_name] = []
+                if hold_out_strategy in model:
+                    model_name = model.split(hold_out_strategy+'_')[1]
+                    models_dict[model_name] = []
     #print(no_of_items_to_recommend)
     for no_of_items in no_of_items_to_recommend:
         for model_name in models_dict.keys():
@@ -174,7 +173,7 @@ def plot_graph(recommender, results, measure, plot_results_dir='results', hybrid
 
 def plot_hold_out_strategies(recommender, results,
                               measure, plot_results_dir,
-                              no_of_items_recommended, hybrid_models_only=False):
+                              no_of_items_recommended):
     """plot measure"""
     hold_out_strategies = []
     models_dict = OrderedDict()
@@ -182,9 +181,7 @@ def plot_hold_out_strategies(recommender, results,
         hold_out_strategies.append(hold_out_strategy)
         for model in results[hold_out_strategy]:
             if model not in models_dict:
-                if hybrid_models_only and 'hybrid' in model:
-                    models_dict[model] = []
-    #print(hold_out_strategies)
+                models_dict[model] = []
 
     for hold_out_strategy in hold_out_strategies:
         for model in models_dict.keys():
@@ -234,7 +231,7 @@ def plot_hold_out_strategies(recommender, results,
     #plt.show()
     plt.close(fig)
 
-def analyse_hold_out_strategies(recommender, results, measure, plot_results_dir='results', hybrid_models_only=False):
+def analyse_hold_out_strategies(recommender, results, measure, plot_results_dir='results'):
     list_of_items_recommended = results.keys()
     for no_of_items_recommended in list_of_items_recommended:
         results_hold_out_strategies = dict()
@@ -262,7 +259,7 @@ def analyse_hold_out_strategies(recommender, results, measure, plot_results_dir=
                                   results_hold_out_strategies,
                                   measure,
                                   plot_results_dir,
-                                  no_of_items_recommended, hybrid_models_only)
+                                  no_of_items_recommended)
 def dump_scores(recommender, results, score_results_dir='results'):
     """Dump Scores"""
     results_dir = os.path.join(recommender, score_results_dir)
@@ -279,7 +276,7 @@ def dump_scores(recommender, results, score_results_dir='results'):
     all_results.to_csv(result_file)
     print("Evaluation Scores : {}".format(result_file))
 
-def analyse(recommender):
+def analyse(recommender, hybrid_models_only=False):
     """analyse single experiment for recommender using evalution_results.json"""
     results = dict()
 
@@ -294,8 +291,7 @@ def analyse(recommender):
                         results[no_of_items_to_recommend] = dict()
                     res = result_dict['no_of_items_to_recommend'][no_of_items_to_recommend]
                     results[no_of_items_to_recommend][model_name] = res
-    dump_scores(recommender, results, score_results_dir='score_results')
-    hybrid_models_only = True
+    dump_scores(recommender, results, score_results_dir='score_results')    
     plot_results_dir='plot_results'
     analyse_hold_out_strategies(recommender, results, 'avg_tpr', plot_results_dir, hybrid_models_only)
     for hold_out_strategy in HOLD_OUT_STRATEGIES:
@@ -305,47 +301,52 @@ def analyse(recommender):
         plot_graph(recommender, results, 'avg_recall', plot_results_dir, hybrid_models_only, hold_out_strategy)
         plot_roc(recommender, results, plot_results_dir, hybrid_models_only, hold_out_strategy)
 
-def analyse_kfold(recommender):
+def analyse_kfold(recommender, hybrid_models_only=False):
     """analyse kfold summary for recommender using kfold_evaluation.json"""
     results = dict()
-
+    if hybrid_models_only:
+        print("Analysing hybrid_models_only")
     for root, _, files in os.walk(recommender, topdown=False):
         for name in files:
             if fnmatch.fnmatch(name, 'kfold_evaluation.json'):
                 file_path = (os.path.join(root, name))
                 model_name = (Path(file_path).parent).parent.name
-                #print(model_name)
+                if hybrid_models_only:
+                    if 'hybrid' not in model_name:
+                        continue
                 result_dict = utilities.load_json_file(file_path)
                 for no_of_items_to_recommend in result_dict['no_of_items_to_recommend']:
                     if no_of_items_to_recommend not in results:
                         results[no_of_items_to_recommend] = dict()
                     res = result_dict['no_of_items_to_recommend'][no_of_items_to_recommend]
                     results[no_of_items_to_recommend][model_name] = res
-    dump_scores(recommender, results, score_results_dir='score_kfold_results')
+    if results:
+        dump_scores(recommender, results, score_results_dir='score_kfold_results')
 
-    hybrid_models_only = True
-    plot_results_dir='plot_kfold_results'
-    analyse_hold_out_strategies(recommender, results, 'avg_tpr', plot_results_dir, hybrid_models_only)
-    for hold_out_strategy in HOLD_OUT_STRATEGIES:
-        plot_graph(recommender, results, 'avg_f1_score', plot_results_dir, hybrid_models_only, hold_out_strategy)
-        plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir, hybrid_models_only, hold_out_strategy)
-        plot_graph(recommender, results, 'avg_precision', plot_results_dir, hybrid_models_only, hold_out_strategy)
-        plot_graph(recommender, results, 'avg_recall', plot_results_dir, hybrid_models_only, hold_out_strategy)
-        plot_roc(recommender, results, plot_results_dir, hybrid_models_only, hold_out_strategy)
+        plot_results_dir='plot_kfold_results'
+        analyse_hold_out_strategies(recommender, results, 'avg_tpr', plot_results_dir)
+        for hold_out_strategy in HOLD_OUT_STRATEGIES:
+            plot_graph(recommender, results, 'avg_f1_score', plot_results_dir, hold_out_strategy)
+            plot_graph(recommender, results, 'avg_mcc_score', plot_results_dir, hold_out_strategy)
+            plot_graph(recommender, results, 'avg_precision', plot_results_dir, hold_out_strategy)
+            plot_graph(recommender, results, 'avg_recall', plot_results_dir, hold_out_strategy)
+            plot_roc(recommender, results, plot_results_dir, hold_out_strategy)
 
 def main():
     """analyse results of recommenders"""
     parser = argparse.ArgumentParser(description="Compare Recommender Models")
     parser.add_argument("model", help="Use Case Recommender Model Directory")
     parser.add_argument("--kfold", help="Compare Kfold evaluation", action="store_true")
+    parser.add_argument("--hybrid_only", help="For hybrid models only", action="store_true")
     args = parser.parse_args()
+
     if args.model:
         if args.kfold:
             print("Analysing kfold results of ", args.model)
-            analyse_kfold(args.model)
+            analyse_kfold(args.model, args.hybrid_only)
         else:
             print("Analysing results of ", args.model)
-            analyse(args.model)
+            analyse(args.model, args.hybrid_only)
     else:
         print("Specify use case recommender model directory to analyse")
 

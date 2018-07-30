@@ -57,7 +57,7 @@ class UserBasedAgeItpRecommender(books_rec_interface.BooksRecommender,
         #Compute User-User Similarity Matrix with Cosine Similarity of user features
         print()
         print("""Computing User-User Similarity Matrix with Cosine Similarity of age, item type preferences...""")
-        measures_df = pd.read_csv('preprocessed_metadata/learner_measures.csv')
+        measures_df = pd.read_csv('data_preprocessing/preprocessed_metadata/learner_measures.csv')
         measures_df.set_index('learner_id', inplace=True)
         #print(measures_df.head())
 
