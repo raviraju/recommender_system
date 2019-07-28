@@ -49,7 +49,7 @@ class UserBasedCFRecommender(Recommender):
         uim_df.index = uim_df.index.map(str)
         return uim_df
     #######################################
-    def compute_uim(self):
+    def __compute_uim(self):
         """Compute User Item Matrix"""
         start_time = default_timer()
         print()
@@ -76,10 +76,10 @@ class UserBasedCFRecommender(Recommender):
         print("Density of User Item Matrix : ", density)
         return uim_df
 
-    def compute_user_similarity(self):
+    def __compute_user_similarity(self):
         """construct matrix using cooccurence of items"""
         #Compute User Item Matrix
-        self.uim_df = self.compute_uim()
+        self.uim_df = self.__compute_uim()
         self.save_uim(self.uim_df)
         uim = self.uim_df.as_matrix()
         #         Item1   Item2   Item3   Item4
@@ -165,7 +165,7 @@ class UserBasedCFRecommender(Recommender):
         # Compute user similarity matrix of size, len(users) X len(users)
         print("Compute user similarity matrix...")
         start_time = default_timer()
-        self.user_similarity_matrix_df = self.compute_user_similarity()
+        self.user_similarity_matrix_df = self.__compute_user_similarity()
         end_time = default_timer()
         print("{:50}    {}".format("Completed. ",
                                    utilities.convert_sec(end_time - start_time)))

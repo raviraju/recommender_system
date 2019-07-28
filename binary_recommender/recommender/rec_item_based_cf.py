@@ -48,7 +48,7 @@ class ItemBasedCFRecommender(Recommender):
         uim_df.index = uim_df.index.map(str)
         return uim_df
     #######################################
-    def compute_uim(self):
+    def __compute_uim(self):
         """Compute User Item Matrix"""
         start_time = default_timer()
         print()
@@ -75,8 +75,18 @@ class ItemBasedCFRecommender(Recommender):
     def __compute_item_similarity(self):
         """private function, construct matrix using cooccurence of users"""
         #Construct User Item Matrix
-        self.uim_df = self.compute_uim()
+        self.uim_df = self.__compute_uim()
         self.save_uim(self.uim_df)
+        
+        #stats
+        items = [str(col) for col in self.uim_df.columns]
+        no_of_items = len(items)
+        users = [str(idx) for idx in self.uim_df.index]
+        no_of_users = len(users)
+        print("No of Items : ", no_of_items)
+        print("No of Users : ", no_of_users)
+
+
         uim = self.uim_df.as_matrix()
         #for ex
         #         Item1   Item2   Item3   Item4
@@ -88,19 +98,6 @@ class ItemBasedCFRecommender(Recommender):
         #     [0,1,1,0],
         #     [0,1,1,1]
         # ])
-
-        #stats
-        items = [str(col) for col in self.uim_df.columns]
-        no_of_items = len(items)
-        users = [str(idx) for idx in self.uim_df.index]
-        no_of_users = len(users)
-        print("No of Items : ", no_of_items)
-        print("No of Users : ", no_of_users)
-
-        non_zero_count = np.count_nonzero(uim)
-        count = uim.size
-        density = non_zero_count/count
-        print("Density of User Item Matrix : ", density)
 
         #Compute Item-Item Similarity Matrix with intersection of users interacted
         print()
