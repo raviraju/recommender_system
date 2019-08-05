@@ -1,4 +1,5 @@
 ipywidgets==7.5.1
+jupyter-contrib-nbextensions==0.5.1
 matplotlib-venn==0.11.5
 pip-autoremove==0.9.1
 pipdeptree==0.13.2
