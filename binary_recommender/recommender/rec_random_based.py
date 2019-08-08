@@ -8,7 +8,7 @@ from pprint import pprint
 import random
 import pandas as pd
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -71,9 +71,11 @@ class RandomBasedRecommender(Recommender):
 
         start_time = default_timer()
         assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
+        items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
+        user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
         user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                   assume_interacted_items)
-        recommended_items = list(user_recommendations[self.item_id_col].values)
+                                                                   user_interacted_items)
+        # recommended_items = list(user_recommendations[self.item_id_col].values)
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated. ",
                                    utilities.convert_sec(end_time - start_time)))
@@ -83,13 +85,15 @@ class RandomBasedRecommender(Recommender):
         """recommend items for all users from test dataset"""
         for user_id in self.items_for_evaluation:
             assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
+            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
+            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
             user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                       assume_interacted_items)
+                                                                       user_interacted_items)
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
             
             recommended_items_dict = dict()
-            for i, recs in user_recommendations.iterrows():
+            for _, recs in user_recommendations.iterrows():
                 item_id = recs[self.item_id_col]
                 score = round(recs['score'], 3)
                 rank = recs['rank']

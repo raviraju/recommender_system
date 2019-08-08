@@ -31,14 +31,18 @@ class UserBasedCFRecommender(Recommender):
         self.model_file = os.path.join(self.model_dir,
                                        'user_based_cf_model.pkl')
 
+        self.debug = False
+        if 'debug' in kwargs:
+            self.debug = kwargs['debug']
+
         self.user_similarity_matrix_df = None
         self.similar_users = None
         self.uim_df = None
     #######################################
     def save_uim(self, uim_df):
-        """save user item interaction matrix"""
-        uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
+        """save user item interaction matrix"""        
         uim_df = uim_df.reset_index()#so that user_id col is added as first col
+        uim_df_fname = os.path.join(self.model_dir, 'uim.csv')
         uim_df.to_csv(uim_df_fname, index=False)#do not write the default index,
                                                 #so that on read first col is picked as index col
 
@@ -52,36 +56,49 @@ class UserBasedCFRecommender(Recommender):
     def __compute_uim(self):
         """Compute User Item Matrix"""
         start_time = default_timer()
-        print()
-        print("Combining train_data with test_data_for_evaluation...")
-        train_test_data = self.train_data.append(self.test_data_for_evaluation,
-                                                 ignore_index=True)
-        print("Computing User Item Matrix...")
-        uim_df = pd.get_dummies(train_test_data[self.item_id_col])\
-                   .groupby(train_test_data[self.user_id_col])\
+        print("\t\tNo of Users : ", len(self.train_data[self.user_id_col].unique()))
+        print("\t\tNo of Items : ", len(self.train_data[self.item_id_col].unique()))
+        print("\tCombining train_data with interactions known from test...")
+        train_with_known_test_data = self.train_data.append(self.known_interactions_from_test_df,
+                                                            ignore_index=True)
+        print("\t\tNo of Users : ", len(train_with_known_test_data[self.user_id_col].unique()))
+        print("\t\tNo of Items : ", len(train_with_known_test_data[self.item_id_col].unique()))
+        print("\tComputing User Item Matrix of Users and Items in Train & Known Test Data...")
+        uim_df = pd.get_dummies(train_with_known_test_data[self.item_id_col])\
+                   .groupby(train_with_known_test_data[self.user_id_col])\
                    .apply(max)
-        print(uim_df.shape)
-        missing_items_from_test = set(self.items_all) - set(self.items_train)
-        for item in missing_items_from_test:
-            uim_df[item] = 0
-        print(uim_df.shape)
+        print("\t\tUser Item Matrix Shape :", uim_df.shape)
+        end_time = default_timer()   
 
-        end_time = default_timer()
-        print("{:50}    {}".format("Completed. ",
-                                   utilities.convert_sec(end_time - start_time)))
-        uim = uim_df.as_matrix()
+        uim = uim_df.values
         non_zero_count = np.count_nonzero(uim)
         count = uim.size
         density = non_zero_count/count
-        print("Density of User Item Matrix : ", density)
+        print("\t\tDensity of User Item Matrix : {:0.4f} %".format(density*100))
+        print("{:50}    {}".format("\tCompleted. ",
+                                   utilities.convert_sec(end_time - start_time)))
         return uim_df
 
     def __compute_user_similarity(self):
-        """construct matrix using cooccurence of items"""
+        """Compute matrix using cooccurence of items"""
         #Compute User Item Matrix
-        self.uim_df = self.__compute_uim()
+        # self.uim_df = self.__compute_uim()
+        uim_df = self.__compute_uim()
+        items_sorted = sorted(uim_df.columns)        #Sort Items
+        self.uim_df = uim_df[items_sorted]
+        self.uim_df.sort_index(axis=0, inplace=True) #Sort Users
         self.save_uim(self.uim_df)
-        uim = self.uim_df.as_matrix()
+        uim = self.uim_df.values
+
+        #stats
+        users = [str(idx) for idx in self.uim_df.index]
+        # no_of_users = len(users)
+        items = [str(col) for col in self.uim_df.columns]
+        no_of_items = len(items)
+        # print("\tNo of Users : ", no_of_users)
+        # print("\tNo of Items : ", no_of_items)
+       
+        #for ex
         #         Item1   Item2   Item3   Item4
         # User1       1       1       0       0
         # User2       0       1       1       0
@@ -92,78 +109,72 @@ class UserBasedCFRecommender(Recommender):
         #     [0,1,1,1]
         # ])
 
-        #stats
+        #No of Items which are interacted by both users(u and v)
+        #Compute User Similarity Matrix with intersection of items interacted
         print()
-        items = [str(col) for col in self.uim_df.columns]
-        no_of_items = len(items)
-        users = [str(idx) for idx in self.uim_df.index]
-        no_of_users = len(users)
-        print("No of Items : ", no_of_items)
-        print("No of Users : ", no_of_users)
-
-        #Compute User-User Similarity Matrix with intersection of items interacted
-        print()
-        print("Computing User-User Similarity Matrix with intersection of items interacted...")
+        print("\tFinding No of Items which are interacted by both   users (u and v)")
+        # print("\tComputing User Similarity Matrix with intersection of items interacted...")
         start_time = default_timer()
         #intersection is like the `&` operator,
-        #i.e., item A has user X and item B has user X -> intersection
+        #i.e., user A has item X and user B has item X -> intersection
         #multiplication of 1s and 0s is equivalent to the `&` operator
         intersection = np.dot(uim, uim.T)   #3*4 x 4*3 --> 3*3 User-User
         intersection_df = pd.DataFrame(intersection,
                                        columns=users,
                                        index=users)
-        intersection_df_fname = os.path.join(self.model_dir,
-                                             'intersection.csv')
-        intersection_df.to_csv(intersection_df_fname, index=False)
+
+        if self.debug:
+            intersection_df_fname = os.path.join(self.model_dir, 'intersection.csv')
+            intersection_df.to_csv(intersection_df_fname, index=False)
         end_time = default_timer()
-        print("{:50}    {}".format("Completed. ",
+        print("{:50}    {}".format("\tCompleted. ",
                                    utilities.convert_sec(end_time - start_time)))
 
-        #Compute User-User Similarity Matrix with union of items interacted
+        #No of Items which are interacted by either users(u or v)
+        #Compute User Similarity Matrix with union of items interacted
         print()
-        print("Computing User-User Similarity Matrix with union of items interacted...")
+        print("\tFinding No of Items which are interacted by either users (u or v)")
+        # print("\tComputing User Similarity Matrix with union of items interacted...")
         start_time = default_timer()
         #union is like the `|` operator, i.e., item A has user X or item B has user X -> union
         #`0*0=0`, `0*1=0`, and `1*1=1`, so `*` is equivalent to `|` if we consider `0=T` and `1=F`
         #Hence we obtain flip_uim
         flip_uim = 1-uim    #3*4
-        items_left_out_of_union = np.dot(flip_uim, flip_uim.T)  #3*4 x 4*3 --> 3*3 User-User
+        items_left_out_of_union = np.dot(flip_uim, flip_uim.T)  #3*4 x 4*3 --> 3*3 User
         union = no_of_items - items_left_out_of_union
         union_df = pd.DataFrame(union,
                                 columns=users,
                                 index=users)
-        union_df_fname = os.path.join(self.model_dir,
-                                      'union.csv')
-        union_df.to_csv(union_df_fname, index=False)
+        if self.debug:
+            union_df_fname = os.path.join(self.model_dir, 'union.csv')
+            union_df.to_csv(union_df_fname, index=False)
         end_time = default_timer()
-        print("{:50}    {}".format("Completed. ",
+        print("{:50}    {}".format("\tCompleted. ",
                                    utilities.convert_sec(end_time - start_time)))
 
-        #Compute User-User Similarity Matrix with Jaccard Similarity of items
+        #Compute User Similarity Matrix with Jaccard Similarity of items
         print()
-        print("Computing User-User Similarity Matrix with Jaccard Similarity of items interacted...")
+        print("\tComputing User Similarity Matrix using Jaccard Similarity of Items Interacted...")
         start_time = default_timer()
-        # jaccard = intersection/union
-        # jaccard_df = pd.DataFrame(jaccard,
-        #                           columns=items,
-        #                           index=items)
         jaccard_df = intersection_df.div(union_df)
-        jaccard_df.values[[np.arange(jaccard_df.shape[0])]*2] = 0.0
+        np.fill_diagonal(jaccard_df.values, 0.0) #set diagonal elements to 0
         jaccard_df.fillna(value=0, inplace=True) #handle Nan values filled due to 0/0
-        jaccard_df_fname = os.path.join(self.model_dir,
-                                        'jaccard.csv')
-        jaccard_df.to_csv(jaccard_df_fname, index=False)
+        if self.debug:
+            jaccard_df_fname = os.path.join(self.model_dir, 'jaccard.csv')
+            jaccard_df.to_csv(jaccard_df_fname, index=False)
         end_time = default_timer()
-        print("{:50}    {}".format("Completed. ",
+        print("\t\tUser Similarity Matrix Shape :", jaccard_df.shape)
+        print("{:50}    {}".format("\tCompleted. ",
                                    utilities.convert_sec(end_time - start_time)))
         return jaccard_df
 
     def train(self):
-        """train the user similarity based recommender system model"""
+        """Train the user similarity based recommender system model"""
         super().train()
 
+        print()
         # Compute user similarity matrix of size, len(users) X len(users)
-        print("Compute user similarity matrix...")
+        print("Compute User Similarity Matrix...")
         start_time = default_timer()
         self.user_similarity_matrix_df = self.__compute_user_similarity()
         end_time = default_timer()
@@ -190,7 +201,6 @@ class UserBasedCFRecommender(Recommender):
         """Use the cooccurence matrix to make top recommendations"""
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
-        #print(user_id)
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
 
@@ -221,7 +231,6 @@ class UserBasedCFRecommender(Recommender):
                     'score' : score,
                     'rank' : rank
                 }
-                #print(user_id, item_id, score, rank)
                 items_to_recommend.append(item_dict)
                 rank += 1
         res_df = pd.DataFrame(items_to_recommend, columns=columns)
@@ -244,13 +253,19 @@ class UserBasedCFRecommender(Recommender):
             LOGGER.debug("Loaded Trained Model")
             # Use the cooccurence matrix to make recommendations
             start_time = default_timer()
+            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
             assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                       assume_interacted_items)
-            recommended_items = list(user_recommendations[self.item_id_col].values)
+            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
+            if len(user_interacted_items) == 0:
+                print("User {} has not interacted with any known items, Unable to generate any recommendations...".format(user_id))
+                user_recommendations = None
+            else:
+                user_recommendations = self.__generate_top_recommendations(user_id,
+                                                                           user_interacted_items)
+            # recommended_items = list(user_recommendations[self.item_id_col].values)
             end_time = default_timer()
-            #print("{:50}    {}".format("Recommendations generated. ",
-            #                           utilities.convert_sec(end_time - start_time)))
+            print("{:50}    {}".format("Recommendations generated. ",
+                                       utilities.convert_sec(end_time - start_time)))
             return user_recommendations
         else:
             print("Trained Model not found !!!. Failed to generate recommendations")
@@ -260,13 +275,19 @@ class UserBasedCFRecommender(Recommender):
         """recommend items for all users from test dataset"""
         for user_id in self.items_for_evaluation:
             assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                       assume_interacted_items)
-            recommended_items = list(user_recommendations[self.item_id_col].values)
+            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
+            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
+            if len(user_interacted_items) == 0:
+                #print("User {} has not interacted with any items in past, Unable to generate any recommendations...".format(user_id))
+                recommended_items = []
+            else:
+                user_recommendations = self.__generate_top_recommendations(user_id,
+                                                                           user_interacted_items)
+                recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
 
             recommended_items_dict = dict()
-            for i, recs in user_recommendations.iterrows():
+            for _, recs in user_recommendations.iterrows():
                 item_id = recs[self.item_id_col]
                 score = round(recs['score'], 3)
                 rank = recs['rank']
@@ -282,7 +303,7 @@ class UserBasedCFRecommender(Recommender):
         return self.items_for_evaluation
 
     def evaluate(self, no_of_recs_to_eval, eval_res_file='evaluation_results.json'):
-        """evaluate trained model for different no of ranked recommendations"""
+        """Evaluate trained model for different no of ranked recommendations"""
         super().evaluate(no_of_recs_to_eval, eval_res_file)
         self.uim_df = self.load_uim()
 
@@ -311,7 +332,7 @@ class UserBasedCFRecommender(Recommender):
             print("Trained Model not found !!!. Failed to evaluate")
             evaluation_results = {'status' : "Trained Model not found !!!. Failed to evaluate"}
 
-            results_file = os.path.join(self.model_dir, 'evaluation_results.json')
+            results_file = os.path.join(self.model_dir, eval_res_file)
             utilities.dump_json_file(evaluation_results, results_file)
 
             return evaluation_results

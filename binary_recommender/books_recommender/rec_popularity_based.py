@@ -26,7 +26,7 @@ class PopularityBasedRecommender(books_rec_interface.BooksRecommender,
 
 def main():
     """Popularity based recommender interface"""
-    parser = argparse.ArgumentParser(description="User Based Recommender")
+    parser = argparse.ArgumentParser(description="Popularity Based Recommender")
     parser.add_argument("--train",
                         help="Train Model",
                         action="store_true")
@@ -73,11 +73,6 @@ def main():
     else:
         print("Invalid hold_out_strategy {} chosen".format(args.hold_out_strategy))
         exit(-1)
-
-    model_name = 'model/' + kwargs['hold_out_strategy'] + '_item_based_cf'
-    model_dir = os.path.join(current_dir, model_name)
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
 
     no_of_recs_to_eval = [5, 6, 7, 8, 9, 10]
     recommender_obj = PopularityBasedRecommender

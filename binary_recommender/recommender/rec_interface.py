@@ -77,7 +77,7 @@ class Recommender(metaclass=ABCMeta):
                                                  self.user_id_col: (lambda x: list(x.unique()))
                                                  })
         item_users_train_df = item_users_train_df.rename(columns={self.user_id_col: 'users'})\
-                                                      .reset_index()
+                                                 .reset_index()
         for _, item_users in item_users_train_df.iterrows():
             item = item_users[str(self.item_id_col)]
             users = [str(user) for user in item_users['users']]
@@ -211,7 +211,7 @@ class Recommender(metaclass=ABCMeta):
         self.item_users_test_dict = dict()
 
         self.items_for_evaluation = None
-        self.test_data_for_evaluation = None
+        self.known_interactions_from_test_df = None
 
     def get_all_users(self, dataset='train'):
         """Get unique users in the dataset"""
@@ -233,18 +233,24 @@ class Recommender(metaclass=ABCMeta):
 
     def get_items(self, user_id, dataset='train'):
         """Get unique items for a given user_id in the dataset"""
+        user_items = []
         if dataset == "train":
-            user_items = self.user_items_train_dict[user_id]
+            if user_id in self.user_items_train_dict: 
+                user_items = self.user_items_train_dict[user_id]
         else:#test
-            user_items = self.user_items_test_dict[user_id]
+            if user_id in self.user_items_test_dict: 
+                user_items = self.user_items_test_dict[user_id]
         return user_items
 
     def get_users(self, item_id, dataset='train'):
         """Get unique users for a given item_id in the dataset"""
+        item_users = []
         if dataset == "train":
-            item_users = self.item_users_train_dict[item_id]
+            if item_id in self.item_users_train_dict: 
+                item_users = self.item_users_train_dict[item_id]
         else:#test
-            item_users = self.item_users_test_dict[item_id]
+            if item_id in self.item_users_test_dict:
+                item_users = self.item_users_test_dict[item_id]
         return item_users
 
     def get_known_items(self, items_interacted):
@@ -336,17 +342,15 @@ class Recommender(metaclass=ABCMeta):
         items_for_evaluation_file = os.path.join(self.model_dir, 'items_for_evaluation.json')
         self.items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
 
-    def get_test_data_for_evaluation(self):
-        """get test data for evaluation by deriving items to be considered
-        for each test user id"""
+    def get_known_interactions_from_test(self):
+        """get test user interactions for evaluation by deriving items to be considered for each user according to hold_out_stratergy"""
         self.items_for_evaluation = dict()
-        users = self.get_all_users(dataset='test')
-        no_of_users = len(users)
-        no_of_users_considered = 0
-        self.test_data_for_evaluation = None
-        for user_id in users:
+        test_users = self.get_all_users(dataset='test')
+        no_of_test_users = len(test_users)
+        self.known_interactions_from_test_df = None
+        for user_id in test_users:
             #print(user_id)
-            # Get all items with which user has interacted
+            # Get all items with which user has interacted in test
             all_items_interacted = self.get_items(user_id, dataset='test')
 
             #print(set(all_items_interacted))
@@ -367,11 +371,15 @@ class Recommender(metaclass=ABCMeta):
             elif self.hold_out_strategy == "hold_last_n":
                 assume_interacted_items, hold_out_items = self.split_items_hold_last_n(items_interacted,
                                                                                        self.last_n)
+            elif self.hold_out_strategy == "hold_all":
+                assume_interacted_items = []
+                hold_out_items = items_interacted
             else:
                 print("Invalid hold_out strategy!!!")
                 exit(-1)
 
-            if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
+            if len(hold_out_items) == 0:
+            # if len(assume_interacted_items) == 0 or len(hold_out_items) == 0:
                 # print("WARNING !!!. User {} exempted from evaluation".format(user_id))
                 # print("Items Interacted Assumed : ")
                 # print(assume_interacted_items)
@@ -389,32 +397,36 @@ class Recommender(metaclass=ABCMeta):
             print()
             '''
 
+            items_interacted_in_train = self.get_items(user_id, dataset='train')
             self.items_for_evaluation[user_id] = dict()
-            self.items_for_evaluation[user_id]['items_recommended'] = []
+            self.items_for_evaluation[user_id]['items_interacted_in_train'] = items_interacted_in_train            
             self.items_for_evaluation[user_id]['assume_interacted_items'] = assume_interacted_items
             self.items_for_evaluation[user_id]['items_interacted'] = hold_out_items
-            no_of_users_considered += 1
+            self.items_for_evaluation[user_id]['items_recommended'] = []
 
-            tmp = self.test_data[self.test_data[self.user_id_col] == user_id]
-            filter_tmp = tmp.loc[tmp[self.item_id_col].isin(assume_interacted_items)]
-            #print("filter_tmp")
-            #print(filter_tmp)
-            if self.test_data_for_evaluation is None:
-                self.test_data_for_evaluation = filter_tmp.copy()
+            if self.hold_out_strategy == "hold_all":
+                self.known_interactions_from_test_df = pd.DataFrame()
             else:
-                self.test_data_for_evaluation = self.test_data_for_evaluation.append(filter_tmp, ignore_index=True)
-            #print("self.test_data_for_evaluation")
-            #print(self.test_data_for_evaluation[[self.user_id_col, self.item_id_col]])
-        print("No of test users : ", no_of_users)
-        print("No of test users considered for evaluation : ", len(self.items_for_evaluation))
+                tmp_df = self.test_data[self.test_data[self.user_id_col] == user_id]
+                filter_tmp_df = tmp_df.loc[tmp_df[self.item_id_col].isin(assume_interacted_items)]
+                #print("filter_tmp_df")
+                #print(filter_tmp_df)
+                if self.known_interactions_from_test_df is None:
+                    self.known_interactions_from_test_df = filter_tmp_df.copy()
+                else:
+                    self.known_interactions_from_test_df = self.known_interactions_from_test_df.append(filter_tmp_df, ignore_index=True)
+                #print("self.known_interactions_from_test_df")
+                #print(self.known_interactions_from_test_df[[self.user_id_col, self.item_id_col]])
+        print("\tNo of all test users : ", no_of_test_users)
+        print("\tNo of test users considered for evaluation : ", len(self.items_for_evaluation))
         self.save_items_for_evaluation()
-        return self.test_data_for_evaluation
+        return self.known_interactions_from_test_df
 
     @abstractmethod
     def train(self):
         """train recommender"""
         self.derive_stats()
-        self.get_test_data_for_evaluation()
+        self.get_known_interactions_from_test()
 
     @abstractmethod
     def recommend_items(self, user_id):
@@ -555,17 +567,17 @@ class HybridRecommender():
             record = dict()
             record['user_id'] = user_id
             record['item_id'] = item_id
-#             scores = []
+            # scores = []
             for rec_obj in self.recommender_objs:
                 recommender_type = type(rec_obj).__name__
                 score = recommendations[item_id][recommender_type]
                 record[recommender_type] = score
-#                 scores.append(score)
-#             if sum(scores) == 0:#skip recommendations where score for each recommender is 0
-#                 #print("skipping record")
-#                 #pprint(record)
-#                 #input()
-#                 continue
+                # scores.append(score)
+            # if sum(scores) == 0:#skip recommendations where score for each recommender is 0
+            #     #print("skipping record")
+            #     #pprint(record)
+            #     #input()
+            #     continue
             aggregation_items.append(record)
         aggregation_df = pd.DataFrame(aggregation_items)
         #print(aggregation_df.head())
@@ -645,9 +657,10 @@ class HybridRecommender():
         """recommend items for all users from test dataset"""
         self.__load_items_for_evaluation()
         for user_id in self.items_for_evaluation:
+            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
             assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            user_recommendations = self.recommend_items(user_id,
-                                                        assume_interacted_items)
+            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
+            user_recommendations = self.recommend_items(user_id, user_interacted_items)
 
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
@@ -715,22 +728,36 @@ def load_train_test(train_data_file, test_data_file, user_id_col, item_id_col):
         print("Unable to find test data in : ", train_data_file)
         exit(0)
 
-    print("{:30} : {}".format("Train Data : No of records", len(train_data)))
-    print("{:30} : {}".format("Train Data : No of users  ",
-                              len(train_data[user_id_col].unique())))
-    print("{:30} : {}".format("Train Data : No of items  ",
-                              len(train_data[item_id_col].unique())))
+    train_users_set = set(train_data[user_id_col].unique())
+    train_items_set = set(train_data[item_id_col].unique())    
+
+    test_users_set = set(test_data[user_id_col].unique())
+    test_items_set = set(test_data[item_id_col].unique())
+
+    common_users_set = train_users_set.intersection(test_users_set)
+    common_items_set = train_items_set.intersection(test_items_set)
+
+    new_users_in_test_set = test_users_set - train_users_set
+    new_items_in_test_set = test_items_set - train_items_set
+
+    print("{:30} : {}".format("Train Data   : No of records", len(train_data)))    
+    print("{:30} : {}".format("Train Data   : No of users  ", len(train_users_set)))    
+    print("{:30} : {}".format("Train Data   : No of items  ", len(train_items_set)))
     print()
-    print("{:30} : {}".format("Test Data  : No of records", len(test_data)))
-    print("{:30} : {}".format("Test Data  : No of users  ",
-                              len(test_data[user_id_col].unique())))
-    print("{:30} : {}".format("Test Data  : No of items  ",
-                              len(test_data[item_id_col].unique())))
+    print("{:30} : {}".format("Test Data    : No of records", len(test_data)))
+    print("{:30} : {}".format("Test Data    : No of users  ", len(test_users_set)))
+    print("{:30} : {}".format("Test Data    : No of items  ", len(test_items_set)))
+    print()
+    print("{:30} : {}".format("Common Data  : No of users  ", len(common_users_set)))
+    print("{:30} : {}".format("Common Data  : No of items  ", len(common_items_set)))
+    print()
+    print("{:30} : {}".format("New in Test  : No of users  ", len(new_users_in_test_set)))
+    print("{:30} : {}".format("New in Test  : No of items  ", len(new_items_in_test_set)))
     print('#' * 40)
-    train_items = set(train_data[item_id_col].unique())
-    test_items = set(test_data[item_id_col].unique())
-    print("train_items-test_items : ", len(train_items - test_items))
-    print("test_items-train_items : ", len(test_items - train_items))
+    # train_items = set(train_items_set)
+    # test_items = set(test_data[item_id_col].unique())
+    # print("train_items-test_items : ", len(train_items - test_items))
+    # print("test_items-train_items : ", len(test_items - train_items))
     return train_data, test_data
 
 def train(recommender_obj,
@@ -768,36 +795,40 @@ def recommend(recommender_obj,
     eval_items_file = os.path.join(model_dir, 'items_for_evaluation.json')
     eval_items = utilities.load_json_file(eval_items_file)
     if user_id in eval_items:
+        items_interacted_in_train = eval_items[user_id]['items_interacted_in_train']
         assume_interacted_items = eval_items[user_id]['assume_interacted_items']
         items_interacted = eval_items[user_id]['items_interacted']
 
-        print("Assumed Item interactions for a user with user_id : {}".format(user_id))
+        print("\nTrain Item interactions for a user with user_id   : {}".format(user_id))
+        for item in items_interacted_in_train:
+            print(item)
+
+        print("\nAssumed Item interactions for a user with user_id : {}".format(user_id))
         for item in assume_interacted_items:
             print(item)
 
         print()
-        print("Items to be interacted for a user with user_id : {}".format(user_id))
+        print("\nItems to be interacted for a user with user_id    : {}".format(user_id))
         for item in items_interacted:
             print(item)
 
         print()
-        print("Items recommended for a user with user_id : {}".format(user_id))
-        user_recommendations = recommender.recommend_items(user_id)
-        recommended_items = list(user_recommendations[item_id_col].values)
-        print()
-        if recommended_items:
+        print("\nTop {} Items recommended for a user with user_id  : {}".format(recommender.no_of_recs, user_id))
+        user_recommendations = recommender.recommend_items(user_id)        
+        if user_recommendations is not None:
+            recommended_items = list(user_recommendations[item_id_col].values)
+            print()
             i = 1
             for recommended_item in recommended_items:
                 print(recommended_item)
-                if i > 10:
+                if i > recommender.no_of_recs:
                     break
                 i += 1
         else:
             print("No items to recommend")
         print('*' * 80)
     else:
-        print("""Cannot generate recommendations as either
-              items assumed to be interacted or items held out are None""")
+        print("""Cannot generate recommendations as either items assumed to be interacted or items held out are None""")
 
 def evaluate(recommender_obj,
              results_dir, model_dir,
@@ -850,13 +881,13 @@ def train_eval_recommend(recommender_obj,
     users = list(items_for_evaluation.keys())
     user_id = users[0]
     user_recommendations = recommender.recommend_items(user_id)
-    recommended_items = list(user_recommendations[item_id_col].values)
-    print("Items recommended for a user with user_id : {}".format(user_id))
+    recommended_items = list(user_recommendations[item_id_col].values)    
+    print("Top {} Items recommended for a user with user_id : {}".format(recommender.no_of_recs, user_id))
     if recommended_items:
         i = 1
         for item in recommended_items:
             print(item)
-            if i > 10:
+            if i > recommender.no_of_recs:
                 break
             i += 1
     else:
@@ -1035,8 +1066,7 @@ def hybrid_recommend(recommenders,
             print("No items to recommend")
         print('*' * 80)
     else:
-        print("""Cannot generate recommendations as either
-              items assumed to be interacted or items held out are None""")
+        print("""Cannot generate recommendations as either items assumed to be interacted or items held out are None""")
 
 def hybrid_evaluate(recommenders,
                     results_dir, model_dir,
