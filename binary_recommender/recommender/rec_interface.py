@@ -212,6 +212,7 @@ class Recommender(metaclass=ABCMeta):
 
         self.items_for_evaluation = None
         self.known_interactions_from_test_df = None
+        self.allow_recommending_known_items = False
 
     def get_all_users(self, dataset='train'):
         """Get unique users in the dataset"""
@@ -293,7 +294,7 @@ class Recommender(metaclass=ABCMeta):
         assume_interacted_items = []
         hold_out_items = []
 
-        no_of_items_interacted = len(items_interacted)
+        # no_of_items_interacted = len(items_interacted)
         no_of_items_assumed_interacted = first_n
         no_of_items_to_be_held = 5
 
@@ -342,38 +343,39 @@ class Recommender(metaclass=ABCMeta):
         items_for_evaluation_file = os.path.join(self.model_dir, 'items_for_evaluation.json')
         self.items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
 
-    def get_known_interactions_from_test(self):
+    def prepare_test_data_for_eval(self):
         """get test user interactions for evaluation by deriving items to be considered for each user according to hold_out_stratergy"""
         self.items_for_evaluation = dict()
+        train_users_set = set(self.get_all_users(dataset='train'))
         test_users = self.get_all_users(dataset='test')
         no_of_test_users = len(test_users)
         self.known_interactions_from_test_df = None
         for user_id in test_users:
             #print(user_id)
             # Get all items with which user has interacted in test
-            all_items_interacted = self.get_items(user_id, dataset='test')
+            items_interacted_in_test = self.get_items(user_id, dataset='test')
 
-            #print(set(all_items_interacted))
+            #print(set(items_interacted_in_test))
             # Filter items which are found in train data
-            #items_interacted_in_train = self.get_known_items(all_items_interacted)
+            #items_interacted_in_train = self.get_known_items(items_interacted_in_test)
             #print(set(items_interacted_in_train))
-            #if set(all_items_interacted) != set(items_interacted_in_train):
+            #if set(items_interacted_in_test) != set(items_interacted_in_train):
             #    continue
             #items_interacted = items_interacted_in_train
-            items_interacted = all_items_interacted
+            #items_interacted = items_interacted_in_test
 
             if self.hold_out_strategy == "assume_ratio":
-                assume_interacted_items, hold_out_items = self.split_items(items_interacted,
+                assume_interacted_items, hold_out_items = self.split_items(items_interacted_in_test,
                                                                            self.assume_ratio)
             elif self.hold_out_strategy == "assume_first_n":
-                assume_interacted_items, hold_out_items = self.split_items_assume_first_n(items_interacted,
+                assume_interacted_items, hold_out_items = self.split_items_assume_first_n(items_interacted_in_test,
                                                                                           self.first_n)
             elif self.hold_out_strategy == "hold_last_n":
-                assume_interacted_items, hold_out_items = self.split_items_hold_last_n(items_interacted,
+                assume_interacted_items, hold_out_items = self.split_items_hold_last_n(items_interacted_in_test,
                                                                                        self.last_n)
             elif self.hold_out_strategy == "hold_all":
                 assume_interacted_items = []
-                hold_out_items = items_interacted
+                hold_out_items = items_interacted_in_test
             else:
                 print("Invalid hold_out strategy!!!")
                 exit(-1)
@@ -401,8 +403,22 @@ class Recommender(metaclass=ABCMeta):
             self.items_for_evaluation[user_id] = dict()
             self.items_for_evaluation[user_id]['items_interacted_in_train'] = items_interacted_in_train            
             self.items_for_evaluation[user_id]['assume_interacted_items'] = assume_interacted_items
-            self.items_for_evaluation[user_id]['items_interacted'] = hold_out_items
+            self.items_for_evaluation[user_id]['known_interacted_items'] = list(set(items_interacted_in_train).union(set(assume_interacted_items)))
+            self.items_for_evaluation[user_id]['items_to_be_interacted'] = hold_out_items            
             self.items_for_evaluation[user_id]['items_recommended'] = []
+
+            items_to_be_interacted_known = set(self.items_for_evaluation[user_id]['items_to_be_interacted']).intersection(set(self.items_for_evaluation[user_id]['known_interacted_items']))
+            self.items_for_evaluation[user_id]['items_to_be_interacted_known'] = list(items_to_be_interacted_known)
+            if len(self.items_for_evaluation[user_id]['items_to_be_interacted_known']) > 0:
+                self.items_for_evaluation[user_id]['is_items_to_be_interacted_known'] = True
+                self.allow_recommending_known_items = True
+            else:
+                self.items_for_evaluation[user_id]['is_items_to_be_interacted_known'] = False
+
+            if user_id in train_users_set:
+                self.items_for_evaluation[user_id]['is_new_user_in_test'] = False
+            else:
+                self.items_for_evaluation[user_id]['is_new_user_in_test'] = True
 
             if self.hold_out_strategy == "hold_all":
                 self.known_interactions_from_test_df = pd.DataFrame()
@@ -426,7 +442,7 @@ class Recommender(metaclass=ABCMeta):
     def train(self):
         """train recommender"""
         self.derive_stats()
-        self.get_known_interactions_from_test()
+        self.prepare_test_data_for_eval()
 
     @abstractmethod
     def recommend_items(self, user_id):
@@ -500,6 +516,7 @@ class HybridRecommender():
 
         self.recommender_kwargs = dict(kwargs)
         #self.recommender_kwargs['no_of_recs'] = 100
+        self.allow_recommending_known_items = False
 
         self.items_for_evaluation = None
 
@@ -542,7 +559,7 @@ class HybridRecommender():
                                               'users_items_all.json')
         copyfile(model_users_items_all_file, users_items_all_file)
 
-    def recommend_items(self, user_id, user_interacted_items):
+    def recommend_items(self, user_id, known_interacted_items):
         """combine items recommended for user from given set of recommenders"""
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
@@ -597,7 +614,7 @@ class HybridRecommender():
                 item_id = res['item_id']
                 user_id = res['user_id']
                 score = res['weighted_avg']
-                if item_id in user_interacted_items:#to avoid items which user has already aware, ideally these items already would be avoided by individual recommenders
+                if not self.allow_recommending_known_items and item_id in known_interacted_items:#to avoid items which user has already aware
                     continue
                 if rank > self.no_of_recs:#limit no of recommendations
                     break
@@ -638,11 +655,11 @@ class HybridRecommender():
             #print(user_id)
             items = self.aggregation_all_df[self.aggregation_all_df['user_id'] == user_id]['item_id'].unique()
             #print(len(items))
-            all_items_interacted = self.recommender_objs[0].get_items(user_id, dataset='test')
-            #print(len(all_items_interacted))
+            items_interacted_in_test = self.recommender_objs[0].get_items(user_id, dataset='test')
+            #print(len(items_interacted_in_test))
 
             filter_condition = (self.aggregation_all_df['user_id'] == user_id) & \
-                               (self.aggregation_all_df['item_id'].isin(all_items_interacted))
+                               (self.aggregation_all_df['item_id'].isin(items_interacted_in_test))
             self.aggregation_all_df.loc[filter_condition, 'watched'] = 1
             #print(self.aggregation_all_df[(self.aggregation_all_df['user_id'] == user_id) & \
             #                              (self.aggregation_all_df['watched'] == 1)])
@@ -657,23 +674,21 @@ class HybridRecommender():
         """recommend items for all users from test dataset"""
         self.__load_items_for_evaluation()
         for user_id in self.items_for_evaluation:
-            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
-            assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
-            user_recommendations = self.recommend_items(user_id, user_interacted_items)
+            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']
+            user_recommendations = self.recommend_items(user_id, known_interacted_items)
 
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
 
-            items_interacted_set = set(self.items_for_evaluation[user_id]['items_interacted'])
+            items_to_be_interacted_set = set(self.items_for_evaluation[user_id]['items_to_be_interacted'])
             items_recommended_set = set(recommended_items)
-            correct_recommendations = items_interacted_set & items_recommended_set
+            correct_recommendations = items_to_be_interacted_set.intersection(items_recommended_set)
             no_of_correct_recommendations = len(correct_recommendations)
             self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
             self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)
 
             recommended_items_dict = dict()
-            for i, recs in user_recommendations.iterrows():
+            for _, recs in user_recommendations.iterrows():
                 item_id = recs[self.item_id_col]
                 score = recs['score']
                 rank = recs['rank']
@@ -797,7 +812,7 @@ def recommend(recommender_obj,
     if user_id in eval_items:
         items_interacted_in_train = eval_items[user_id]['items_interacted_in_train']
         assume_interacted_items = eval_items[user_id]['assume_interacted_items']
-        items_interacted = eval_items[user_id]['items_interacted']
+        items_to_be_interacted = eval_items[user_id]['items_to_be_interacted']
 
         print("\nTrain Item interactions for a user with user_id   : {}".format(user_id))
         for item in items_interacted_in_train:
@@ -809,7 +824,7 @@ def recommend(recommender_obj,
 
         print()
         print("\nItems to be interacted for a user with user_id    : {}".format(user_id))
-        for item in items_interacted:
+        for item in items_to_be_interacted:
             print(item)
 
         print()
@@ -1036,22 +1051,27 @@ def hybrid_recommend(recommenders,
     eval_items_file = os.path.join(model_dir, 'items_for_evaluation.json')
     eval_items = utilities.load_json_file(eval_items_file)
     if user_id in eval_items:
+        items_interacted_in_train = eval_items[user_id]['items_interacted_in_train']
         assume_interacted_items = eval_items[user_id]['assume_interacted_items']
-        items_interacted = eval_items[user_id]['items_interacted']
-        print(model_dir)
+        known_interacted_items = eval_items[user_id]['known_interacted_items']
+        items_to_be_interacted = eval_items[user_id]['items_to_be_interacted']
+
+        print("\nTrain Item interactions for a user with user_id   : {}".format(user_id))
+        for item_id in items_interacted_in_train:
+            print(item_id)
+
         print("Assumed Item interactions for a user with user_id : {}".format(user_id))
         for item_id in assume_interacted_items:
             print(item_id)
 
         print()
         print("Items to be interacted for a user with user_id : {}".format(user_id))
-        for item_id in items_interacted:
+        for item_id in items_to_be_interacted:
             print(item_id)
 
         print()
         print("Items recommended for a user with user_id : {}".format(user_id))
-        user_recommendations = hybrid_recommender.recommend_items(user_id,
-                                                                  assume_interacted_items)
+        user_recommendations = hybrid_recommender.recommend_items(user_id, known_interacted_items)
         #print(user_recommendations)
         recommended_items = list(user_recommendations[item_id_col].values)
         print()
@@ -1121,8 +1141,8 @@ def hybrid_train_eval_recommend(recommenders,
     items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
     users = list(items_for_evaluation.keys())
     user_id = users[0]
-    assume_interacted_items = items_for_evaluation[user_id]['assume_interacted_items']
-    user_recommendations = hybrid_recommender.recommend_items(user_id, assume_interacted_items)
+    known_interacted_items = items_for_evaluation[user_id]['known_interacted_items']
+    user_recommendations = hybrid_recommender.recommend_items(user_id, known_interacted_items)
     recommended_items = list(user_recommendations[item_id_col].values)
     print("Items recommended for a user with user_id : {}".format(user_id))
     if recommended_items:
@@ -1279,24 +1299,24 @@ def get_aggregation_weights(scores_aggregation_file_path):
     #pprint(aggregation_weights)
     return aggregation_weights
 
-def generate_weighted_recommendations(dest_all_items_for_evaluation_file, aggregation_results, no_of_recs):
+def generate_weighted_recommendations(dest_all_items_for_evaluation_file, aggregation_results, no_of_recs, allow_recommending_known_items=False):
     """generate recommendations based on weighted avg scores"""
     with open(dest_all_items_for_evaluation_file, 'r') as json_file:
         all_items_for_evaluation = json.load(json_file)
         new_all_items_for_evaluation = dict()
         for user_id in all_items_for_evaluation:
-            assume_interacted_items = all_items_for_evaluation[user_id]['assume_interacted_items']
-            items_interacted = all_items_for_evaluation[user_id]['items_interacted']
+            known_interacted_items = all_items_for_evaluation[user_id]['known_interacted_items']
+            items_to_be_interacted = all_items_for_evaluation[user_id]['items_to_be_interacted']
             new_all_items_for_evaluation[user_id] = dict()
-            new_all_items_for_evaluation[user_id]['assume_interacted_items'] = assume_interacted_items
-            new_all_items_for_evaluation[user_id]['items_interacted'] = items_interacted
+            new_all_items_for_evaluation[user_id]['known_interacted_items'] = known_interacted_items
+            new_all_items_for_evaluation[user_id]['items_to_be_interacted'] = items_to_be_interacted
         #pprint(new_all_items_for_evaluation)
         aggregation_results['user_id'] = aggregation_results['user_id'].astype(str)
         aggregation_results['item_id'] = aggregation_results['item_id'].astype(str)
 
         for user_id in new_all_items_for_evaluation:
             items_to_recommend = []
-            assume_interacted_items = new_all_items_for_evaluation[user_id]['assume_interacted_items']
+            known_interacted_items = new_all_items_for_evaluation[user_id]['known_interacted_items']
             user_agg_results = aggregation_results[aggregation_results['user_id'] == user_id]
 
             recommended_items_dict = dict()
@@ -1305,8 +1325,8 @@ def generate_weighted_recommendations(dest_all_items_for_evaluation_file, aggreg
                 for _, res in user_agg_results.iterrows():
                     item_id = res['item_id']
                     user_id = res['user_id']
-                    score = res['weighted_avg']
-                    if item_id in assume_interacted_items:
+                    score = res['weighted_avg']                    
+                    if not allow_recommending_known_items and item_id in known_interacted_items:#to avoid items which user has already aware
                         #print("Skipping : ", item_id)
                         continue
                     if rank > no_of_recs:#limit no of recommendations
@@ -1326,9 +1346,9 @@ def generate_weighted_recommendations(dest_all_items_for_evaluation_file, aggreg
             recommended_items = list(res_df['item_id'].values)
             new_all_items_for_evaluation[user_id]['items_recommended'] = recommended_items
 
-            items_interacted_set = set(new_all_items_for_evaluation[user_id]['items_interacted'])
+            items_to_be_interacted_set = set(new_all_items_for_evaluation[user_id]['items_to_be_interacted'])
             items_recommended_set = set(recommended_items)
-            correct_recommendations = items_interacted_set & items_recommended_set
+            correct_recommendations = items_to_be_interacted_set & items_recommended_set
             no_of_correct_recommendations = len(correct_recommendations)
             new_all_items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
             new_all_items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)

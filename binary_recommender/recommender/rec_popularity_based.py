@@ -60,7 +60,7 @@ class PopularityBasedRecommender(Recommender):
             data = self.test_data[self.test_data[identifier] == val]
         return data[user_feature].values[0]
 
-    def __generate_top_recommendations(self, user_id, user_interacted_items):
+    def __generate_top_recommendations(self, user_id, known_interacted_items):
         """Generate top popularity recommendations"""
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
@@ -88,7 +88,7 @@ class PopularityBasedRecommender(Recommender):
         for _, reco in data_groups_sort.iterrows():
             item_id = reco[self.item_id_col]
             score = reco['users_percent']
-            if item_id in user_interacted_items:#to avoid items which user has already aware
+            if not self.allow_recommending_known_items and item_id in known_interacted_items:#to avoid items which user has already aware
                 continue
             if rank > self.no_of_recs:#limit no of recommendations
                 break
@@ -118,11 +118,8 @@ class PopularityBasedRecommender(Recommender):
             LOGGER.debug("Loaded Trained Model")
 
             start_time = default_timer()
-            assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
-            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
-            user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                       user_interacted_items)
+            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']            
+            user_recommendations = self.__generate_top_recommendations(user_id, known_interacted_items)
             # recommended_items = list(user_recommendations[self.item_id_col].values)
             end_time = default_timer()
             print("{:50}    {}".format("Recommendations generated. ",
@@ -135,11 +132,8 @@ class PopularityBasedRecommender(Recommender):
     def __recommend_items_to_evaluate(self):
         """recommend items for all users from test dataset"""
         for user_id in self.items_for_evaluation:
-            assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
-            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
-            user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                       user_interacted_items)
+            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']            
+            user_recommendations = self.__generate_top_recommendations(user_id, known_interacted_items)
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
 
@@ -151,9 +145,9 @@ class PopularityBasedRecommender(Recommender):
                 recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
             self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
 
-            items_interacted_set = set(self.items_for_evaluation[user_id]['items_interacted'])
+            items_to_be_interacted_set = set(self.items_for_evaluation[user_id]['items_to_be_interacted'])
             items_recommended_set = set(recommended_items)
-            correct_recommendations = items_interacted_set & items_recommended_set
+            correct_recommendations = items_to_be_interacted_set & items_recommended_set
             no_of_correct_recommendations = len(correct_recommendations)
             self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
             self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)

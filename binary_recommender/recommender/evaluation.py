@@ -28,27 +28,25 @@ class PrecisionRecall():
             sum_mcc_score = 0
 
             for user_id in users_test_sample:
-                items_interacted = eval_items[user_id]['items_interacted']
-                items_recommended = eval_items[user_id][
-                    'items_recommended'][0:no_of_items_to_recommend]
-                items_assumed_to_be_interacted = eval_items[
-                    user_id]['assume_interacted_items']
-                #hitset = set(items_interacted).intersection(set(items_recommended))
-                #no_of_items_interacted = len(items_interacted)
+                items_to_be_interacted = eval_items[user_id]['items_to_be_interacted']
+                items_recommended = eval_items[user_id]['items_recommended'][0:no_of_items_to_recommend]
+                known_interacted_items = eval_items[user_id]['known_interacted_items']
+                #hitset = set(items_to_be_interacted).intersection(set(items_recommended))
+                #no_of_items_interacted = len(items_to_be_interacted)
                 # if len(hitset) > 0:
                 #     print("User ID : ", user_id)
-                #     print("Items Interacted : ", set(items_interacted))
+                #     print("Items Interacted : ", set(items_to_be_interacted))
                 #     print("Items Recommended: ", set(items_recommended))
                 #     print("Hitset : ", hitset)
                 #     input()
-                items_interacted_set = set(items_interacted)
+                items_to_be_interacted_set = set(items_to_be_interacted)
                 items_recommended_set = set(items_recommended)
-                items_not_interacted_set = set(all_items) - items_interacted_set - set(items_assumed_to_be_interacted)
+                items_not_interacted_set = set(all_items) - items_to_be_interacted_set - set(known_interacted_items)
                 true_positive = 0
                 false_positive = 0
                 true_negative = 0
                 false_negative = 0
-                for interacted_item in items_interacted_set:
+                for interacted_item in items_to_be_interacted_set:
                     if interacted_item in items_recommended_set:
                         true_positive += 1  # If the item is interacted and it is recommended
                     else:
@@ -164,17 +162,15 @@ class PrecisionRecall():
             avg_recall = 0
 
             for user_id in users_test_sample:
-                items_interacted = eval_items[user_id]['items_interacted']
-                items_recommended = eval_items[user_id][
-                    'items_recommended'][0:no_of_items_to_recommend]
+                items_to_be_interacted = eval_items[user_id]['items_to_be_interacted']
+                items_recommended = eval_items[user_id]['items_recommended'][0:no_of_items_to_recommend]
 
-                hitset = set(items_interacted).intersection(
-                    set(items_recommended))
-                testset = items_interacted
+                hitset = set(items_to_be_interacted).intersection(set(items_recommended))
+                testset = items_to_be_interacted
                 no_of_items_interacted = len(testset)
                 # if len(hitset) > 0:
                 #     print("User ID : ", user_id)
-                #     print("Items Interacted : ", set(items_interacted))
+                #     print("Items Interacted : ", set(items_to_be_interacted))
                 #     print("Items Recommended: ", set(items_recommended))
                 #     print("Hitset : ", hitset)
                 #     input()

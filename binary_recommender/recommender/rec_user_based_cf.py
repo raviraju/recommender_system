@@ -173,8 +173,11 @@ class UserBasedCFRecommender(Recommender):
         super().train()
 
         print()
+        print("*"*80)
+        print("\tUser Based CF : Customers who are similar to you also liked ...")
+        print("*"*80)
         # Compute user similarity matrix of size, len(users) X len(users)
-        print("Compute User Similarity Matrix...")
+        print("Compute User-User Similarity Matrix using co-occurence of items...")
         start_time = default_timer()
         self.user_similarity_matrix_df = self.__compute_user_similarity()
         end_time = default_timer()
@@ -197,8 +200,10 @@ class UserBasedCFRecommender(Recommender):
         #input()
         return most_similar_users
 
-    def __generate_top_recommendations(self, user_id, user_interacted_items):
-        """Use the cooccurence matrix to make top recommendations"""
+    def __generate_top_recommendations(self, user_id, known_interacted_items):
+        """Most similar users for a given user are filtered. 
+           Items accessed by most similar users are recommended in decreasing order of averaged similarity scores weighted by user similarity.
+        """
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
         items_to_recommend = []
@@ -210,18 +215,18 @@ class UserBasedCFRecommender(Recommender):
         #top_10_users = list(similar_users_weights.head(10).index)
         #print(top_10_users)
         #input()
-        sub_uim_df = self.uim_df.loc[similar_user_ids]
-        weighted_sub_uim_df = sub_uim_df.mul(similar_users_weights, axis='index')
-        no_of_similar_users = weighted_sub_uim_df.shape[0]
+        similar_users_uim_df = self.uim_df.loc[similar_user_ids]
+        weighted_similar_users_uim_df = similar_users_uim_df.mul(similar_users_weights, axis='index')
+        no_of_similar_users = weighted_similar_users_uim_df.shape[0]
         if no_of_similar_users != 0:
-            item_scores = weighted_sub_uim_df.sum(axis=0) / float(no_of_similar_users)
+            item_scores = weighted_similar_users_uim_df.sum(axis=0) / float(no_of_similar_users)
             item_scores.sort_values(inplace=True, ascending=False)
             #print(item_scores)
             #item_scores = item_scores[item_scores > 0]
 
             rank = 1
             for item_id, score in item_scores.items():
-                if item_id in user_interacted_items:#to avoid items which user has already aware
+                if not self.allow_recommending_known_items and item_id in known_interacted_items:#to avoid items which user has already aware
                     continue
                 if rank > self.no_of_recs:#limit no of recommendations
                     break
@@ -252,16 +257,13 @@ class UserBasedCFRecommender(Recommender):
             #print(self.user_similarity_matrix_df.shape)
             LOGGER.debug("Loaded Trained Model")
             # Use the cooccurence matrix to make recommendations
-            start_time = default_timer()
-            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
-            assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
-            if len(user_interacted_items) == 0:
+            start_time = default_timer()            
+            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']            
+            if len(known_interacted_items) == 0:
                 print("User {} has not interacted with any known items, Unable to generate any recommendations...".format(user_id))
                 user_recommendations = None
             else:
-                user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                           user_interacted_items)
+                user_recommendations = self.__generate_top_recommendations(user_id, known_interacted_items)
             # recommended_items = list(user_recommendations[self.item_id_col].values)
             end_time = default_timer()
             print("{:50}    {}".format("Recommendations generated. ",
@@ -274,15 +276,12 @@ class UserBasedCFRecommender(Recommender):
     def __recommend_items_to_evaluate(self):
         """recommend items for all users from test dataset"""
         for user_id in self.items_for_evaluation:
-            assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
-            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
-            if len(user_interacted_items) == 0:
+            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']            
+            if len(known_interacted_items) == 0:
                 #print("User {} has not interacted with any items in past, Unable to generate any recommendations...".format(user_id))
                 recommended_items = []
             else:
-                user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                           user_interacted_items)
+                user_recommendations = self.__generate_top_recommendations(user_id, known_interacted_items)
                 recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
 
@@ -294,9 +293,9 @@ class UserBasedCFRecommender(Recommender):
                 recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
             self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
 
-            items_interacted_set = set(self.items_for_evaluation[user_id]['items_interacted'])
+            items_to_be_interacted_set = set(self.items_for_evaluation[user_id]['items_to_be_interacted'])
             items_recommended_set = set(recommended_items)
-            correct_recommendations = items_interacted_set & items_recommended_set
+            correct_recommendations = items_to_be_interacted_set & items_recommended_set
             no_of_correct_recommendations = len(correct_recommendations)
             self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
             self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)

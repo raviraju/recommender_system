@@ -34,7 +34,7 @@ class RandomBasedRecommender(Recommender):
         """train the random based recommender system model"""
         super().train()
     #######################################
-    def __generate_top_recommendations(self, user_id, user_interacted_items):
+    def __generate_top_recommendations(self, user_id, known_interacted_items):
         """pick items in random from train data with equal probability as score"""
         items_to_recommend = []
         columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
@@ -46,7 +46,7 @@ class RandomBasedRecommender(Recommender):
         score = round(1/self.no_of_recs, 2)
         rank = 1
         for item_id in random_items:
-            if item_id in user_interacted_items:#to avoid items which user has already aware
+            if not self.allow_recommending_known_items and item_id in known_interacted_items:#to avoid items which user has already aware
                 continue
             item_dict = {
                 self.user_id_col : user_id,
@@ -70,11 +70,8 @@ class RandomBasedRecommender(Recommender):
         #pprint(self.items_for_evaluation[user_id])
 
         start_time = default_timer()
-        assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-        items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
-        user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
-        user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                   user_interacted_items)
+        known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']        
+        user_recommendations = self.__generate_top_recommendations(user_id, known_interacted_items)
         # recommended_items = list(user_recommendations[self.item_id_col].values)
         end_time = default_timer()
         print("{:50}    {}".format("Recommendations generated. ",
@@ -84,11 +81,8 @@ class RandomBasedRecommender(Recommender):
     def __recommend_items_to_evaluate(self):
         """recommend items for all users from test dataset"""
         for user_id in self.items_for_evaluation:
-            assume_interacted_items = self.items_for_evaluation[user_id]['assume_interacted_items']
-            items_interacted_in_train = self.items_for_evaluation[user_id]['items_interacted_in_train']
-            user_interacted_items = list(set(assume_interacted_items).union(set(items_interacted_in_train)))
-            user_recommendations = self.__generate_top_recommendations(user_id,
-                                                                       user_interacted_items)
+            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']            
+            user_recommendations = self.__generate_top_recommendations(user_id, known_interacted_items)
             recommended_items = list(user_recommendations[self.item_id_col].values)
             self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
             
@@ -100,9 +94,9 @@ class RandomBasedRecommender(Recommender):
                 recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
             self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
 
-            items_interacted_set = set(self.items_for_evaluation[user_id]['items_interacted'])
+            items_to_be_interacted_set = set(self.items_for_evaluation[user_id]['items_to_be_interacted'])
             items_recommended_set = set(recommended_items)
-            correct_recommendations = items_interacted_set & items_recommended_set
+            correct_recommendations = items_to_be_interacted_set & items_recommended_set
             no_of_correct_recommendations = len(correct_recommendations)
             self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
             self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)
