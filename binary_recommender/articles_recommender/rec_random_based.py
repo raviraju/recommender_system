@@ -57,6 +57,15 @@ def main():
     kwargs['no_of_recs'] = 10
     kwargs['hold_out_strategy'] = 'hold_all'
 
+    # kwargs['hold_out_strategy'] = 'assume_ratio'
+    # kwargs['assume_ratio'] = 0.5
+
+    # kwargs['hold_out_strategy'] = 'assume_first_n'
+    # kwargs['assume_first_n'] = 5
+
+    # kwargs['hold_out_strategy'] = 'hold_last_n'
+    # kwargs['hold_last_n'] = 5
+
     no_of_recs_to_eval = [5, 10]
     recommender_obj = RandomBasedRecommender
     

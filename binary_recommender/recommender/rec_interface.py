@@ -30,12 +30,57 @@ from recommender.evaluation import PrecisionRecall
 
 class Recommender(metaclass=ABCMeta):
     """Abstract Base Class Interface"""
+    def get_users_no_of_items(self, dataset='train'):
+        if dataset == "train":
+            users_items = self.train_data.groupby(self.user_id_col)[self.item_id_col].unique()
+        else:#test
+            users_items = self.test_data.groupby(self.user_id_col)[self.item_id_col].unique()
+        users_no_of_items = users_items.apply(lambda x: len(x))
+        return users_no_of_items
+
+    def get_user_groups(self, dataset='train'):
+        users_no_of_items = self.get_users_no_of_items(dataset)
+        users_no_of_items_dist = users_no_of_items.describe()
+        # print(users_no_of_items_dist)
+        quartiles = []
+        if users_no_of_items_dist['min'] != users_no_of_items_dist['25%']:
+            quartiles.append((users_no_of_items_dist['min'], users_no_of_items_dist['25%']))
+        if users_no_of_items_dist['25%'] != users_no_of_items_dist['50%']:
+            quartiles.append((users_no_of_items_dist['25%'], users_no_of_items_dist['50%']))
+        if users_no_of_items_dist['50%'] != users_no_of_items_dist['75%']:
+            quartiles.append((users_no_of_items_dist['50%'], users_no_of_items_dist['75%']))
+        if users_no_of_items_dist['75%'] != users_no_of_items_dist['max']:
+            quartiles.append((users_no_of_items_dist['75%'], users_no_of_items_dist['max']+1))
+        # print(quartiles)
+        
+        # all_users_set = set()
+        user_groups_dict = dict()
+        i = 0 
+        for quartile in quartiles:
+            min_items, max_items = quartile
+            user_group = dict()
+            grp_id = 'user_grp_' + str(i+1)
+            i += 1
+            user_group['usage'] = '{:3d}  <= no_of_items <  {}'.format(int(min_items), int(max_items))        
+            user_group['users'] = list(set(users_no_of_items[(users_no_of_items>=min_items) & \
+                                                        (users_no_of_items<max_items)].index))
+            user_group['no_of_users'] = len(user_group['users'])
+            # all_users_set = all_users_set.union(user_group['users'])
+    
+            # print("\t", grp_id, ' ', user_group['no_of_users'], ' users interacted with ', user_group['usage'])
+            user_groups_dict[grp_id] = user_group
+                                                
+        # print("Total No of Users : ", len(all_users_set))
+        return user_groups_dict
+
     def derive_stats(self):
         """derive stats"""
         LOGGER.debug("Train Data :: Deriving Stats...")
         self.users_train = [str(user_id) for user_id in self.train_data[self.user_id_col].unique()]
+        train_users_set = set(self.users_train)
         LOGGER.debug("Train Data :: No. of users : " + str(len(self.users_train)))
         self.items_train = [str(item_id) for item_id in self.train_data[self.item_id_col].unique()]
+        train_items_set = set(self.items_train)
         LOGGER.debug("Train Data :: No. of items : " + str(len(self.items_train)))
 
         users_items_train_dict = {
@@ -47,9 +92,36 @@ class Recommender(metaclass=ABCMeta):
 
         LOGGER.debug("Test Data  :: Deriving Stats...")
         self.users_test = [str(user_id) for user_id in self.test_data[self.user_id_col].unique()]
+        test_users_set = set(self.users_test)
         LOGGER.debug("Test Data  :: No. of users : " + str(len(self.users_test)))
         self.items_test = [str(item_id) for item_id in self.test_data[self.item_id_col].unique()]
+        test_items_set = set(self.items_test)
         LOGGER.debug("Test Data  :: No. of items : " + str(len(self.items_test)))
+
+        common_users_set = train_users_set.intersection(test_users_set)
+        common_items_set = train_items_set.intersection(test_items_set)
+    
+        new_users_in_test_set = test_users_set - train_users_set
+        new_items_in_test_set = test_items_set - train_items_set
+    
+        print("{:30} : {}".format("Train Data   : No of records", len(self.train_data)))    
+        print("{:30} : {}".format("Train Data   : No of users  ", len(train_users_set)))    
+        print("{:30} : {}".format("Train Data   : No of items  ", len(train_items_set)))
+        print()
+        print("{:30} : {}".format("Test Data    : No of records", len(self.test_data)))
+        print("{:30} : {}".format("Test Data    : No of users  ", len(test_users_set)))
+        print("{:30} : {}".format("Test Data    : No of items  ", len(test_items_set)))
+        print()
+        print("{:30} : {}".format("Common Data  : No of users  ", len(common_users_set)))
+        print("{:30} : {}".format("Common Data  : No of items  ", len(common_items_set)))
+        print()
+        print("{:30} : {}".format("New in Test  : No of users  ", len(new_users_in_test_set)))
+        print("{:30} : {}".format("New in Test  : No of items  ", len(new_items_in_test_set)))
+        print('#' * 40)
+        # train_items = set(train_items_set)
+        # test_items = set(test_data[item_id_col].unique())
+        # print("train_items-test_items : ", len(train_items - test_items))
+        # print("test_items-train_items : ", len(test_items - train_items))
 
         users_items_test_dict = {
             'users_test' : self.users_test,
@@ -58,12 +130,12 @@ class Recommender(metaclass=ABCMeta):
         users_items_test_file = os.path.join(self.model_dir, 'users_items_test.json')
         utilities.dump_json_file(users_items_test_dict, users_items_test_file)
 
-        LOGGER.debug("All Data :: Deriving Stats...")
+        LOGGER.debug("All Data   :: Deriving Stats...")
         self.users_all = list(set(self.users_train) | set(self.users_test))
-        LOGGER.debug("All Data :: No. of users : " + str(len(self.users_all)))
+        LOGGER.debug("All Data   :: No. of users : " + str(len(self.users_all)))
 
         self.items_all = list(set(self.items_train) | set(self.items_test))
-        LOGGER.debug("All Data :: No. of items : " + str(len(self.items_all)))
+        LOGGER.debug("All Data   :: No. of items : " + str(len(self.items_all)))
         users_items_all_dict = {
             'users_all' : self.users_all,
             'items_all' : self.items_all
@@ -110,7 +182,6 @@ class Recommender(metaclass=ABCMeta):
             item = item_users[str(self.item_id_col)]
             users = [str(user) for user in item_users['users']]
             self.item_users_test_dict[item] = users
-
         item_users_test_file = os.path.join(self.model_dir, 'item_users_test.json')
         utilities.dump_json_file(self.item_users_test_dict, item_users_test_file)
 
@@ -120,23 +191,45 @@ class Recommender(metaclass=ABCMeta):
                                                  self.item_id_col: (lambda x: list(x.unique()))
                                                  })
         user_items_test_df = user_items_test_df.rename(columns={self.item_id_col: 'items'})\
-                                                      .reset_index()
+                                               .reset_index()
         for _, user_items in user_items_test_df.iterrows():
             user = user_items[str(self.user_id_col)]
             items = [str(item) for item in user_items['items']]
             self.user_items_test_dict[user] = items
         user_items_test_file = os.path.join(self.model_dir, 'user_items_test.json')
         utilities.dump_json_file(self.user_items_test_dict, user_items_test_file)
+        ########################################################################
+        # LOGGER.debug("Train Data :: Getting User Groups")
+        # self.train_user_groups_dict = self.get_user_groups(dataset='train')
+        # user_groups_train_file = os.path.join(self.model_dir, 'user_groups_train.json')
+        # utilities.dump_json_file(self.train_user_groups_dict, user_groups_train_file)
+
+        LOGGER.debug("Test Data  :: Getting User Groups")
+        self.test_user_groups_dict = self.get_user_groups(dataset='test')
+        user_groups_test_file = os.path.join(self.model_dir, 'user_groups_test.json')
+        utilities.dump_json_file(self.test_user_groups_dict, user_groups_test_file)
+
+        #Identify User Group of Test User
+        for test_user_id in self.items_for_evaluation:
+            for user_grp in self.test_user_groups_dict:
+                users = self.test_user_groups_dict[user_grp]['users']
+                if test_user_id in users:
+                    self.items_for_evaluation[test_user_id][user_grp] = dict()
+                    self.items_for_evaluation[test_user_id][user_grp]['usage'] = self.test_user_groups_dict[user_grp]['usage']
+                    self.items_for_evaluation[test_user_id][user_grp]['no_of_users'] = self.test_user_groups_dict[user_grp]['no_of_users']
+                    break
+        
+        self.save_items_for_evaluation()
 
     def load_stats(self):
         """load stats"""
-        LOGGER.debug("All Data :: Loading Stats...")
+        LOGGER.debug("All Data   :: Loading Stats...")
         users_items_all_file = os.path.join(self.model_dir, 'users_items_all.json')
         users_items_all_dict = utilities.load_json_file(users_items_all_file)
         self.users_all = users_items_all_dict['users_all']
-        LOGGER.debug("All Data :: No. of users : " + str(len(self.users_all)))
+        LOGGER.debug("All Data   :: No. of users : " + str(len(self.users_all)))
         self.items_all = users_items_all_dict['items_all']
-        LOGGER.debug("All Data :: No. of items : " + str(len(self.items_all)))
+        LOGGER.debug("All Data   :: No. of items : " + str(len(self.items_all)))
 
         LOGGER.debug("Train Data :: Loading Stats...")
         users_items_train_file = os.path.join(self.model_dir, 'users_items_train.json')
@@ -187,15 +280,15 @@ class Recommender(metaclass=ABCMeta):
         if 'hold_out_strategy' in kwargs:
             self.hold_out_strategy = kwargs['hold_out_strategy']
 
-        self.first_n = None
+        self.assume_first_n = None
         self.assume_ratio = None
-        self.last_n = None
-        if 'first_n' in kwargs:
-            self.first_n = kwargs['first_n']
+        self.hold_last_n = None
+        if 'assume_first_n' in kwargs:
+            self.assume_first_n = kwargs['assume_first_n']
         if 'assume_ratio' in kwargs:
             self.assume_ratio = kwargs['assume_ratio']
-        if 'last_n' in kwargs:
-            self.last_n = kwargs['last_n']
+        if 'hold_last_n' in kwargs:
+            self.hold_last_n = kwargs['hold_last_n']
 
         self.users_all = None
         self.items_all = None
@@ -263,74 +356,67 @@ class Recommender(metaclass=ABCMeta):
                 known_items_interacted.append(item)
         return known_items_interacted
 
-    def split_items(self, items_interacted, assume_ratio):
-        """return assume_interacted_items, hold_out_items"""
-        # print("items_interacted : ", items_interacted)
-
+    def split_items_assume_ratio(self, items_interacted, assume_ratio):
+        """return assume_interacted_items, hold_out_items by assuming assume_ratio of items to be interacted"""        
         assume_interacted_items = []
         hold_out_items = []
 
         no_of_items_interacted = len(items_interacted)
         no_of_items_assumed_interacted = int(no_of_items_interacted*assume_ratio)
-        no_of_items_to_be_held = 5
-        # print("no_of_items_interacted : ", no_of_items_interacted)
-        # print("no_of_items_to_be_held : ", no_of_items_to_be_held)
-        # print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
-
-        if no_of_items_assumed_interacted != 0:
-            assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
-        if no_of_items_to_be_held != 0:
-            hold_out_items = items_interacted[no_of_items_assumed_interacted:(no_of_items_assumed_interacted+no_of_items_to_be_held)]
-
-        # print("assume_interacted_items : ", assume_interacted_items)
-        # print("hold_out_items : ", hold_out_items)
-        # input()
-        return assume_interacted_items, hold_out_items
-    
-    def split_items_assume_first_n(self, items_interacted, first_n = 10):
-        """return assume_interacted_items, hold_out_items"""
-        # print("items_interacted : ", items_interacted)
-
-        assume_interacted_items = []
-        hold_out_items = []
-
-        # no_of_items_interacted = len(items_interacted)
-        no_of_items_assumed_interacted = first_n
-        no_of_items_to_be_held = 5
-
+        # no_of_items_to_be_held = no_of_items_interacted - no_of_items_assumed_interacted
         # print("no_of_items_interacted : ", no_of_items_interacted)
         # print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
-        # print("no_of_items_to_be_held : ", no_of_items_to_be_held)
-
-        assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
-        hold_out_items = items_interacted[no_of_items_assumed_interacted:(no_of_items_assumed_interacted+no_of_items_to_be_held)]
-
-        # print("assume_interacted_items : ", assume_interacted_items)
-        # print("hold_out_items : ", hold_out_items)
-        # input()
-        return assume_interacted_items, hold_out_items
-
-    def split_items_hold_last_n(self, items_interacted, last_n=10):
-        """return assume_interacted_items, hold_out_items"""
-        #print("items_interacted : ", items_interacted)
-
-        assume_interacted_items = []
-        hold_out_items = []
-
-        no_of_items_interacted = len(items_interacted)
-        no_of_items_to_be_held = last_n
-        no_of_items_assumed_interacted = no_of_items_interacted - no_of_items_to_be_held
-
-        #print("no_of_items_interacted : ", no_of_items_interacted)
-        #print("no_of_items_to_be_held : ", no_of_items_to_be_held)
-        #print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
+        # print("no_of_items_to_be_held : ", no_of_items_to_be_held)        
 
         assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
         hold_out_items = items_interacted[no_of_items_assumed_interacted:]
 
-        #print("assume_interacted_items : ", assume_interacted_items)
-        #print("hold_out_items : ", hold_out_items)
-        #input()
+        # print("len(items_interacted) : ", no_of_items_interacted)
+        # print("len(assume_interacted_items) : ", len(assume_interacted_items))
+        # print("len(hold_out_items) : ", len(hold_out_items))
+        # input()
+        return assume_interacted_items, hold_out_items
+    
+    def split_items_assume_first_n(self, items_interacted, assume_first_n = 10):
+        """return assume_interacted_items, hold_out_items by assuming assume_first_n items to be interacted"""
+        assume_interacted_items = []
+        hold_out_items = []
+
+        # no_of_items_interacted = len(items_interacted)
+        no_of_items_assumed_interacted = assume_first_n
+        # no_of_items_to_be_held = no_of_items_interacted - no_of_items_assumed_interacted
+        # print("no_of_items_interacted : ", no_of_items_interacted)
+        # print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
+        # print("no_of_items_to_be_held : ", no_of_items_to_be_held)
+
+        assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
+        hold_out_items = items_interacted[no_of_items_assumed_interacted:]
+
+        # print("len(items_interacted) : ", no_of_items_interacted)
+        # print("len(assume_interacted_items) : ", len(assume_interacted_items))
+        # print("len(hold_out_items) : ", len(hold_out_items))
+        # input()
+        return assume_interacted_items, hold_out_items
+
+    def split_items_hold_last_n(self, items_interacted, hold_last_n=10):
+        """return assume_interacted_items, hold_out_items by holding out hold_last_n and rest as items interacted"""
+        assume_interacted_items = []
+        hold_out_items = []
+
+        no_of_items_interacted = len(items_interacted)
+        no_of_items_to_be_held = hold_last_n
+        no_of_items_assumed_interacted = no_of_items_interacted - no_of_items_to_be_held
+        #print("no_of_items_interacted : ", no_of_items_interacted)
+        #print("no_of_items_assumed_interacted : ", no_of_items_assumed_interacted)
+        #print("no_of_items_to_be_held : ", no_of_items_to_be_held)        
+
+        assume_interacted_items = items_interacted[:no_of_items_assumed_interacted]
+        hold_out_items = items_interacted[no_of_items_assumed_interacted:]
+
+        # print("len(items_interacted) : ", no_of_items_interacted)
+        # print("len(assume_interacted_items) : ", len(assume_interacted_items))
+        # print("len(hold_out_items) : ", len(hold_out_items))
+        # input()
         return assume_interacted_items, hold_out_items
 
     def save_items_for_evaluation(self):
@@ -344,35 +430,32 @@ class Recommender(metaclass=ABCMeta):
         self.items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
 
     def prepare_test_data_for_eval(self):
-        """get test user interactions for evaluation by deriving items to be considered for each user according to hold_out_stratergy"""
+        """get test user interactions for evaluation by deriving items to be considered for each user according to hold_out_stratergy"""        
+        user_items_train_df = self.train_data.groupby([self.user_id_col])\
+                                             .agg({
+                                                 self.item_id_col: (lambda x: list(x.unique()))
+                                                 })
+        user_items_test_df = self.test_data.groupby([self.user_id_col])\
+                                             .agg({
+                                                 self.item_id_col: (lambda x: list(x.unique()))
+                                                 })
         self.items_for_evaluation = dict()
-        train_users_set = set(self.get_all_users(dataset='train'))
-        test_users = self.get_all_users(dataset='test')
-        no_of_test_users = len(test_users)
         self.known_interactions_from_test_df = None
-        for user_id in test_users:
-            #print(user_id)
+        self.held_out_interactions_from_test_df = None
+        for test_user_id in user_items_test_df.index:
+            #print(test_user_id)
             # Get all items with which user has interacted in test
-            items_interacted_in_test = self.get_items(user_id, dataset='test')
-
-            #print(set(items_interacted_in_test))
-            # Filter items which are found in train data
-            #items_interacted_in_train = self.get_known_items(items_interacted_in_test)
-            #print(set(items_interacted_in_train))
-            #if set(items_interacted_in_test) != set(items_interacted_in_train):
-            #    continue
-            #items_interacted = items_interacted_in_train
-            #items_interacted = items_interacted_in_test
+            items_interacted_in_test = user_items_test_df.loc[test_user_id].values[0]
 
             if self.hold_out_strategy == "assume_ratio":
-                assume_interacted_items, hold_out_items = self.split_items(items_interacted_in_test,
+                assume_interacted_items, hold_out_items = self.split_items_assume_ratio(items_interacted_in_test,
                                                                            self.assume_ratio)
             elif self.hold_out_strategy == "assume_first_n":
                 assume_interacted_items, hold_out_items = self.split_items_assume_first_n(items_interacted_in_test,
-                                                                                          self.first_n)
+                                                                                          self.assume_first_n)
             elif self.hold_out_strategy == "hold_last_n":
                 assume_interacted_items, hold_out_items = self.split_items_hold_last_n(items_interacted_in_test,
-                                                                                       self.last_n)
+                                                                                       self.hold_last_n)
             elif self.hold_out_strategy == "hold_all":
                 assume_interacted_items = []
                 hold_out_items = items_interacted_in_test
@@ -390,59 +473,88 @@ class Recommender(metaclass=ABCMeta):
                 # input()
                 continue
             '''
-            print(user_id)
+            print(test_user_id)
             print("assume_interacted_items")
             print(assume_interacted_items)
             
             print("hold_out_items")
             print(hold_out_items)
             print()
-            '''
+            '''            
+            if test_user_id in user_items_train_df.index:
+                items_interacted_in_train = user_items_train_df.loc[test_user_id].values[0]
+            else:
+                items_interacted_in_train = []            
+            self.items_for_evaluation[test_user_id] = dict()
+            self.items_for_evaluation[test_user_id]['items_interacted_in_train'] = items_interacted_in_train            
+            self.items_for_evaluation[test_user_id]['assume_interacted_items'] = assume_interacted_items
+            self.items_for_evaluation[test_user_id]['known_interacted_items'] = list(set(items_interacted_in_train).union(set(assume_interacted_items)))
+            self.items_for_evaluation[test_user_id]['items_to_be_interacted'] = hold_out_items            
+            self.items_for_evaluation[test_user_id]['items_recommended'] = []
 
-            items_interacted_in_train = self.get_items(user_id, dataset='train')
-            self.items_for_evaluation[user_id] = dict()
-            self.items_for_evaluation[user_id]['items_interacted_in_train'] = items_interacted_in_train            
-            self.items_for_evaluation[user_id]['assume_interacted_items'] = assume_interacted_items
-            self.items_for_evaluation[user_id]['known_interacted_items'] = list(set(items_interacted_in_train).union(set(assume_interacted_items)))
-            self.items_for_evaluation[user_id]['items_to_be_interacted'] = hold_out_items            
-            self.items_for_evaluation[user_id]['items_recommended'] = []
-
-            items_to_be_interacted_known = set(self.items_for_evaluation[user_id]['items_to_be_interacted']).intersection(set(self.items_for_evaluation[user_id]['known_interacted_items']))
-            self.items_for_evaluation[user_id]['items_to_be_interacted_known'] = list(items_to_be_interacted_known)
-            if len(self.items_for_evaluation[user_id]['items_to_be_interacted_known']) > 0:
-                self.items_for_evaluation[user_id]['is_items_to_be_interacted_known'] = True
+            items_to_be_interacted_known = set(self.items_for_evaluation[test_user_id]['items_to_be_interacted']).intersection(set(self.items_for_evaluation[test_user_id]['known_interacted_items']))
+            self.items_for_evaluation[test_user_id]['items_to_be_interacted_known'] = list(items_to_be_interacted_known)
+            if len(self.items_for_evaluation[test_user_id]['items_to_be_interacted_known']) > 0:
+                self.items_for_evaluation[test_user_id]['is_items_to_be_interacted_known'] = True
                 self.allow_recommending_known_items = True
             else:
-                self.items_for_evaluation[user_id]['is_items_to_be_interacted_known'] = False
+                self.items_for_evaluation[test_user_id]['is_items_to_be_interacted_known'] = False
 
-            if user_id in train_users_set:
-                self.items_for_evaluation[user_id]['is_new_user_in_test'] = False
+            #Identify New Users in Test Data
+            if test_user_id in user_items_train_df.index:
+                self.items_for_evaluation[test_user_id]['is_new_user_in_test'] = False
             else:
-                self.items_for_evaluation[user_id]['is_new_user_in_test'] = True
+                self.items_for_evaluation[test_user_id]['is_new_user_in_test'] = True
 
             if self.hold_out_strategy == "hold_all":
                 self.known_interactions_from_test_df = pd.DataFrame()
+                self.held_out_interactions_from_test_df = self.test_data
             else:
-                tmp_df = self.test_data[self.test_data[self.user_id_col] == user_id]
-                filter_tmp_df = tmp_df.loc[tmp_df[self.item_id_col].isin(assume_interacted_items)]
-                #print("filter_tmp_df")
-                #print(filter_tmp_df)
+                test_user_df = self.test_data[self.test_data[self.user_id_col] == test_user_id]
+
+                test_user_known_df = pd.DataFrame(test_user_df.loc[test_user_df[self.item_id_col].isin(assume_interacted_items)])
                 if self.known_interactions_from_test_df is None:
-                    self.known_interactions_from_test_df = filter_tmp_df.copy()
+                    self.known_interactions_from_test_df = test_user_known_df
                 else:
-                    self.known_interactions_from_test_df = self.known_interactions_from_test_df.append(filter_tmp_df, ignore_index=True)
-                #print("self.known_interactions_from_test_df")
-                #print(self.known_interactions_from_test_df[[self.user_id_col, self.item_id_col]])
-        print("\tNo of all test users : ", no_of_test_users)
-        print("\tNo of test users considered for evaluation : ", len(self.items_for_evaluation))
-        self.save_items_for_evaluation()
-        return self.known_interactions_from_test_df
+                    self.known_interactions_from_test_df = pd.concat([self.known_interactions_from_test_df,
+                                                                      test_user_known_df])
+                
+                test_user_held_out_df = pd.DataFrame(test_user_df.loc[test_user_df[self.item_id_col].isin(hold_out_items)])
+                if self.held_out_interactions_from_test_df is None:
+                    self.held_out_interactions_from_test_df = test_user_held_out_df
+                else:
+                    self.held_out_interactions_from_test_df = pd.concat([self.held_out_interactions_from_test_df,
+                                                                         test_user_held_out_df])
+
+        LOGGER.debug("Train Data Stats...")        
+        LOGGER.debug("\tShape : " + str(self.train_data.shape))
+        LOGGER.debug("\tNo of Users : " + str(len(self.train_data[self.user_id_col].unique())))
+        LOGGER.debug("\tNo of Items : " + str(len(self.train_data[self.item_id_col].unique())))
+        LOGGER.debug("Test Data Stats...")
+        LOGGER.debug("\tShape : " + str(self.test_data.shape))
+        LOGGER.debug("\tNo of Users : " + str(len(self.test_data[self.user_id_col].unique())))
+        LOGGER.debug("\tNo of Items : " + str(len(self.test_data[self.item_id_col].unique())))
+        
+        LOGGER.debug("Combining train_data with interactions known from test...")
+        #self.train_data = self.train_data.append(self.known_interactions_from_test_df, ignore_index=True)
+        self.train_data = pd.concat([self.train_data, self.known_interactions_from_test_df])
+        self.test_data = self.held_out_interactions_from_test_df
+
+        LOGGER.debug("Train Data Stats...")        
+        LOGGER.debug("\tShape : " + str(self.train_data.shape))
+        LOGGER.debug("\tNo of Users : " + str(len(self.train_data[self.user_id_col].unique())))
+        LOGGER.debug("\tNo of Items : " + str(len(self.train_data[self.item_id_col].unique())))
+        LOGGER.debug("Test Data Stats...")
+        LOGGER.debug("\tShape : " + str(self.test_data.shape))
+        LOGGER.debug("\tNo of Users : " + str(len(self.test_data[self.user_id_col].unique())))
+        LOGGER.debug("\tNo of Items : " + str(len(self.test_data[self.item_id_col].unique())))
+
 
     @abstractmethod
     def train(self):
-        """train recommender"""
-        self.derive_stats()
+        """train recommender"""        
         self.prepare_test_data_for_eval()
+        self.derive_stats()
 
     @abstractmethod
     def recommend_items(self, user_id):
@@ -501,17 +613,17 @@ class HybridRecommender():
             self.hold_out_strategy = kwargs['hold_out_strategy']
 
         self.assume_ratio = None
-        self.first_n = None
+        self.assume_first_n = None
         self.next_n = None
-        self.last_n = None
+        self.hold_last_n = None
         if 'assume_ratio' in kwargs:
             self.assume_ratio = kwargs['assume_ratio']
-        if 'first_n' in kwargs:
-            self.first_n = kwargs['first_n']
+        if 'assume_first_n' in kwargs:
+            self.assume_first_n = kwargs['assume_first_n']
         if 'next_n' in kwargs:
             self.next_n = kwargs['next_n']
-        if 'last_n' in kwargs:
-            self.last_n = kwargs['last_n']
+        if 'hold_last_n' in kwargs:
+            self.hold_last_n = kwargs['hold_last_n']
 
 
         self.recommender_kwargs = dict(kwargs)
@@ -730,7 +842,7 @@ class HybridRecommender():
 
 def load_train_test(train_data_file, test_data_file, user_id_col, item_id_col):
     """Loads data and returns training and test set"""
-    print("Loading Training and Test Data")
+    print("Loading Training and Test Data...")
     if os.path.exists(train_data_file):
         train_data = pd.read_csv(train_data_file, dtype=object)
     else:
@@ -743,36 +855,6 @@ def load_train_test(train_data_file, test_data_file, user_id_col, item_id_col):
         print("Unable to find test data in : ", train_data_file)
         exit(0)
 
-    train_users_set = set(train_data[user_id_col].unique())
-    train_items_set = set(train_data[item_id_col].unique())    
-
-    test_users_set = set(test_data[user_id_col].unique())
-    test_items_set = set(test_data[item_id_col].unique())
-
-    common_users_set = train_users_set.intersection(test_users_set)
-    common_items_set = train_items_set.intersection(test_items_set)
-
-    new_users_in_test_set = test_users_set - train_users_set
-    new_items_in_test_set = test_items_set - train_items_set
-
-    print("{:30} : {}".format("Train Data   : No of records", len(train_data)))    
-    print("{:30} : {}".format("Train Data   : No of users  ", len(train_users_set)))    
-    print("{:30} : {}".format("Train Data   : No of items  ", len(train_items_set)))
-    print()
-    print("{:30} : {}".format("Test Data    : No of records", len(test_data)))
-    print("{:30} : {}".format("Test Data    : No of users  ", len(test_users_set)))
-    print("{:30} : {}".format("Test Data    : No of items  ", len(test_items_set)))
-    print()
-    print("{:30} : {}".format("Common Data  : No of users  ", len(common_users_set)))
-    print("{:30} : {}".format("Common Data  : No of items  ", len(common_items_set)))
-    print()
-    print("{:30} : {}".format("New in Test  : No of users  ", len(new_users_in_test_set)))
-    print("{:30} : {}".format("New in Test  : No of items  ", len(new_items_in_test_set)))
-    print('#' * 40)
-    # train_items = set(train_items_set)
-    # test_items = set(test_data[item_id_col].unique())
-    # print("train_items-test_items : ", len(train_items - test_items))
-    # print("test_items-train_items : ", len(test_items - train_items))
     return train_data, test_data
 
 def train(recommender_obj,

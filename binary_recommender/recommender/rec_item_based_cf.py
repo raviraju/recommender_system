@@ -54,17 +54,10 @@ class ItemBasedCFRecommender(Recommender):
     #######################################
     def __compute_uim(self):
         """Compute User Item Matrix"""
-        start_time = default_timer()        
-        print("\t\tNo of Users : ", len(self.train_data[self.user_id_col].unique()))
-        print("\t\tNo of Items : ", len(self.train_data[self.item_id_col].unique()))
-        print("\tCombining train_data with interactions known from test...")
-        train_with_known_test_data = self.train_data.append(self.known_interactions_from_test_df,
-                                                            ignore_index=True)
-        print("\t\tNo of Users : ", len(train_with_known_test_data[self.user_id_col].unique()))
-        print("\t\tNo of Items : ", len(train_with_known_test_data[self.item_id_col].unique()))
+        start_time = default_timer()
         print("\tComputing User Item Matrix of Users and Items in Train & Known Test Data...")        
-        uim_df = pd.get_dummies(train_with_known_test_data[self.item_id_col])\
-                   .groupby(train_with_known_test_data[self.user_id_col])\
+        uim_df = pd.get_dummies(self.train_data[self.item_id_col])\
+                   .groupby(self.train_data[self.user_id_col])\
                    .apply(max)        
         print("\t\tUser Item Matrix Shape :", uim_df.shape)
         end_time = default_timer()                
@@ -193,7 +186,7 @@ class ItemBasedCFRecommender(Recommender):
         # Calculate a weighted average of the scores in cooccurence matrix for
         # all user items.
         items_to_recommend = []
-        columns = [self.user_id_col, self.item_id_col, 'score', 'rank']
+
 
         interacted_items_similarity_matrix_df = self.item_similarity_matrix_df.loc[known_interacted_items]
         no_of_known_interacted_items = interacted_items_similarity_matrix_df.shape[0]
@@ -210,43 +203,32 @@ class ItemBasedCFRecommender(Recommender):
                 if rank > self.no_of_recs:#limit no of recommendations
                     break
                 item_dict = {
-                    self.user_id_col : user_id,
                     self.item_id_col : item_id,
-                    'score' : score,
+                    'score' : round(score, 3),
                     'rank' : rank
                 }
                 items_to_recommend.append(item_dict)
                 rank += 1
-        res_df = pd.DataFrame(items_to_recommend, columns=columns)
-        # Handle the case where there are no recommendations
-        # if res_df.shape[0] == 0:
-        #     return None
-        # else:
-        #     return res_df
-        return res_df
+        if len(items_to_recommend) > 0:
+            items_to_recommend_df = pd.DataFrame(items_to_recommend)
+        else:
+            items_to_recommend_df = pd.DataFrame(columns = [self.item_id_col, 'score', 'rank'])
+        return items_to_recommend_df
 
     def recommend_items(self, user_id):
         """recommend items for given user_id from test dataset"""
         super().recommend_items(user_id)
-        #pprint(self.items_for_evaluation[user_id])
         
         if os.path.exists(self.model_file):
             self.item_similarity_matrix_df = joblib.load(self.model_file)
-            #print(self.item_similarity_matrix_df.shape)
             LOGGER.debug("Loaded Trained Model")
-            # Use the cooccurence matrix to make recommendations
             start_time = default_timer()            
-            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']            
-            if len(known_interacted_items) == 0:
-                print("User {} has not interacted with any known items, Unable to generate any recommendations...".format(user_id))
-                user_recommendations = None
-            else:
-                user_recommendations = self.__generate_top_recommendations(user_id, known_interacted_items)
-            # recommended_items = list(user_recommendations[self.item_id_col].values)
+            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']
+            items_to_recommend_df = self.__generate_top_recommendations(user_id, known_interacted_items)
             end_time = default_timer()
             print("{:50}    {}".format("Recommendations generated. ",
                                        utilities.convert_sec(end_time - start_time)))
-            return user_recommendations
+            return items_to_recommend_df
         else:
             print("Trained Model not found !!!. Failed to generate recommendations")
             return None
@@ -254,26 +236,16 @@ class ItemBasedCFRecommender(Recommender):
     def __recommend_items_to_evaluate(self):
         """recommend items for all users from test dataset"""
         for user_id in self.items_for_evaluation:
-            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']            
-            if len(known_interacted_items) == 0:
-                #print("User {} has not interacted with any items in past, Unable to generate any recommendations...".format(user_id))
-                recommended_items = []
-            else:
-                user_recommendations = self.__generate_top_recommendations(user_id, known_interacted_items)
-                recommended_items = list(user_recommendations[self.item_id_col].values)
-            self.items_for_evaluation[user_id]['items_recommended'] = recommended_items
+            known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']
+            items_to_recommend_df = self.__generate_top_recommendations(user_id, known_interacted_items)
+            recommended_items_dict = items_to_recommend_df.set_index(self.item_id_col).to_dict('index')            
 
-            recommended_items_dict = dict()
-            for _, recs in user_recommendations.iterrows():
-                item_id = recs[self.item_id_col]
-                score = round(recs['score'], 3)
-                rank = recs['rank']
-                recommended_items_dict[item_id] = {'score' : score, 'rank' : rank}
+            self.items_for_evaluation[user_id]['items_recommended'] = list(recommended_items_dict.keys())
             self.items_for_evaluation[user_id]['items_recommended_score'] = recommended_items_dict
 
             items_to_be_interacted_set = set(self.items_for_evaluation[user_id]['items_to_be_interacted'])
-            items_recommended_set = set(recommended_items)
-            correct_recommendations = items_to_be_interacted_set & items_recommended_set
+            items_recommended_set = set(self.items_for_evaluation[user_id]['items_recommended'])
+            correct_recommendations = items_to_be_interacted_set.intersection(items_recommended_set)
             no_of_correct_recommendations = len(correct_recommendations)
             self.items_for_evaluation[user_id]['no_of_correct_recommendations'] = no_of_correct_recommendations
             self.items_for_evaluation[user_id]['correct_recommendations'] = list(correct_recommendations)
@@ -285,7 +257,6 @@ class ItemBasedCFRecommender(Recommender):
         
         if os.path.exists(self.model_file):
             self.item_similarity_matrix_df = joblib.load(self.model_file)
-            #print(self.item_similarity_matrix_df.shape)
             LOGGER.debug("Loaded Trained Model")
 
             start_time = default_timer()
