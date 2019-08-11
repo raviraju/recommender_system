@@ -13,6 +13,8 @@ import rec_interface as articles_rec_interface
 from recommender import rec_interface as generic_rec_interface
 from recommender import rec_item_based_cf as generic_rec_item_based_cf
 
+import pandas as pd
+pd.set_option('display.max_colwidth', 150)
 
 class ItemBasedCFRecommender(articles_rec_interface.ArticlesRecommender,
                              generic_rec_item_based_cf.ItemBasedCFRecommender):
@@ -41,10 +43,9 @@ def main():
     parser.add_argument("--user_id",
                         help="User Id to recommend items")
 
-    parser.add_argument("train_data",
-                        help="Train Data")
-    parser.add_argument("test_data",
-                        help="Test Data")
+    parser.add_argument("train_data", help="Train Data")
+    parser.add_argument("test_data", help="Test Data")
+    parser.add_argument("--meta_data", help="Meta Data")
     args = parser.parse_args()
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -68,6 +69,10 @@ def main():
 
     no_of_recs_to_eval = [5, 10]
     recommender_obj = ItemBasedCFRecommender
+
+    if args.meta_data:
+        kwargs['meta_data_file'] = args.meta_data
+        kwargs['meta_data_fields'] = ['url']#, 'title']
     
     model_name = 'models/' + kwargs['hold_out_strategy'] + '_item_based_cf'
     model_dir = os.path.join(current_dir, model_name)

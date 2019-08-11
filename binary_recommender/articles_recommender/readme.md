@@ -48,15 +48,23 @@ python rec_popularity_based.py train_test_datasets/dataset_1/train_2016Q1.csv tr
 python rec_user_based_cf.py train_test_datasets/dataset_1/train_2016Q1.csv train_test_datasets/dataset_1/test_2016Q2.csv
 python rec_item_based_cf.py train_test_datasets/dataset_1/train_2016Q1.csv train_test_datasets/dataset_1/test_2016Q2.csv
 
-python rec_random_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv
-python rec_popularity_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv
-python rec_user_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv
-python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv
+python rec_random_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv
+python rec_popularity_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv
+python rec_user_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv
+python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv
 ```
 
 # Individual APIs for train, recommend and evaluate
 ```
-python rec_random_based.py  train_test_datasets/dataset_1/train_2016Q1.csv train_test_datasets/dataset_1/test_2016Q2.csv --train
-python rec_random_based.py  train_test_datasets/dataset_1/train_2016Q1.csv train_test_datasets/dataset_1/test_2016Q2.csv --recommend --user_id -9223121837663643404
-python rec_random_based.py  train_test_datasets/dataset_1/train_2016Q1.csv train_test_datasets/dataset_1/test_2016Q2.csv --eval
+python rec_popularity_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --train
+python rec_popularity_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --eval
+python rec_popularity_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --recommend --user_id 6756039155228175109
+
+python rec_user_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --train
+python rec_user_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --eval
+python rec_user_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --recommend --user_id 6756039155228175109
+
+python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --train
+python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --eval
+python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --recommend --user_id 6756039155228175109
 ```

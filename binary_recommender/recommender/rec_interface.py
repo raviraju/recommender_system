@@ -428,6 +428,10 @@ class Recommender(metaclass=ABCMeta):
         """load items to be considered for evaluation for each test user id"""
         items_for_evaluation_file = os.path.join(self.model_dir, 'items_for_evaluation.json')
         self.items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
+        for test_user_id in self.items_for_evaluation:
+            if self.items_for_evaluation[test_user_id]['is_items_to_be_interacted_known']:
+                self.allow_recommending_known_items = True
+                break
 
     def prepare_test_data_for_eval(self):
         """get test user interactions for evaluation by deriving items to be considered for each user according to hold_out_stratergy"""        
@@ -840,22 +844,14 @@ class HybridRecommender():
 
         return evaluation_results
 
-def load_train_test(train_data_file, test_data_file, user_id_col, item_id_col):
-    """Loads data and returns training and test set"""
-    print("Loading Training and Test Data...")
-    if os.path.exists(train_data_file):
-        train_data = pd.read_csv(train_data_file, dtype=object)
+def load_data(data_file):
+    """Loads data and returns dataframe"""
+    if os.path.exists(data_file):
+        df = pd.read_csv(data_file, dtype=object)
     else:
-        print("Unable to find train data in : ", train_data_file)
-        exit(0)
-
-    if os.path.exists(test_data_file):
-        test_data = pd.read_csv(test_data_file, dtype=object)
-    else:
-        print("Unable to find test data in : ", train_data_file)
-        exit(0)
-
-    return train_data, test_data
+        print("Unable to find data_file : ", data_file)
+        df = None
+    return df
 
 def train(recommender_obj,
           results_dir, model_dir,
@@ -863,10 +859,14 @@ def train(recommender_obj,
           user_id_col, item_id_col,
           **kwargs):
     """train recommender"""
-    train_data, test_data = load_train_test(train_data_file,
-                                            test_data_file,
-                                            user_id_col,
-                                            item_id_col)
+    print("Loading Train Data...")
+    train_data = load_data(train_data_file)
+    if train_data is None:
+        exit(-1)
+    print("Loading Test Data...")
+    test_data = load_data(test_data_file)
+    if test_data is None:
+        exit(-1)
 
     recommender = recommender_obj(results_dir, model_dir,
                                   train_data, test_data,
@@ -881,10 +881,21 @@ def recommend(recommender_obj,
               user_id_col, item_id_col,
               user_id, **kwargs):
     """recommend items for user"""
-    train_data, test_data = load_train_test(train_data_file,
-                                            test_data_file,
-                                            user_id_col,
-                                            item_id_col)
+    print("Loading Train Data...")
+    train_data = load_data(train_data_file)
+    if train_data is None:
+        exit(-1)
+    print("Loading Test Data...")
+    test_data = load_data(test_data_file)
+    if test_data is None:
+        exit(-1)    
+    meta_data = None
+    if 'meta_data_file' in kwargs:
+        print("Loading Meta Data...")
+        meta_data = load_data(kwargs['meta_data_file'])
+        if meta_data is None:
+            exit(-1)
+    
     recommender = recommender_obj(results_dir, model_dir,
                                   train_data, test_data,
                                   user_id_col, item_id_col,
@@ -896,31 +907,67 @@ def recommend(recommender_obj,
         assume_interacted_items = eval_items[user_id]['assume_interacted_items']
         items_to_be_interacted = eval_items[user_id]['items_to_be_interacted']
 
-        print("\nTrain Item interactions for a user with user_id   : {}".format(user_id))
-        for item in items_interacted_in_train:
-            print(item)
+        print("\nTrain Item interactions for a user with user_id   : {}".format(user_id))        
+        if meta_data is not None:
+            cols = [item_id_col]
+            items_meta_data = meta_data[meta_data[item_id_col].isin(items_interacted_in_train)]
+            if 'meta_data_fields' in kwargs:
+                meta_data_fields = kwargs['meta_data_fields']
+                cols.extend(meta_data_fields)
+            print(items_meta_data[cols])
+        else:
+            for item in items_interacted_in_train:
+                print(item)
 
         print("\nAssumed Item interactions for a user with user_id : {}".format(user_id))
-        for item in assume_interacted_items:
-            print(item)
+        if meta_data is not None:
+            cols = [item_id_col]
+            items_meta_data = meta_data[meta_data[item_id_col].isin(assume_interacted_items)]
+            if 'meta_data_fields' in kwargs:
+                meta_data_fields = kwargs['meta_data_fields']
+                cols.extend(meta_data_fields)
+            print(items_meta_data[cols])
+        else:
+            for item in assume_interacted_items:
+                print(item)
 
         print()
         print("\nItems to be interacted for a user with user_id    : {}".format(user_id))
-        for item in items_to_be_interacted:
-            print(item)
+        if meta_data is not None:
+            cols = [item_id_col]
+            items_meta_data = meta_data[meta_data[item_id_col].isin(items_to_be_interacted)]
+            if 'meta_data_fields' in kwargs:
+                meta_data_fields = kwargs['meta_data_fields']
+                cols.extend(meta_data_fields)
+            print(items_meta_data[cols])
+        else:
+            for item in items_to_be_interacted:
+                print(item)
 
         print()
         print("\nTop {} Items recommended for a user with user_id  : {}".format(recommender.no_of_recs, user_id))
-        user_recommendations = recommender.recommend_items(user_id)        
-        if user_recommendations is not None:
-            recommended_items = list(user_recommendations[item_id_col].values)
+        items_to_recommend_df = recommender.recommend_items(user_id)
+        if items_to_recommend_df is not None:
+            recommended_items = list(items_to_recommend_df[item_id_col].values)
+          
+            if meta_data is not None and 'meta_data_fields' in kwargs:
+                cols = [item_id_col]
+                cols.extend(kwargs['meta_data_fields'])
+                items_to_recommend_df = items_to_recommend_df.merge(meta_data[cols], how='inner')
+                pprint(items_to_recommend_df)#.to_dict(orient='index'))
+            else:                
+                for item in recommended_items:
+                    print(item)
+
             print()
-            i = 1
-            for recommended_item in recommended_items:
-                print(recommended_item)
-                if i > recommender.no_of_recs:
-                    break
-                i += 1
+            print("\nItems correctly recommended for a user with user_id  : {}".format(user_id))
+            correct_recommendations = set(items_to_be_interacted).intersection(set(recommended_items))
+            if meta_data is not None and 'meta_data_fields' in kwargs:
+                correct_items_to_recommend_df = items_to_recommend_df[items_to_recommend_df[item_id_col].isin(correct_recommendations)]
+                print(correct_items_to_recommend_df)
+            else:
+                for item in correct_recommendations:
+                    print(item)
         else:
             print("No items to recommend")
         print('*' * 80)
@@ -934,10 +981,14 @@ def evaluate(recommender_obj,
              no_of_recs_to_eval,
              eval_res_file, **kwargs):
     """evaluate recommender"""
-    train_data, test_data = load_train_test(train_data_file,
-                                            test_data_file,
-                                            user_id_col,
-                                            item_id_col)
+    print("Loading Train Data...")
+    train_data = load_data(train_data_file)
+    if train_data is None:
+        exit(-1)
+    print("Loading Test Data...")
+    test_data = load_data(test_data_file)
+    if test_data is None:
+        exit(-1)
     recommender = recommender_obj(results_dir, model_dir,
                                   train_data, test_data,
                                   user_id_col, item_id_col,
@@ -955,10 +1006,21 @@ def train_eval_recommend(recommender_obj,
                          no_of_recs_to_eval,
                          **kwargs):
     """train, evaluate and recommend"""
-    train_data, test_data = load_train_test(train_data_file,
-                                            test_data_file,
-                                            user_id_col,
-                                            item_id_col)
+    print("Loading Train Data...")
+    train_data = load_data(train_data_file)
+    if train_data is None:
+        exit(-1)
+    print("Loading Test Data...")
+    test_data = load_data(test_data_file)
+    if test_data is None:
+        exit(-1)
+    meta_data = None
+    if 'meta_data_file' in kwargs:
+        print("Loading Meta Data...")
+        meta_data = load_data(kwargs['meta_data_file'])
+        if meta_data is None:
+            exit(-1)
+
     recommender = recommender_obj(results_dir, model_dir,
                                   train_data, test_data,
                                   user_id_col, item_id_col,
@@ -972,21 +1034,42 @@ def train_eval_recommend(recommender_obj,
     pprint(evaluation_results)
     print('*' * 80)
 
-    print("Testing Recommendation for an User")
+    print("One of the Best Recommendations")
     items_for_evaluation_file = os.path.join(model_dir, 'items_for_evaluation.json')
     items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
     users = list(items_for_evaluation.keys())
-    user_id = users[0]
-    user_recommendations = recommender.recommend_items(user_id)
-    recommended_items = list(user_recommendations[item_id_col].values)    
-    print("Top {} Items recommended for a user with user_id : {}".format(recommender.no_of_recs, user_id))
-    if recommended_items:
-        i = 1
-        for item in recommended_items:
-            print(item)
-            if i > recommender.no_of_recs:
-                break
-            i += 1
+
+    best_user_id = users[0]
+    max_no_of_correct_recommendations = 0
+    for user_id in items_for_evaluation:
+        no_of_correct_recommendations = items_for_evaluation[user_id]['no_of_correct_recommendations']
+        if no_of_correct_recommendations > max_no_of_correct_recommendations:
+            max_no_of_correct_recommendations = no_of_correct_recommendations
+            best_user_id = user_id
+    print("Top {} Items recommended for a user with user_id : {}".format(recommender.no_of_recs, best_user_id))
+    items_to_recommend_df = recommender.recommend_items(best_user_id)        
+    if items_to_recommend_df is not None:
+        recommended_items = list(items_to_recommend_df[item_id_col].values)
+      
+        if meta_data is not None and 'meta_data_fields' in kwargs:
+            cols = [item_id_col]
+            cols.extend(kwargs['meta_data_fields'])
+            items_to_recommend_df = items_to_recommend_df.merge(meta_data[cols], how='left')
+            pprint(items_to_recommend_df)#.to_dict(orient='index'))
+        else:                
+            for item in recommended_items:
+                print(item)
+
+        items_to_be_interacted = items_for_evaluation[best_user_id]['items_to_be_interacted']
+        print()
+        print("\nItems correctly recommended for a user with user_id  : {}".format(best_user_id))
+        correct_recommendations = set(items_to_be_interacted).intersection(set(recommended_items))
+        if meta_data is not None and 'meta_data_fields' in kwargs:
+            correct_items_to_recommend_df = items_to_recommend_df[items_to_recommend_df[item_id_col].isin(correct_recommendations)]
+            print(correct_items_to_recommend_df)
+        else:
+            for item in correct_recommendations:
+                print(item)
     else:
         print("No items to recommend")
     print('*' * 80)
@@ -1103,10 +1186,14 @@ def hybrid_train(recommenders,
                  user_id_col, item_id_col,
                  **kwargs):
     """train given set of recommenders"""
-    train_data, test_data = load_train_test(train_data_file,
-                                            test_data_file,
-                                            user_id_col,
-                                            item_id_col)
+    print("Loading Train Data...")
+    train_data = load_data(train_data_file)
+    if train_data is None:
+        exit(-1)
+    print("Loading Test Data...")
+    test_data = load_data(test_data_file)
+    if test_data is None:
+        exit(-1)
     hybrid_recommender = HybridRecommender(recommenders,
                                            results_dir, model_dir,
                                            train_data, test_data,
@@ -1120,16 +1207,26 @@ def hybrid_recommend(recommenders,
                      user_id_col, item_id_col,
                      user_id, **kwargs):
     """recommmed items using given set of recommenders"""
-    train_data, test_data = load_train_test(train_data_file,
-                                            test_data_file,
-                                            user_id_col,
-                                            item_id_col)
+    print("Loading Train Data...")
+    train_data = load_data(train_data_file)
+    if train_data is None:
+        exit(-1)
+    print("Loading Test Data...")
+    test_data = load_data(test_data_file)
+    if test_data is None:
+        exit(-1)
+    meta_data = None
+    if 'meta_data_file' in kwargs:
+        print("Loading Meta Data...")
+        meta_data = load_data(kwargs['meta_data_file'])
+        if meta_data is None:
+            exit(-1)
+    
     hybrid_recommender = HybridRecommender(recommenders,
                                            results_dir, model_dir,
                                            train_data, test_data,
                                            user_id_col, item_id_col,
                                            **kwargs)
-
     eval_items_file = os.path.join(model_dir, 'items_for_evaluation.json')
     eval_items = utilities.load_json_file(eval_items_file)
     if user_id in eval_items:
@@ -1138,32 +1235,67 @@ def hybrid_recommend(recommenders,
         known_interacted_items = eval_items[user_id]['known_interacted_items']
         items_to_be_interacted = eval_items[user_id]['items_to_be_interacted']
 
-        print("\nTrain Item interactions for a user with user_id   : {}".format(user_id))
-        for item_id in items_interacted_in_train:
-            print(item_id)
-
-        print("Assumed Item interactions for a user with user_id : {}".format(user_id))
-        for item_id in assume_interacted_items:
-            print(item_id)
-
-        print()
-        print("Items to be interacted for a user with user_id : {}".format(user_id))
-        for item_id in items_to_be_interacted:
-            print(item_id)
-
-        print()
-        print("Items recommended for a user with user_id : {}".format(user_id))
-        user_recommendations = hybrid_recommender.recommend_items(user_id, known_interacted_items)
-        #print(user_recommendations)
-        recommended_items = list(user_recommendations[item_id_col].values)
-        print()
-        if recommended_items:
-            i = 1
-            for item in recommended_items:
+        print("\nTrain Item interactions for a user with user_id   : {}".format(user_id))        
+        if meta_data is not None:
+            cols = [item_id_col]
+            items_meta_data = meta_data[meta_data[item_id_col].isin(items_interacted_in_train)]
+            if 'meta_data_fields' in kwargs:
+                meta_data_fields = kwargs['meta_data_fields']
+                cols.extend(meta_data_fields)
+            print(items_meta_data[cols])
+        else:
+            for item in items_interacted_in_train:
                 print(item)
-                if i > 10:
-                    break
-                i += 1                
+
+        print("\nAssumed Item interactions for a user with user_id : {}".format(user_id))
+        if meta_data is not None:
+            cols = [item_id_col]
+            items_meta_data = meta_data[meta_data[item_id_col].isin(assume_interacted_items)]
+            if 'meta_data_fields' in kwargs:
+                meta_data_fields = kwargs['meta_data_fields']
+                cols.extend(meta_data_fields)
+            print(items_meta_data[cols])
+        else:
+            for item in assume_interacted_items:
+                print(item)
+
+        print()
+        print("\nItems to be interacted for a user with user_id    : {}".format(user_id))
+        if meta_data is not None:
+            cols = [item_id_col]
+            items_meta_data = meta_data[meta_data[item_id_col].isin(items_to_be_interacted)]
+            if 'meta_data_fields' in kwargs:
+                meta_data_fields = kwargs['meta_data_fields']
+                cols.extend(meta_data_fields)
+            print(items_meta_data[cols])
+        else:
+            for item in items_to_be_interacted:
+                print(item)
+
+        print()
+        print("\nTop {} Items recommended for a user with user_id  : {}".format(hybrid_recommender.no_of_recs, user_id))
+        items_to_recommend_df = hybrid_recommender.recommend_items(user_id, known_interacted_items)        
+        if items_to_recommend_df is not None:
+            recommended_items = list(items_to_recommend_df[item_id_col].values)
+          
+            if meta_data is not None and 'meta_data_fields' in kwargs:
+                cols = [item_id_col]
+                cols.extend(kwargs['meta_data_fields'])
+                items_to_recommend_df = items_to_recommend_df.merge(meta_data[cols], how='inner')
+                pprint(items_to_recommend_df)#.to_dict(orient='index'))
+            else:                
+                for item in recommended_items:
+                    print(item)
+
+            print()
+            print("\nItems correctly recommended for a user with user_id  : {}".format(user_id))
+            correct_recommendations = set(items_to_be_interacted).intersection(set(recommended_items))
+            if meta_data is not None and 'meta_data_fields' in kwargs:
+                correct_items_to_recommend_df = items_to_recommend_df[items_to_recommend_df[item_id_col].isin(correct_recommendations)]
+                print(correct_items_to_recommend_df)
+            else:
+                for item in correct_recommendations:
+                    print(item)
         else:
             print("No items to recommend")
         print('*' * 80)
@@ -1177,10 +1309,14 @@ def hybrid_evaluate(recommenders,
                     no_of_recs_to_eval,
                     eval_res_file, **kwargs):
     """evaluate recommended items using given set of recommenders"""
-    train_data, test_data = load_train_test(train_data_file,
-                                            test_data_file,
-                                            user_id_col,
-                                            item_id_col)
+    print("Loading Train Data...")
+    train_data = load_data(train_data_file)
+    if train_data is None:
+        exit(-1)
+    print("Loading Test Data...")
+    test_data = load_data(test_data_file)
+    if test_data is None:
+        exit(-1)
     hybrid_recommender = HybridRecommender(recommenders,
                                            results_dir, model_dir,
                                            train_data, test_data,
@@ -1199,10 +1335,21 @@ def hybrid_train_eval_recommend(recommenders,
                                 no_of_recs_to_eval,
                                 **kwargs):
     """train, evaluate and recommend"""
-    train_data, test_data = load_train_test(train_data_file,
-                                            test_data_file,
-                                            user_id_col,
-                                            item_id_col)
+    print("Loading Train Data...")
+    train_data = load_data(train_data_file)
+    if train_data is None:
+        exit(-1)
+    print("Loading Test Data...")
+    test_data = load_data(test_data_file)
+    if test_data is None:
+        exit(-1)
+    meta_data = None
+    if 'meta_data_file' in kwargs:
+        print("Loading Meta Data...")
+        meta_data = load_data(kwargs['meta_data_file'])
+        if meta_data is None:
+            exit(-1)
+
     hybrid_recommender = HybridRecommender(recommenders,
                                            results_dir, model_dir,
                                            train_data, test_data,
@@ -1218,22 +1365,43 @@ def hybrid_train_eval_recommend(recommenders,
     pprint(evaluation_results)
     print('*' * 80)
 
-    print("Testing Recommendation for an User")
+    print("One of the Best Recommendations")
     items_for_evaluation_file = os.path.join(model_dir, 'items_for_evaluation.json')
     items_for_evaluation = utilities.load_json_file(items_for_evaluation_file)
     users = list(items_for_evaluation.keys())
-    user_id = users[0]
-    known_interacted_items = items_for_evaluation[user_id]['known_interacted_items']
-    user_recommendations = hybrid_recommender.recommend_items(user_id, known_interacted_items)
-    recommended_items = list(user_recommendations[item_id_col].values)
-    print("Items recommended for a user with user_id : {}".format(user_id))
-    if recommended_items:
-        i = 1
-        for item in recommended_items:
-            print(item)
-            if i > 10:
-                break
-            i += 1
+
+    best_user_id = users[0]
+    max_no_of_correct_recommendations = 0
+    for user_id in items_for_evaluation:
+        no_of_correct_recommendations = items_for_evaluation[user_id]['no_of_correct_recommendations']
+        if no_of_correct_recommendations > max_no_of_correct_recommendations:
+            max_no_of_correct_recommendations = no_of_correct_recommendations
+            best_user_id = user_id
+    known_interacted_items = items_for_evaluation[best_user_id]['known_interacted_items']
+    print("Top {} Items recommended for a user with user_id : {}".format(hybrid_recommender.no_of_recs, best_user_id))
+    items_to_recommend_df = hybrid_recommender.recommend_items(user_id, known_interacted_items)
+    if items_to_recommend_df is not None:
+        recommended_items = list(items_to_recommend_df[item_id_col].values)
+      
+        if meta_data is not None and 'meta_data_fields' in kwargs:
+            cols = [item_id_col]
+            cols.extend(kwargs['meta_data_fields'])
+            items_to_recommend_df = items_to_recommend_df.merge(meta_data[cols], how='left')
+            pprint(items_to_recommend_df)#.to_dict(orient='index'))
+        else:                
+            for item in recommended_items:
+                print(item)
+
+        items_to_be_interacted = items_for_evaluation[best_user_id]['items_to_be_interacted']
+        print()
+        print("\nItems correctly recommended for a user with user_id  : {}".format(best_user_id))
+        correct_recommendations = set(items_to_be_interacted).intersection(set(recommended_items))
+        if meta_data is not None and 'meta_data_fields' in kwargs:
+            correct_items_to_recommend_df = items_to_recommend_df[items_to_recommend_df[item_id_col].isin(correct_recommendations)]
+            print(correct_items_to_recommend_df)
+        else:
+            for item in correct_recommendations:
+                print(item)
     else:
         print("No items to recommend")
     print('*' * 80)
