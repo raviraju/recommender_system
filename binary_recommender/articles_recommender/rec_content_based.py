@@ -99,8 +99,8 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
         return stemmed_text
 
     def __run_topic_modelling(self):
-        no_of_topics = 5
-        no_of_top_words_per_topic = 30
+        no_of_topics = 15
+        no_of_top_words_per_topic = 10
         
         self.meta_data['text_content'] = self.meta_data[['title', 'text']].apply(lambda x: '. '.join(x), axis=1)            
         meta_data_text_df = self.meta_data['text_content'].drop_duplicates()\
@@ -390,26 +390,29 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
         items_to_recommend = []
 
         user_profile_dict = self.__get_user_profile(known_interacted_items)
+        # print('*'*30)
+        # print(user_id)
         # pprint(user_profile_dict)
         # input()
 
         item_scores = []
-        for item_id, score in user_profile_dict['item_scores'].items():
-            item_scores.append({
-                self.item_id_col : item_id,
-                'sim_score' : round(score, 3)
-            })
-        # items_all = self.get_all_items(dataset='all')
-        # for item_id in items_all:
-        #     item_profile_dict = self.__get_item_profile(item_id)
-        #     # print("\n\t" + item_id)
-        #     # print(item_profile)
-        #     similarity_scores = self.__get_profile_similarity_score(user_profile_dict, 
-        #                                                             item_profile_dict)
-        #     item_scores.append({self.item_id_col: item_id,
-        #                         'topics_subset_similarity': similarity_scores['topics_subset_similarity'],
-        #                         'text_similarity' : similarity_scores['text_similarity']
-        #                        })
+        if 'item_scores' in user_profile_dict:#for users with no interacted items 'item_scores' shall not exist
+            for item_id, score in user_profile_dict['item_scores'].items():
+                item_scores.append({
+                    self.item_id_col : item_id,
+                    'sim_score' : round(score, 3)
+                })
+            # items_all = self.get_all_items(dataset='all')
+            # for item_id in items_all:
+            #     item_profile_dict = self.__get_item_profile(item_id)
+            #     # print("\n\t" + item_id)
+            #     # print(item_profile)
+            #     similarity_scores = self.__get_profile_similarity_score(user_profile_dict, 
+            #                                                             item_profile_dict)
+            #     item_scores.append({self.item_id_col: item_id,
+            #                         'topics_subset_similarity': similarity_scores['topics_subset_similarity'],
+            #                         'text_similarity' : similarity_scores['text_similarity']
+            #                        })
 
         item_scores_df = pd.DataFrame(item_scores)
         # print(item_scores_df['topics_subset_similarity'].value_counts())
