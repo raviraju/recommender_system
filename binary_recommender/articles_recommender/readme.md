@@ -10,7 +10,7 @@ Download data and place in `data/` directory
 
 # Generate Train and Test Datasets
 
-Use Prepare Data.ipynb in `notebooks/` to generate train and test datasets for various time periods
+Use [Prepare_Data.ipynb](notebooks/Prepare_Data.ipynb) in `notebooks/` to generate train and test datasets for various time periods
 
 ```
 ls -lR train_test_datasets/
@@ -52,6 +52,7 @@ python rec_random_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_201
 python rec_popularity_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv
 python rec_user_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv
 python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv
+python rec_content_based.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv data/shared_articles.csv
 ```
 
 # Individual APIs for train, recommend and evaluate

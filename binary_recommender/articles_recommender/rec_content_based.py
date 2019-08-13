@@ -21,8 +21,14 @@ from recommender.evaluation import PrecisionRecall
 
 import spacy
 spacy_lemmatizer = spacy.load('en', disable=['parser', 'ner'])
+
+# from nltk import word_tokenize
+# from nltk.stem.snowball import SnowballStemmer
+# stemmer = SnowballStemmer("english")
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.metrics.pairwise import cosine_similarity
 
 import pandas as pd
 pd.set_option('display.max_colwidth', 150)
@@ -38,6 +44,7 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
                          user_id_col, item_id_col, **kwargs)
         self.model_file = os.path.join(self.model_dir,
                                         'content_based_model.pkl')
+        self.trained_models = dict()
         self.meta_data = meta_data
         self.item_profiles_dict = dict()
         self.user_profiles_dict = dict()
@@ -76,6 +83,20 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
             if len(lemma_text) == 0:
                 return None
         return lemma_text
+    
+    def __stemming(self, text):
+        """Apply Stemming using SnowballStemmer"""
+        stemmed_text = None
+        if isinstance(text, str):
+            stemmed_text = ""
+            for word in word_tokenize(text):
+                stem = stemmer.stem(word)
+                stemmed_text += stem
+                stemmed_text += " "
+            stemmed_text = stemmed_text.strip()
+            if len(stemmed_text) == 0:
+                return None
+        return stemmed_text
 
     def __run_topic_modelling(self):
         no_of_topics = 5
@@ -87,16 +108,27 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
                                                           .rename(columns={'index' : 'text_content_id'})
         self.meta_data = self.meta_data.merge(meta_data_text_df)
         # pprint(self.meta_data.iloc[0].to_dict)
+        text_content_id_item_ids = self.meta_data[['text_content_id', 'contentId']].groupby('text_content_id')\
+                                                                                   .apply(lambda x: list(x['contentId'].unique()))
+        # print(text_content_id_item_ids.head())
         # print(meta_data_text_df.head())
         # print(self.meta_data.shape, meta_data_text_df.shape)
 
+        # Normalization
+        start_time = default_timer()
         print("Lemmatize Text...")
         meta_data_text_df.loc[:, 'processed_text'] = meta_data_text_df['text_content'].apply(self.__lemmatize_spacy)
+        # print("Stemming Text...")
+        # meta_data_text_df.loc[:, 'processed_text'] = meta_data_text_df['text_content'].apply(self.__stemming)
+        end_time = default_timer()
+        print("{:50}    {}".format("\tCompleted. ",
+                                   utilities.convert_sec(end_time - start_time)))
         # print(meta_data_text_df.head())
         # print(meta_data_text_df.shape)
         # input()
 
         print("Infer Topics...")
+        start_time = default_timer()
         tf_vectorizer = CountVectorizer(strip_accents = 'ascii',
                                         stop_words = 'english',
                                         lowercase = True,
@@ -138,22 +170,31 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
         # pprint(topic_top_words_dict)
         # input()
 
-        return tf_vectorizer, lda, doc_text_topics_df, topic_top_words_dict
+        end_time = default_timer()
+        print("{:50}    {}".format("\tCompleted. ",
+                                   utilities.convert_sec(end_time - start_time)))
 
-    def __generate_item_profile(self, item_id, doc_topics_df, topic_top_words_dict):
+        return tf_vectorizer, lda, doc_text_topics_df, topic_top_words_dict, text_content_id_item_ids
+
+    def __generate_item_profile(self, item_id, 
+                                doc_text_topics_df, topic_top_words_dict, 
+                                similar_text_items_dict, similar_text_content_ids_dict):
         item_meta_df = self.meta_data[self.meta_data[self.item_id_col] == item_id]
         item_meta_df = item_meta_df[[self.item_id_col, 'url', 'title', 'text', 'text_content_id']]
         item_meta_df.drop_duplicates(inplace=True)
         item_profile_dict = dict()
         item_profile_dict['url'] = item_meta_df['url'].values[0]
         item_profile_dict['title'] = item_meta_df['title'].values[0]
-        item_profile_dict['text'] = item_meta_df['text'].values[0]
+        # item_profile_dict['text'] = item_meta_df['text'].values[0]
 
         text_content_id = item_meta_df['text_content_id'].values[0]
         item_profile_dict['text_content_id'] = int(text_content_id)
+        # item_profile_dict['similar_text_content_ids'] = similar_text_content_ids_dict
+        item_profile_dict['similar_text_items'] = similar_text_items_dict
 
-        item_topics_df = doc_topics_df[doc_topics_df['text_content_id'] == text_content_id]
-        mostly_about_topics = item_topics_df['mostly_about'].values[0]
+        item_text_topics_df = doc_text_topics_df[doc_text_topics_df['text_content_id'] == text_content_id]
+        # item_profile_dict['processed_text'] = item_text_topics_df['processed_text'].values[0]
+        mostly_about_topics = item_text_topics_df['mostly_about'].values[0]
         item_profile_dict['topics'] = dict()
         all_topics_top_words = []
         for topic_id_str in mostly_about_topics:
@@ -164,6 +205,57 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
         item_profile_dict['all_topics_top_words'] = all_topics_top_words
         return item_profile_dict
 
+    def __compute_item_similarity(self):
+        """Compute Item-Item Similarity Matrix using item's content"""
+        vectorizer, lda, doc_text_topics_df, topic_top_words_dict, text_content_id_item_ids = self.__run_topic_modelling()
+        doc_text_topic_vectors = lda.transform(vectorizer.transform(doc_text_topics_df['processed_text']))
+        # print(doc_text_vectors.shape)
+        doc_text_topics_similarity_df = pd.DataFrame(cosine_similarity(doc_text_topic_vectors), 
+                                                     index=doc_text_topics_df['text_content_id'],
+                                                     columns=doc_text_topics_df['text_content_id'])
+        # print(doc_text_topics_similarity_df.shape)        
+        # print(len(self.items_all))
+        
+        LOGGER.debug("All Data       :: Getting Item Profiles")
+        for item_id in self.items_all:
+            item_meta_df = self.meta_data[self.meta_data[self.item_id_col] == item_id]
+            text_content_id = item_meta_df['text_content_id'].values[0]
+            # print("item_id : ", item_id)
+            # print("text_content_id : ", text_content_id)
+
+            similar_text_contents = doc_text_topics_similarity_df.loc[text_content_id]            
+            similar_text_contents = pd.Series(similar_text_contents[similar_text_contents>0.9])
+            similar_text_contents.sort_values(ascending=False, inplace=True)
+            # print(similar_text_contents.head())
+
+            similar_text_items_dict = dict()
+            similar_text_content_ids_dict = dict()
+            for similar_text_content_id, score in similar_text_contents.items():
+                if text_content_id == similar_text_content_id:
+                    continue
+                # print("similar_text_content_id : ", similar_text_content_id)
+                similarity_score = round(score, 3)
+                # print("similarity_score : ", similarity_score)
+                similar_text_content_ids_dict[similar_text_content_id] = similarity_score
+                similar_item_ids = text_content_id_item_ids.loc[similar_text_content_id]
+                # print("similar_item_ids : ", similar_item_ids)
+                for similar_item_id in similar_item_ids:
+                    similar_text_items_dict[similar_item_id] = similarity_score
+                
+            item_profile_dict = self.__generate_item_profile(item_id, 
+                                                             doc_text_topics_df, 
+                                                             topic_top_words_dict, 
+                                                             similar_text_items_dict,
+                                                             similar_text_content_ids_dict)
+            # pprint(item_profile_dict)
+            # input()
+            self.item_profiles_dict[item_id] = item_profile_dict
+        
+        item_profiles_file = os.path.join(self.model_dir, 'item_profiles.json')
+        utilities.dump_json_file(self.item_profiles_dict, item_profiles_file)
+
+        return vectorizer, lda, doc_text_topics_df, topic_top_words_dict, text_content_id_item_ids
+
     def train(self):
         """train the content based recommender system model"""
         super().train()
@@ -172,25 +264,25 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
         print("*"*80)
         print("\tContent Based : Recommending Similar items ...")
         print("*"*80)
+        # Compute item similarity matrix of size, len(items) X len(items)
+        print("Compute Item-Item Similarity Matrix using item's content...")
         start_time = default_timer()
-
-        vectorizer, lda, doc_topics_df, topic_top_words_dict = self.__run_topic_modelling()
-
-        LOGGER.debug("All Data       :: Getting Item Profiles")        
-        for item_id in self.items_all:
-            item_profile = self.__generate_item_profile(item_id, doc_topics_df, topic_top_words_dict)
-            # pprint(item_profile)
-            self.item_profiles_dict[item_id] = item_profile
-        item_profiles_file = os.path.join(self.model_dir, 'item_profiles.json')
-        utilities.dump_json_file(self.item_profiles_dict, item_profiles_file)
+        vectorizer, lda, doc_text_topics_df, topic_top_words_dict, text_content_id_item_ids = self.__compute_item_similarity()
+        
+        doc_text_topics_file = os.path.join(self.model_dir, 'doc_text_topics_df.csv')
+        doc_text_topics_df.to_csv(doc_text_topics_file, index=False)
+        text_content_id_item_id_file = os.path.join(self.model_dir, 'text_content_id_item_ids.csv')
+        text_content_id_item_ids_df = text_content_id_item_ids.to_frame()#.reset_index(inplace=True)
+        text_content_id_item_ids_df.to_csv(text_content_id_item_id_file)
+        topic_top_words_file = os.path.join(self.model_dir, 'topic_top_words.json')
+        utilities.dump_json_file(topic_top_words_dict, topic_top_words_file)
 
         end_time = default_timer()
         print("{:50}    {}".format("Completed. ",
                                    utilities.convert_sec(end_time - start_time)))
-        trained_models = dict()
-        trained_models['vectorizer'] = vectorizer
-        trained_models['lda'] = lda
-        joblib.dump(trained_models, self.model_file)
+        self.trained_models['vectorizer'] = vectorizer
+        self.trained_models['lda'] = lda
+        joblib.dump(self.trained_models, self.model_file)
         LOGGER.debug("Saved Model")
     #######################################
     def __get_item_profile(self, item_id):
@@ -201,11 +293,16 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
 
     def __get_user_profile(self, user_items):
         """return user profile by merging item profiles for user interacted items"""
+        user_profile_dict = dict()
+
         user_urls = []
         user_titles = []
         # user_texts = []
+        # user_processed_texts = []
         # user_topic_words = []
         user_all_topics_top_words = []
+        user_items_similar_items = []
+        all_user_items_similar_items_ids = []
         for item_id in user_items:
             item_profile_dict = self.__get_item_profile(item_id)
             if item_profile_dict is not None:
@@ -218,6 +315,9 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
                 # item_text = item_profile_dict['text']
                 # user_texts.append(item_text)
 
+                # item_processed_text = item_profile_dict['processed_text']
+                # user_processed_texts.append(item_processed_text)
+
                 # item_topics = item_profile_dict['topics']
                 # for topic_id_str in item_topics:
                 #     top_words = list(item_topics[topic_id_str]['top_words'].keys())
@@ -225,24 +325,56 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
                 
                 all_topics_top_words = item_profile_dict['all_topics_top_words']
                 user_all_topics_top_words.extend(all_topics_top_words)
-        user_profie_dict = dict()
-        user_profie_dict['urls'] = user_urls
-        user_profie_dict['titles'] = user_titles
-        # user_profie_dict['texts'] = user_texts
-        # user_profie_dict['topic_words'] = user_topic_words
-        user_profie_dict['all_topics_top_words'] = user_all_topics_top_words
-        return user_profie_dict          
+
+                similar_text_items = item_profile_dict['similar_text_items']
+                similar_text_items_ids = list(similar_text_items.keys())
+                all_user_items_similar_items_ids.extend(similar_text_items_ids)
+                user_items_similar_items.append(similar_text_items)
+
+        user_similar_items_df = pd.DataFrame(user_items_similar_items)
+        user_similar_items_df.fillna(0, inplace=True)
+        # print(user_similar_items_df.shape)
+        no_of_user_items = len(user_similar_items_df)
+        if no_of_user_items > 0:
+            item_scores = user_similar_items_df.sum(axis=0) / float(no_of_user_items)
+            item_scores.sort_values(inplace=True, ascending=False)
+            #print(item_scores)
+            item_scores = item_scores[item_scores > 0.5]
+            user_profile_dict['item_scores'] = item_scores.to_dict()
+        user_profile_dict['urls'] = user_urls
+        user_profile_dict['titles'] = user_titles
+        # user_profile_dict['text'] = '\n'.join(user_texts)
+        # user_profile_dict['processed_text'] = '\n'.join(user_processed_texts)
+        # user_profile_dict['topic_words'] = user_topic_words
+        user_profile_dict['all_topics_top_words'] = user_all_topics_top_words
+        return user_profile_dict          
 
     def __get_subset_similarity(self, child_set, parent_set):
         """subset similarity"""
         return int(child_set.issubset(parent_set))
 
-    def __get_profile_similarity_score(self, user_profile, item_profile):
+    def __get_cosine_similarity(self, item_processed_text, user_processed_text):
+        # print(item_processed_text)
+        # print(user_processed_text)
+        vectorizer = self.trained_models['vectorizer']
+        lda = self.trained_models['lda']
+        item_text_vector = lda.transform(vectorizer.transform([item_processed_text]))[0]
+        user_text_vector = lda.transform(vectorizer.transform([user_processed_text]))[0]
+        # print(item_text_vector)
+        # print(user_text_vector)
+        # print(item_text_vector.shape, user_text_vector.shape)
+        cosine_similarity = 1 - cosine_distance(item_text_vector, user_text_vector)
+        # print(cosine_similarity)
+        return cosine_similarity
+
+    def __get_profile_similarity_score(self, user_profile_dict, item_profile_dict):
         """similarity scores bw user and item profile"""
-        topics_subset_similarity = self.__get_subset_similarity(set(item_profile['all_topics_top_words']),
-                                                         set(user_profile['all_topics_top_words']))
+        topics_subset_similarity = self.__get_subset_similarity(set(item_profile_dict['all_topics_top_words']),
+                                                                set(user_profile_dict['all_topics_top_words']))
+        text_similarity = self.__get_cosine_similarity(item_profile_dict['processed_text'], user_profile_dict['processed_text'])
         similarity_scores_dict = dict()
         similarity_scores_dict['topics_subset_similarity'] = topics_subset_similarity
+        similarity_scores_dict['text_similarity'] = text_similarity
 
         return similarity_scores_dict
 
@@ -259,33 +391,47 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
 
         user_profile_dict = self.__get_user_profile(known_interacted_items)
         # pprint(user_profile_dict)
-
-        item_scores = []
-        items_all = self.get_all_items(dataset='all')
-        for item_id in items_all:
-            item_profile_dict = self.__get_item_profile(item_id)
-            # print("\n\t" + item_id)
-            # print(item_profile)
-            similarity_scores = self.__get_profile_similarity_score(user_profile_dict, 
-                                                                    item_profile_dict)
-            item_scores.append({self.item_id_col: item_id,
-                                'topics_subset_similarity': similarity_scores['topics_subset_similarity']
-                               })
-        item_scores_df = pd.DataFrame(item_scores)
-        # print(item_scores_df.head())
-        # print(item_scores_df['topics_subset_similarity'].value_counts())
         # input()
 
-        columns_weights_dict = dict()
-        columns_weights_dict['topics_subset_similarity'] = 1
+        item_scores = []
+        for item_id, score in user_profile_dict['item_scores'].items():
+            item_scores.append({
+                self.item_id_col : item_id,
+                'sim_score' : round(score, 3)
+            })
+        # items_all = self.get_all_items(dataset='all')
+        # for item_id in items_all:
+        #     item_profile_dict = self.__get_item_profile(item_id)
+        #     # print("\n\t" + item_id)
+        #     # print(item_profile)
+        #     similarity_scores = self.__get_profile_similarity_score(user_profile_dict, 
+        #                                                             item_profile_dict)
+        #     item_scores.append({self.item_id_col: item_id,
+        #                         'topics_subset_similarity': similarity_scores['topics_subset_similarity'],
+        #                         'text_similarity' : similarity_scores['text_similarity']
+        #                        })
+
+        item_scores_df = pd.DataFrame(item_scores)
+        # print(item_scores_df['topics_subset_similarity'].value_counts())
+        # print(item_scores_df.head())        
+        # input()
+
+        # columns_weights_dict = dict()
+        # columns_weights_dict['topics_subset_similarity'] = 0.1
+        # columns_weights_dict['text_similarity'] = 0.9
 
         # print("weighted_avg...")
-        item_scores_df = self.__weighted_avg(item_scores_df, columns_weights_dict)
+        # item_scores_df = self.__weighted_avg(item_scores_df, columns_weights_dict)
+        # print(item_scores_df.head())        
+        # input()
 
-        # print("sorting...")
-        # Sort the items based upon similarity scores
-        item_scores_df = item_scores_df.sort_values(['sim_score', self.item_id_col],
-                                                    ascending=[0, 1])
+        if len(item_scores_df) > 0:
+            # print("sorting...")
+            # Sort the items based upon similarity scores
+            item_scores_df = item_scores_df.sort_values(['sim_score', self.item_id_col],
+                                                        ascending=[0, 1])
+        # print(item_scores_df.head())        
+        # input()
         item_scores_df.reset_index(drop=True, inplace=True)
         #print(item_scores_df[item_scores_df['sim_score'] > 0])
         
@@ -315,8 +461,8 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
         super().recommend_items(user_id)
 
         if os.path.exists(self.model_file):
-            # trained_models = joblib.load(self.model_file)
-            # LOGGER.debug("Loaded Trained Model")
+            self.trained_models = joblib.load(self.model_file)
+            LOGGER.debug("Loaded Trained Model")
             start_time = default_timer()
             known_interacted_items = self.items_for_evaluation[user_id]['known_interacted_items']            
             items_to_recommend_df = self.__generate_top_recommendations(user_id, known_interacted_items)
@@ -351,8 +497,8 @@ class ContentBasedRecommender(articles_rec_interface.ArticlesRecommender):
         super().evaluate(no_of_recs_to_eval, eval_res_file)
 
         if os.path.exists(self.model_file):
-            # trained_models = joblib.load(self.model_file)
-            # LOGGER.debug("Loaded Trained Model")
+            self.trained_models = joblib.load(self.model_file)
+            LOGGER.debug("Loaded Trained Model")
 
             start_time = default_timer()
             #Generate recommendations for the users
@@ -627,10 +773,8 @@ def main():
     no_of_recs_to_eval = [5, 10]
     recommender_obj = ContentBasedRecommender
 
-    # if args.meta_data:
-    #     print(args.meta_data)
-    #     kwargs['meta_data_file'] = args.meta_data
-    #     kwargs['meta_data_fields'] = ['url']#, 'title']
+    # kwargs['meta_data_file'] = args.meta_data
+    kwargs['meta_data_fields'] = ['url']#, 'title']
     
     model_name = 'models/' + kwargs['hold_out_strategy'] + '_content_based'
     model_dir = os.path.join(current_dir, model_name)
