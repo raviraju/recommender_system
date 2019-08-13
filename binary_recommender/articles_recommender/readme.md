@@ -93,6 +93,9 @@ total 1176
     mv models models_datasets/dataset_4/
     ```
 
+# Compare Evaluation Results
+* [Compare Models with various evaluation metrics](notebooks/Analyse_Evaluation.ipynb)
+
 # Individual APIs to experiment with train, evaluate and recommend
 
     python rec_user_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --train
