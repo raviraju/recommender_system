@@ -105,3 +105,9 @@ total 1176
     python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --train
     python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --eval
     python rec_item_based_cf.py train_test_datasets/dataset_4/train_2016Q1_2016Q2_2016Q3_2016Q4.csv train_test_datasets/dataset_4/test_2017Q1.csv --meta_data data/shared_articles.csv --recommend --user_id 6756039155228175109
+
+# Next Steps
+
+* Setup Rating Based Recommender leveraging `preference` value of each user, item as `ratings`, to consider user events such as VIEW, LIKE, COMMENT, BOOKMARK, SHARE
+
+* Model Transition Smoothness using cosine similarity bw context vectors as defined in [Learning to Model Relatedness for News Recommendation](https://www.dropbox.com/s/ctgqgve28kz6xzl/Paper_Learning%20to%20Model%20Relatedness%20for%20News%20Recommendation.pdf?dl=0) 
