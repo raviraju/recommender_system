@@ -2,7 +2,7 @@ gensim==3.8.0
 ipywidgets==7.5.1
 jupyter-contrib-nbextensions==0.5.1
 matplotlib-venn==0.11.5
-nltk==3.4.4
+nltk==3.4.5
 pip-autoremove==0.9.1
 pipdeptree==0.13.2
 plotly==4.0.0
