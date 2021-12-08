@@ -32,7 +32,7 @@ class UserBasedAgeItpRecommender(books_rec_interface.BooksRecommender,
                          user_id_col, item_id_col, **kwargs)
         self.kwargs = kwargs
     #######################################
-    def compute_user_similarity(self):
+    def __compute_user_similarity(self):
         """construct matrix using cosine similarity of user age and item type Preference"""
         #Compute User Item Matrix
         print()

@@ -34,10 +34,10 @@ class ContentBoostedUserCFRecommender(ContentBasedRecommender,
         self.model_file = os.path.join(self.model_dir,
                                        'content_boosted_user_cf_model.pkl')
     #######################################
-    def compute_uim(self):
+    def __compute_uim(self):
         """compute psedo uim by using similar items from content based recommendations"""
         print("Computing User Item Matrix...")
-        uim_df = super().compute_uim()
+        uim_df = super().__compute_uim()
         non_zero_count_before = np.count_nonzero(uim_df.as_matrix())
         # self.save_uim(uim_df)
 
