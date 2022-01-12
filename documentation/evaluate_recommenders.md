@@ -13,7 +13,7 @@
 
 - Mean Squared Error (MSE)
     - Mean Squared Error is similar to Mean Absolute Error only difference is that instead of taking absolute of error to cancel the negative sign we square it.
-    - MAE helps **penalizes results** so even a small difference will result in a big difference. This also suggests that if MSE is close to zero that means the recommender system really did well because otherwise, the MSE won’t be this small.
+    - MSE helps **penalizes results** so even a small difference will result in a big difference. This also suggests that if MSE is close to zero that means the recommender system really did well because otherwise, the MSE won’t be this small.
 
 - Root Mean Squared Error (RMSE)
     - MSE helps to negate the negative sign but it scales up the errors that cannot be compared to actual rating values due to different rating scales. 
